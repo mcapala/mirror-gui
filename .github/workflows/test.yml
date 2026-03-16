@@ -18,6 +18,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Install test catalog fixture
+        run: cp -r tests/fixtures/catalog-data catalog-data
+
       - name: Run unit and integration tests
         run: npm run test
 
@@ -34,6 +37,9 @@ jobs:
           node-version: 22
 
       - run: npm ci
+
+      - name: Install test catalog fixture
+        run: cp -r tests/fixtures/catalog-data catalog-data
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
