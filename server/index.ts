@@ -1544,10 +1544,14 @@ app.get('/api/operations/:id/logs', async (req: Request, res: Response) => {
 app.get('/api/operations/:id/details', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const operation = await getOperation(id);
-    
-    if (!operation) {
-      return res.status(404).json({ error: 'Operation not found' });
+    let operation: OperationRecord;
+    try {
+      operation = await getOperation(id);
+    } catch (e: any) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+        return res.status(404).json({ error: 'Operation not found' });
+      }
+      throw e;
     }
 
     const details = {
