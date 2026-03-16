@@ -11,7 +11,7 @@ test.describe('History', () => {
   });
 
   test('filter dropdown is present', async ({ page }) => {
-    await expect(page.getByText('All Operations').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel('Filter operations')).toBeVisible({ timeout: 15000 });
   });
 
   test('export button is present', async ({ page }) => {
