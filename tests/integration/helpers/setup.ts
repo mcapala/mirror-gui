@@ -16,7 +16,7 @@ async function ensureCatalogFixture(): Promise<void> {
   try {
     await fs.promises.access(path.join(catalogDataDest, 'catalog-index.json'));
   } catch {
-    await fs.promises.cp(catalogDataFixture, catalogDataDest, { recursive: true });
+    await fs.promises.cp(catalogDataFixture, catalogDataDest, { recursive: true, force: true });
   }
 }
 
