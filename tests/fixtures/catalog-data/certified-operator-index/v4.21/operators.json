@@ -1,0 +1,19 @@
+[
+  {
+    "name": "gpu-operator-certified",
+    "defaultChannel": "v24.9",
+    "channels": ["v24.9"],
+    "channelVersions": {
+      "v24.9": ["24.9.0"]
+    },
+    "channelVersionRanges": {
+      "v24.9": { "minVersion": "24.9.0", "maxVersion": "24.9.0" }
+    },
+    "availableVersions": ["24.9.0"],
+    "minVersion": "24.9.0",
+    "maxVersion": "24.9.0",
+    "catalog": "certified-operator-index",
+    "ocpVersion": "v4.21",
+    "catalogUrl": "registry.redhat.io/redhat/certified-operator-index:v4.21"
+  }
+]

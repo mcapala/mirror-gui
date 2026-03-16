@@ -1,0 +1,32 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { getTestApp } from './helpers/testApp.js';
+
+describe('Catalogs API', () => {
+  let request: Awaited<ReturnType<typeof getTestApp>>;
+
+  beforeAll(async () => {
+    request = await getTestApp();
+  });
+
+  describe('GET /api/catalogs', () => {
+    it('returns catalogs from prefetched data with operator counts', async () => {
+      const res = await request.get('/api/catalogs');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThanOrEqual(3);
+
+      const names = res.body.map((c: { name: string }) => c.name);
+      expect(names).toContain('redhat-operator-index');
+      expect(names).toContain('certified-operator-index');
+      expect(names).toContain('community-operator-index');
+
+      res.body.forEach((catalog: { name: string; url: string; description: string; operatorCount: number }) => {
+        expect(catalog).toHaveProperty('name');
+        expect(catalog).toHaveProperty('url');
+        expect(catalog).toHaveProperty('description');
+        expect(typeof catalog.operatorCount).toBe('number');
+        expect(catalog.operatorCount).toBeGreaterThanOrEqual(1);
+      });
+    });
+  });
+});

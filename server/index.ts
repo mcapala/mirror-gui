@@ -9,6 +9,22 @@ import { v4 as uuidv4 } from 'uuid';
 import compression from 'compression';
 import multer from 'multer';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { getChannelObjectsFromGeneratedOperator } from './catalogChannels.js';
+import { isPathAvailable } from './pathAvailability.js';
+import {
+  type ChannelObject,
+  parseOcMirrorVersion,
+  parseOcVersion,
+  getCatalogNameFromUrl,
+  getCatalogDescription,
+  compareVersionStrings,
+  sortVersions,
+  getQueryStringValue,
+  extractChannelNames,
+  extractVersionInfo,
+  getVersionsFromMetadata,
+  normalizeChannels,
+} from './utils.js';
 
 const fsp = fs.promises;
 
@@ -97,15 +113,12 @@ interface RunningProcess {
   child: ChildProcess;
 }
 
-interface ChannelObject {
-  name: string;
-  availableVersions?: string[];
-  minVersion?: string | null;
-  maxVersion?: string | null;
-}
-
 const app = express();
+export { app };
 const PORT = process.env.PORT || 3001;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DIST_DIR = path.join(__dirname, '../dist');
+const DEV_INDEX_HTML = path.join(__dirname, '../index.html');
 
 app.use(compression());
 app.use(cors());
@@ -121,6 +134,7 @@ const OPERATIONS_DIR = path.join(STORAGE_DIR, 'operations');
 const LOGS_DIR = path.join(STORAGE_DIR, 'logs');
 const CACHE_DIR = process.env.OC_MIRROR_CACHE_DIR || path.join(STORAGE_DIR, 'cache');
 const APP_ROOT_DIR = process.env.OC_MIRROR_WORKDIR || path.resolve(__dirname, '..');
+const DEV_CACHE_DIR = path.join(APP_ROOT_DIR, '.local-run', 'vite');
 const MIRROR_BASE_DIR = path.resolve(process.env.OC_MIRROR_BASE_MIRROR_DIR || path.join(STORAGE_DIR, 'mirrors'));
 const DEFAULT_MIRROR_DIR = path.join(MIRROR_BASE_DIR, 'default');
 const CUSTOM_MIRROR_DIR = path.join(MIRROR_BASE_DIR, 'custom');
@@ -138,7 +152,6 @@ async function ensureDirectories(): Promise<void> {
     CACHE_DIR,
     MIRROR_BASE_DIR,
     DEFAULT_MIRROR_DIR,
-    CUSTOM_MIRROR_DIR,
   ];
   for (const dir of dirs) {
     try {
@@ -221,35 +234,6 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
-
-function parseOcMirrorVersion(raw: string): string {
-  const match = raw.match(/GitVersion:\"(\d+\.\d+\.\d+)/);
-  if (match) {
-    return match[1];
-  }
-  const fallback = raw.match(/(\d+\.\d+\.\d+)/);
-  if (fallback) {
-    return fallback[1];
-  }
-  return 'Not available';
-}
-
-function parseOcVersion(raw: string): string {
-  const lines = raw.split('\n');
-  for (const line of lines) {
-    if (line.includes('Client Version:')) {
-      const match = line.match(/Client Version:\s*(\S+)/);
-      if (match) {
-        return match[1];
-      }
-    }
-  }
-  const fallback = raw.match(/(\d+\.\d+\.\d+)/);
-  if (fallback) {
-    return fallback[1];
-  }
-  return 'Not available';
-}
 
 async function getSystemInfo(): Promise<SystemInfo> {
   try {
@@ -407,7 +391,7 @@ async function queryOperatorCatalog(catalogUrl: string): Promise<{ name: string 
     const catalogData = await loadPreFetchedCatalogData();
     if (catalogData) {
       const catalogType = getCatalogNameFromUrl(catalogUrl);
-      const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.20';
+      const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.21';
       const key = `${catalogType}:${catalogVersion}`;
       
       if (catalogData.operators[key]) {
@@ -427,7 +411,7 @@ async function queryOperatorCatalog(catalogUrl: string): Promise<{ name: string 
 async function queryOperatorChannels(catalogUrl: string, operatorName: string): Promise<(string | { name: string })[]> {
   try {
     const catalogType = getCatalogNameFromUrl(catalogUrl);
-    const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.20';
+    const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.21';
 
     const actualChannels = await getActualChannelsFromCatalog(catalogType, catalogVersion, operatorName);
     if (actualChannels && actualChannels.length > 0) {
@@ -453,26 +437,6 @@ async function queryOperatorChannels(catalogUrl: string, operatorName: string): 
   }
 }
 
-function getCatalogNameFromUrl(catalogUrl: string): string {
-  if (catalogUrl.includes('redhat-operator-index')) {
-    return 'redhat-operator-index';
-  } else if (catalogUrl.includes('certified-operator-index')) {
-    return 'certified-operator-index';
-  } else if (catalogUrl.includes('community-operator-index')) {
-    return 'community-operator-index';
-  }
-  return 'redhat-operator-index';
-}
-
-function getCatalogDescription(catalogType: string): string {
-  const descriptions: Record<string, string> = {
-    'redhat-operator-index': 'Red Hat certified operators',
-    'certified-operator-index': 'Certified operators from partners',
-    'community-operator-index': 'Community operators'
-  };
-  return descriptions[catalogType] || 'Unknown catalog type';
-}
-
 async function getActualChannelsFromCatalog(catalogType: string, catalogVersion: string, operatorName: string): Promise<ChannelObject[] | null> {
   try {
     const catalogData = await loadPreFetchedCatalogData();
@@ -482,75 +446,17 @@ async function getActualChannelsFromCatalog(catalogType: string, catalogVersion:
       
       if (operators) {
         const operator = operators.find(op => op.name === operatorName);
-        if (operator) {
-          const channels: ChannelObject[] = [];
-          if (operator.channels && Array.isArray(operator.channels)) {
-            operator.channels.forEach((channelName: string | { name: string }) => {
-              if (typeof channelName === 'string') {
-                channels.push({ name: channelName });
-              }
-            });
-          }
-          
-          console.log(`Found ${channels.length} channels for ${operatorName} in ${catalogType}:${catalogVersion} using pre-fetched data`);
+        const channels = getChannelObjectsFromGeneratedOperator(operator);
+        if (channels) {
+          console.log(`Found ${channels.length} channels for ${operatorName} in ${catalogType}:${catalogVersion} using generated metadata`);
           return channels;
+        }
       }
     }
-  }
 
-  const catalogPath = path.join(__dirname, `../catalog-data/${catalogType}/${catalogVersion}/configs/${operatorName}/catalog.json`);
-
-  try {
-      await fsp.access(catalogPath);
-    } catch (error: any) {
-      console.log(`Catalog file not found for ${operatorName} in ${catalogType}:${catalogVersion}`);
     return null;
-  }
-
-  const catalogContent = await fsp.readFile(catalogPath, 'utf8');
-  const channels: ChannelObject[] = [];
-  const jsonObjects = catalogContent.split('}{');
-    
-  for (let i = 0; i < jsonObjects.length; i++) {
-    let jsonStr = jsonObjects[i];
-
-    if (i === 0) {
-      jsonStr += '}';
-    } else if (i === jsonObjects.length - 1) {
-      jsonStr = '{' + jsonStr;
-    } else {
-      jsonStr = '{' + jsonStr + '}';
-    }
-      
-    try {
-      const obj = JSON.parse(jsonStr);
-      if (obj.schema === 'olm.channel' && obj.name) {
-          channels.push({ name: obj.name });
-        }
-      } catch (parseError: any) {
-        continue;
-    }
-  }
-
-  if (channels.length === 0) {
-      try {
-        const singleObj = JSON.parse(catalogContent);
-        if (singleObj.schema === 'olm.channel' && singleObj.name) {
-          channels.push({ name: singleObj.name });
-        }
-      } catch (singleParseError: any) {
-      }
-  }
-
-  const uniqueChannels = channels.filter((channel, index, self) =>
-      index === self.findIndex(c => c.name === channel.name)
-    );
-    
-    console.log(`Found ${uniqueChannels.length} channels for ${operatorName} in ${catalogType}:${catalogVersion} using file reading`);
-    return uniqueChannels;
-    
   } catch (error: any) {
-    console.error(`Error reading catalog data for ${operatorName} in ${catalogType}:${catalogVersion}:`, error.message);
+    console.error(`Error reading generated catalog data for ${operatorName} in ${catalogType}:${catalogVersion}:`, error.message);
     return null;
   }
 }
@@ -861,10 +767,8 @@ app.get('/api/system/paths', async (req: Request, res: Response) => {
 
     const availablePaths = [];
     for (const pathInfo of commonPaths) {
-    try {
-      await fsp.mkdir(pathInfo.path, { recursive: true });
-      await fsp.access(pathInfo.path, fs.constants.W_OK);
-        pathInfo.available = true;
+      try {
+        pathInfo.available = await isPathAvailable(pathInfo.path);
       } catch {
         pathInfo.available = false;
       }
@@ -990,7 +894,7 @@ app.delete('/api/config/delete/:filename', async (req: Request, res: Response) =
 app.get('/api/channels', async (req: Request, res: Response) => {
   try {
     const channels = [
-      'stable-4.16', 'stable-4.17', 'stable-4.18', 'stable-4.19', 'stable-4.20'
+      'stable-4.16', 'stable-4.17', 'stable-4.18', 'stable-4.19', 'stable-4.20', 'stable-4.21'
     ];
     res.json(channels);
   } catch (error: any) {
@@ -1042,7 +946,7 @@ app.get('/api/operators', async (req: Request, res: Response) => {
       const catalogData = await loadPreFetchedCatalogData();
       if (catalogData) {
         const catalogType = getCatalogNameFromUrl(catalog as string);
-        const catalogVersion = (catalog as string).includes(':') ? (catalog as string).split(':')[1] : 'v4.20';
+        const catalogVersion = (catalog as string).includes(':') ? (catalog as string).split(':')[1] : 'v4.21';
         const key = `${catalogType}:${catalogVersion}`;
         
         const operators = catalogData.operators[key];
@@ -1134,203 +1038,6 @@ app.post('/api/operators/refresh-cache', async (req: Request, res: Response) => 
   }
 });
 
-function compareVersionStrings(a: string, b: string): number {
-  const getBaseVersion = (version: string): string => {
-    const match = version.match(/^(\d+\.\d+\.\d+)/);
-    return match ? match[1] : version;
-  };
-
-  const baseA = getBaseVersion(a);
-  const baseB = getBaseVersion(b);
-
-  const partsA = baseA.split('.').map(Number);
-  const partsB = baseB.split('.').map(Number);
-
-  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-    const partA = partsA[i] || 0;
-    const partB = partsB[i] || 0;
-
-    if (partA !== partB) {
-      return partA - partB;
-    }
-  }
-
-  return a.localeCompare(b);
-}
-
-function sortVersions(versions: string[]): string[] {
-  return Array.from(new Set(versions.filter(version => version && version.trim()))).sort(compareVersionStrings);
-}
-
-function getQueryStringValue(value: unknown): string | undefined {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    const first = value[0];
-    return typeof first === 'string' ? first : undefined;
-  }
-
-  return undefined;
-}
-
-function extractChannelNames(channels: (string | { name: string })[] | undefined): string[] {
-  if (!channels || !Array.isArray(channels)) {
-    return [];
-  }
-
-  if (channels.length === 1 && typeof channels[0] === 'string') {
-    if (channels[0].includes('\n')) {
-      return channels[0].split('\n').filter(line => line.trim()).map(channel => channel.trim());
-    }
-
-    if (channels[0].includes(' ')) {
-      return channels[0].split(' ').filter(channel => channel.trim()).map(channel => channel.trim());
-    }
-
-    return [channels[0]];
-  }
-
-  return channels
-    .map(channel => {
-      if (typeof channel === 'string') {
-        return channel;
-      }
-
-      if (channel && typeof channel === 'object' && channel.name) {
-        return channel.name;
-      }
-
-      return String(channel);
-    })
-    .filter(channel => channel.trim());
-}
-
-function extractVersionInfo(channelNames: string[], operatorName: string | null): { genericChannels: string[]; versions: string[] } {
-  const versions = new Set<string>();
-  const genericChannels: string[] = [];
-  
-  channelNames.forEach(channel => {
-    if (!channel || !channel.trim()) return;
-
-    if (operatorName && channel.includes(`${operatorName}.`)) {
-      const versionWithV = channel.match(new RegExp(`${operatorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.v(.+)`));
-      if (versionWithV) {
-        versions.add(versionWithV[1]);
-        return;
-      }
-
-      const versionWithoutV = channel.match(new RegExp(`${operatorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(.+)`));
-      if (versionWithoutV) {
-        versions.add(versionWithoutV[1]);
-        return;
-      }
-    }
-
-    if (operatorName) {
-      const operatorBase = operatorName.replace(/-certified$/, '').replace(/-community$/, '');
-      if (operatorBase !== operatorName && channel.includes(`${operatorBase}.`)) {
-        const versionWithV = channel.match(new RegExp(`${operatorBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.v(.+)`));
-        if (versionWithV) {
-          versions.add(versionWithV[1]);
-          return;
-        }
-
-        const versionWithoutV = channel.match(new RegExp(`${operatorBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(.+)`));
-        if (versionWithoutV) {
-          versions.add(versionWithoutV[1]);
-          return;
-        }
-      }
-    }
-
-    const genericVersionWithV = channel.match(/^[^.]+\.v(.+)/);
-    if (genericVersionWithV) {
-      versions.add(genericVersionWithV[1]);
-      return;
-    }
-
-    const genericVersionWithoutV = channel.match(/^[^.]+\.(\d+\.\d+\.\d+.*)/);
-    if (genericVersionWithoutV) {
-      versions.add(genericVersionWithoutV[1]);
-      return;
-    }
-
-    const versionMatch = channel.match(/^v?(\d+\.\d+\.\d+)/);
-    if (versionMatch) {
-      versions.add(versionMatch[1]);
-      return;
-    }
-
-    genericChannels.push(channel);
-  });
-
-  return {
-    genericChannels,
-    versions: sortVersions(Array.from(versions))
-  };
-}
-
-function getVersionsFromMetadata(operatorData: OperatorEntry, channelName?: string): string[] {
-  if (channelName && operatorData.channelVersions && Object.prototype.hasOwnProperty.call(operatorData.channelVersions, channelName)) {
-    return sortVersions(operatorData.channelVersions[channelName] || []);
-  }
-
-  if (!channelName) {
-    const allChannelVersions = Object.values(operatorData.channelVersions || {}).flat();
-    if (allChannelVersions.length > 0 || Object.keys(operatorData.channelVersions || {}).length > 0) {
-      return sortVersions(allChannelVersions);
-    }
-
-    if (operatorData.availableVersions) {
-      return sortVersions(operatorData.availableVersions);
-    }
-  }
-
-  const channelNames = extractChannelNames(operatorData.channels);
-  const { versions } = extractVersionInfo(channelNames, operatorData.name);
-  return versions;
-}
-
-function normalizeChannels(
-  channels: (string | { name: string })[] | undefined,
-  operatorName: string | null = null,
-  operatorData?: OperatorEntry,
-): ChannelObject[] {
-  let channelNames = extractChannelNames(channels);
-
-  if (channelNames.length === 0 && operatorData?.channelVersions) {
-    channelNames = Object.keys(operatorData.channelVersions);
-  }
-
-  if (channelNames.length === 0) {
-    return [];
-  }
-
-  if (operatorData?.channelVersions || operatorData?.channelVersionRanges) {
-    return channelNames.map(channel => {
-      const range = operatorData?.channelVersionRanges?.[channel];
-      const availableVersions = operatorData ? getVersionsFromMetadata(operatorData, channel) : [];
-      return {
-        name: channel,
-        availableVersions,
-        minVersion: range?.minVersion ?? null,
-        maxVersion: range?.maxVersion ?? null,
-      };
-    });
-  }
-
-  const { genericChannels, versions } = extractVersionInfo(channelNames, operatorName);
-  const channelObjects: ChannelObject[] = genericChannels.map(channel => ({ name: channel }));
-
-  if (channelObjects.length > 0 && versions.length > 0) {
-    channelObjects[0].availableVersions = versions;
-  }
-  
-  return channelObjects;
-}
-
 app.get('/api/operators/:operator/versions', async (req: Request, res: Response) => {
   try {
     const { operator } = req.params;
@@ -1341,7 +1048,7 @@ app.get('/api/operators/:operator/versions', async (req: Request, res: Response)
     if (catalogData) {
       if (catalog) {
         const catalogType = getCatalogNameFromUrl(catalog);
-        const catalogVersion = catalog.includes(':') ? catalog.split(':')[1] : 'v4.20';
+        const catalogVersion = catalog.includes(':') ? catalog.split(':')[1] : 'v4.21';
         const key = `${catalogType}:${catalogVersion}`;
         
         const operators = catalogData.operators[key];
@@ -1378,7 +1085,7 @@ app.get('/api/operator-channels/:operator', async (req: Request, res: Response) 
     if (catalogData) {
       if (catalogUrl) {
         const catalogType = getCatalogNameFromUrl(catalogUrl);
-        const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.20';
+        const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.21';
         const key = `${catalogType}:${catalogVersion}`;
         
         const operators = catalogData.operators[key];
@@ -1483,7 +1190,7 @@ app.get('/api/operators/:operator/dependencies', async (req: Request, res: Respo
 
     if (catalogUrl) {
       catalogType = getCatalogNameFromUrl(catalogUrl as string);
-      catalogVersion = (catalogUrl as string).includes(':') ? (catalogUrl as string).split(':')[1] : 'v4.19';
+      catalogVersion = (catalogUrl as string).includes(':') ? (catalogUrl as string).split(':')[1] : 'v4.21';
       
       dependencies = await getOperatorDependencies(catalogType, catalogVersion, operator);
     } else {
@@ -1837,10 +1544,14 @@ app.get('/api/operations/:id/logs', async (req: Request, res: Response) => {
 app.get('/api/operations/:id/details', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const operation = await getOperation(id);
-    
-    if (!operation) {
-      return res.status(404).json({ error: 'Operation not found' });
+    let operation: OperationRecord;
+    try {
+      operation = await getOperation(id);
+    } catch (e: any) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+        return res.status(404).json({ error: 'Operation not found' });
+      }
+      throw e;
     }
 
     const details = {
@@ -2068,21 +1779,43 @@ async function countFiles(dirPath: string): Promise<number> {
   return count;
 }
 
-app.use(express.static(path.join(__dirname, '../dist'), {
-  maxAge: '1d',
-  etag: true
-}));
+function configureProductionFrontend(): void {
+  app.use(express.static(DIST_DIR, {
+    maxAge: '1d',
+    etag: true
+  }));
 
-app.get('*', (req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
+  app.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(DIST_DIR, 'index.html'));
+  });
+}
 
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('Server error:', error);
-  res.status(500).json({ error: 'Internal server error' });
-});
+async function configureDevelopmentFrontend(): Promise<void> {
+  const { createServer } = await import('vite');
+  const vite = await createServer({
+    appType: 'custom',
+    cacheDir: DEV_CACHE_DIR,
+    server: {
+      middlewareMode: true
+    }
+  });
 
-app.listen(PORT, () => {
+  app.use(vite.middlewares);
+
+  app.get('*', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const template = await fsp.readFile(DEV_INDEX_HTML, 'utf8');
+      const html = await vite.transformIndexHtml(req.originalUrl, template);
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+    } catch (caughtError) {
+      const error = caughtError as Error;
+      vite.ssrFixStacktrace(error);
+      next(error);
+    }
+  });
+}
+
+function logStartup(): void {
   console.log(`OC Mirror Web App server running on port ${PORT}`);
   console.log(`Storage directory: ${STORAGE_DIR}`);
   console.log(`Configs directory: ${CONFIGS_DIR}`);
@@ -2094,4 +1827,32 @@ app.listen(PORT, () => {
   console.log(`Authfile path: ${AUTHFILE_PATH}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
   console.log(`API endpoints available at: http://localhost:${PORT}/api/*`);
-});
+
+  if (!IS_PRODUCTION) {
+    console.log(`Development UI available at: http://localhost:${PORT}`);
+  }
+}
+
+async function startServer(): Promise<void> {
+  if (IS_PRODUCTION) {
+    configureProductionFrontend();
+  } else {
+    await configureDevelopmentFrontend();
+  }
+
+  app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error('Server error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  app.listen(PORT, () => {
+    logStartup();
+  });
+}
+
+if (process.env.VITEST !== 'true') {
+  startServer().catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
+}

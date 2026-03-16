@@ -1,0 +1,19 @@
+[
+  {
+    "name": "argocd-operator",
+    "defaultChannel": "alpha",
+    "channels": ["alpha"],
+    "channelVersions": {
+      "alpha": ["0.12.0"]
+    },
+    "channelVersionRanges": {
+      "alpha": { "minVersion": "0.12.0", "maxVersion": "0.12.0" }
+    },
+    "availableVersions": ["0.12.0"],
+    "minVersion": "0.12.0",
+    "maxVersion": "0.12.0",
+    "catalog": "community-operator-index",
+    "ocpVersion": "v4.21",
+    "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.21"
+  }
+]

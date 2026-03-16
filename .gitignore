@@ -92,3 +92,17 @@ __pycache__/
 # Pre-fetched operator catalog data (large files, generated during build)
 catalog-data/*
 !catalog-data/.gitkeep
+
+# Development-only runtime and audit artifacts
+.local-run/
+audit-reports/
+mirror/
+start-local.sh
+clean-stale-ports.sh
+scripts/audit-fetch-catalogs.mjs
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/

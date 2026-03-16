@@ -30,7 +30,7 @@ chmod +x start-app.sh
 The script auto-detects your architecture (AMD64/ARM64), pulls the image from Quay.io, and starts the app.
 It validates `pull-secret/pull-secret.json` before launching the container.
 
-Open **http://localhost:3000** in your browser.
+Open the URL printed by the script in your browser. By default it uses **http://localhost:3000**, but it automatically selects another free host port if `3000` is already in use. If a different port is chosen, use the `Web UI:` line printed by the script output.
 
 Manage with: `./start-app.sh --stop`, `./start-app.sh --restart`, `./start-app.sh --status`, `./start-app.sh --logs`.
 
@@ -39,25 +39,19 @@ Manage with: `./start-app.sh --stop`, `./start-app.sh --restart`, `./start-app.s
 ```bash
 chmod +x container-run.sh
 
-# First run: build with catalog fetching (required for operator data)
-./container-run.sh --fetch-catalogs
-
-# Subsequent runs (faster, uses cached catalogs)
+# Build and run locally (fetches catalogs, builds image, starts container)
 ./container-run.sh
+
+# Build only, without starting the container
+./container-run.sh --build-only
+
+# Run a previously built image without rebuilding or fetching catalogs
+./container-run.sh --run-only
 ```
 
-Manage with: `./container-run.sh --stop`, `./container-run.sh --logs`, `./container-run.sh --build-only`.
+Every build path runs `fetch-catalogs-host.sh` to pull the latest Red Hat, Certified, and Community operator catalogs (OCP 4.16-4.21) before building the image. Use `--run-only` to skip fetching and building when you already have a local image.
 
-### Updating operator catalogs
-
-The pre-built images ship with operator catalog data for OCP 4.16-4.20. To refresh catalogs with the latest operator versions (e.g. after a new OCP release), run:
-
-```bash
-chmod +x fetch-catalogs-host.sh
-./fetch-catalogs-host.sh
-```
-
-This fetches real catalog data from Red Hat, Certified, and Community operator indexes directly on the host using Podman. Catalogs are cached locally and reused unless they are older than 24 hours. Use `./fetch-catalogs-host.sh --force` to ignore the freshness window and force a full refetch. After fetching, rebuild the container with `./container-run.sh` to include the updated data.
+Manage with: `./container-run.sh --stop`, `./container-run.sh --logs`, `./container-run.sh --status`.
 
 ---
 
@@ -73,7 +67,7 @@ System health overview, operation statistics, recent operations, and quick actio
 
 Visual configuration builder with tabs for Platform Channels, Operators, Additional Images, YAML Preview, and file upload.
 
-**Adding operators** -- Select from pre-fetched catalogs (OCP 4.16-4.20) with Red Hat, Certified, and Community operator indexes. Automatic dependency detection with one-click add.
+**Adding operators** -- Select from pre-fetched catalogs (OCP 4.16-4.21) with Red Hat, Certified, and Community operator indexes. Automatic dependency detection with one-click add.
 
 ![Add Operator](docs/screenshots/config-add-operator.png)
 
@@ -109,8 +103,8 @@ Configure general preferences, registry credentials, proxy settings, and system 
 
 | | |
 |---|---|
-| **oc-mirror** | v2.x |
-| **OpenShift** | 4.16, 4.17, 4.18, 4.19, 4.20 |
+| **oc-mirror** | v2 |
+| **OpenShift** | 4.16, 4.17, 4.18, 4.19, 4.20, 4.21 |
 | **Container runtime** | Podman 4.0+ |
 | **Architecture** | AMD64 (x86_64), ARM64 (aarch64) |
 

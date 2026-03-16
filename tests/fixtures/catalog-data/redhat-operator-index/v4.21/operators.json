@@ -1,0 +1,55 @@
+[
+  {
+    "name": "advanced-cluster-management",
+    "defaultChannel": "release-2.16",
+    "channels": ["release-2.15", "release-2.16"],
+    "channelVersions": {
+      "release-2.15": ["2.15.0", "2.15.1"],
+      "release-2.16": ["2.16.0"]
+    },
+    "channelVersionRanges": {
+      "release-2.15": { "minVersion": "2.15.0", "maxVersion": "2.15.1" },
+      "release-2.16": { "minVersion": "2.16.0", "maxVersion": "2.16.0" }
+    },
+    "availableVersions": ["2.15.0", "2.15.1", "2.16.0"],
+    "minVersion": "2.15.0",
+    "maxVersion": "2.16.0",
+    "catalog": "redhat-operator-index",
+    "ocpVersion": "v4.21",
+    "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
+  },
+  {
+    "name": "openshift-pipelines-operator-rh",
+    "defaultChannel": "latest",
+    "channels": ["latest"],
+    "channelVersions": {
+      "latest": ["1.16.0", "1.16.1"]
+    },
+    "channelVersionRanges": {
+      "latest": { "minVersion": "1.16.0", "maxVersion": "1.16.1" }
+    },
+    "availableVersions": ["1.16.0", "1.16.1"],
+    "minVersion": "1.16.0",
+    "maxVersion": "1.16.1",
+    "catalog": "redhat-operator-index",
+    "ocpVersion": "v4.21",
+    "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
+  },
+  {
+    "name": "odf-operator",
+    "defaultChannel": "stable-4.21",
+    "channels": ["stable-4.21"],
+    "channelVersions": {
+      "stable-4.21": ["4.21.0"]
+    },
+    "channelVersionRanges": {
+      "stable-4.21": { "minVersion": "4.21.0", "maxVersion": "4.21.0" }
+    },
+    "availableVersions": ["4.21.0"],
+    "minVersion": "4.21.0",
+    "maxVersion": "4.21.0",
+    "catalog": "redhat-operator-index",
+    "ocpVersion": "v4.21",
+    "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
+  }
+]
