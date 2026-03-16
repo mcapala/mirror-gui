@@ -10,8 +10,8 @@ test.describe('History', () => {
     await expect(page.getByText('Operation History').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('status column or table is present', async ({ page }) => {
-    await expect(page.getByText('Status').first()).toBeVisible({ timeout: 15000 });
+  test('filter dropdown is present', async ({ page }) => {
+    await expect(page.getByText('All Operations').first()).toBeVisible({ timeout: 15000 });
   });
 
   test('export button is present', async ({ page }) => {

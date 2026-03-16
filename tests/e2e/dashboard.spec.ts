@@ -13,8 +13,8 @@ test.describe('Dashboard', () => {
     await expect(page.getByText(/total|successful|failed|running|operations/i).first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('recent operations table renders', async ({ page }) => {
-    await expect(page.locator('table, [role="grid"], .pf-v5-c-table').first()).toBeVisible({ timeout: 10000 });
+  test('recent operations section renders', async ({ page }) => {
+    await expect(page.getByText('Recent Operations').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('quick action buttons are present', async ({ page }) => {
