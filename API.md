@@ -1,6 +1,6 @@
 # OC Mirror v2 Web Application - API Documentation
 
-**Current Version: v4.3**
+**Current Version: v4.4**
 
 ## Overview
 

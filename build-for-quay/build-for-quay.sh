@@ -200,7 +200,7 @@ show_usage() {
       echo
       echo "Examples:"
       echo "  $0                    # Build and push with default version"
-      echo "  $0 --tag v4.3         # Build and push with custom tag"
+      echo "  $0 --tag v4.4         # Build and push with custom tag"
       echo "  $0 --version 4.4      # Build and push with custom version"
       echo "  $0 --no-cleanup       # Build and push without cleanup"
 }

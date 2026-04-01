@@ -34,6 +34,11 @@ test.describe('Navigation', () => {
     await expect(page.getByText('OC Mirror v2 Web Application')).toBeVisible();
   });
 
+  test('masthead shows current app version badge', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText('v4.4')).toBeVisible();
+  });
+
   test('Red Hat logo is visible', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('img').first()).toBeVisible();
