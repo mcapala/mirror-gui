@@ -22,6 +22,7 @@ import {
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
+  CogIcon,
   CheckCircleIcon,
   TimesCircleIcon,
   InProgressIcon,
