@@ -14,7 +14,6 @@ import { isPathAvailable } from './pathAvailability.js';
 import {
   type ChannelObject,
   parseOcMirrorVersion,
-  parseOcVersion,
   getCatalogNameFromUrl,
   getCatalogDescription,
   compareVersionStrings,
@@ -48,7 +47,6 @@ interface OperationRecord {
 
 interface SystemInfo {
   ocMirrorVersion: string;
-  ocVersion: string;
   systemArchitecture: string;
   availableDiskSpace: number;
   totalDiskSpace: number;
@@ -237,9 +235,8 @@ const upload = multer({ storage });
 
 async function getSystemInfo(): Promise<SystemInfo> {
   try {
-    const [ocMirrorVersion, ocVersion, systemArch] = await Promise.all([
+    const [ocMirrorVersion, systemArch] = await Promise.all([
       execAsync('oc-mirror version').catch(() => ({ stdout: 'Not available', stderr: '' })),
-      execAsync('oc version --client').catch(() => ({ stdout: 'Not available', stderr: '' })),
       execAsync('uname -m').catch(() => ({ stdout: 'Not available', stderr: '' }))
     ]);
 
@@ -251,7 +248,6 @@ async function getSystemInfo(): Promise<SystemInfo> {
 
     return {
       ocMirrorVersion: parseOcMirrorVersion(ocMirrorVersion.stdout.trim()),
-      ocVersion: parseOcVersion(ocVersion.stdout.trim()),
       systemArchitecture: systemArch.stdout.trim(),
       availableDiskSpace: availableSpace,
       totalDiskSpace: totalSpace
@@ -260,7 +256,6 @@ async function getSystemInfo(): Promise<SystemInfo> {
     console.error('Error getting system info:', error);
     return {
       ocMirrorVersion: 'Not available',
-      ocVersion: 'Not available',
       systemArchitecture: 'Not available',
       availableDiskSpace: 0,
       totalDiskSpace: 0
@@ -322,8 +317,7 @@ async function getOperation(operationId: string): Promise<OperationRecord> {
 }
 
 async function getSystemHealth(): Promise<string> {
-  let ocOk = false, ocMirrorOk = false;
-  try { await execAsync('oc version --client'); ocOk = true; } catch {}
+  let ocMirrorOk = false;
   try { await execAsync('oc-mirror version'); ocMirrorOk = true; } catch {}
 
   let diskOk = false;
@@ -335,7 +329,7 @@ async function getSystemHealth(): Promise<string> {
     diskOk = availableSpace > 1_000_000_000;
   } catch {}
 
-  if (!ocOk || !ocMirrorOk) return 'error';
+  if (!ocMirrorOk) return 'error';
   if (!diskOk) return 'degraded';
   return 'healthy';
 }
@@ -584,6 +578,15 @@ const operatorCache: OperatorCache = {
   cacheTimeout: 3600000
 };
 
+/**
+ * Integration tests only: when `process.env.VITEST` is set, the next matching request
+ * throws before normal handling so the route `catch` returns 500 (not fake fallback data).
+ */
+export const __routeTestHooks = {
+  failNextCatalogsGet: false,
+  failNextOperatorsGet: false
+};
+
 function isCacheValid(): boolean {
   return operatorCache.lastUpdate !== null && 
          (Date.now() - operatorCache.lastUpdate) < operatorCache.cacheTimeout;
@@ -728,7 +731,6 @@ app.get('/api/system/status', async (req: Request, res: Response) => {
     const systemHealth = await getSystemHealth();
     res.json({
       ocMirrorVersion: systemInfo.ocMirrorVersion,
-      ocVersion: systemInfo.ocVersion,
       systemHealth
     });
   } catch (error: any) {
@@ -904,6 +906,10 @@ app.get('/api/channels', async (req: Request, res: Response) => {
 
 app.get('/api/catalogs', async (req: Request, res: Response) => {
   try {
+    if (process.env.VITEST === 'true' && __routeTestHooks.failNextCatalogsGet) {
+      __routeTestHooks.failNextCatalogsGet = false;
+      throw new Error('forced failure for catalogs route (test)');
+    }
     const cache = await updateOperatorCache();
     const catalogs = cache.catalogs.map(catalog => ({
       name: catalog.name,
@@ -914,32 +920,16 @@ app.get('/api/catalogs', async (req: Request, res: Response) => {
     res.json(catalogs);
   } catch (error: any) {
     console.error('Error fetching catalogs:', error);
-    const fallbackCatalogs = [
-      {
-        name: 'redhat-operator-index',
-        url: 'registry.redhat.io/redhat/redhat-operator-index',
-        description: 'Red Hat certified operators',
-        operatorCount: 0
-      },
-      {
-        name: 'certified-operator-index',
-        url: 'registry.redhat.io/redhat/certified-operator-index',
-        description: 'Certified operators from partners',
-        operatorCount: 0
-      },
-      {
-        name: 'community-operator-index',
-        url: 'registry.redhat.io/redhat/community-operator-index',
-        description: 'Community operators',
-        operatorCount: 0
-      }
-    ];
-    res.json(fallbackCatalogs);
+    res.status(500).json({ error: 'Failed to get catalogs' });
   }
 });
 
 app.get('/api/operators', async (req: Request, res: Response) => {
   try {
+    if (process.env.VITEST === 'true' && __routeTestHooks.failNextOperatorsGet) {
+      __routeTestHooks.failNextOperatorsGet = false;
+      throw new Error('forced failure for operators route (test)');
+    }
     const { catalog, detailed } = req.query;
 
     if (catalog) {
@@ -1001,29 +991,7 @@ app.get('/api/operators', async (req: Request, res: Response) => {
     }
   } catch (error: any) {
     console.error('Error fetching operators:', error);
-    const fallbackOperators = [
-      'advanced-cluster-management',
-      'elasticsearch-operator',
-      'kiali-ossm',
-      'servicemeshoperator',
-      'openshift-pipelines-operator-rh',
-      'serverless-operator',
-      'jaeger-product',
-      'rhods-operator',
-      'openshift-gitops-operator',
-      'openshift-logging',
-      'openshift-monitoring',
-      'cluster-logging',
-      'local-storage-operator',
-      'node-feature-discovery-operator',
-      'performance-addon-operator',
-      'ptp-operator',
-      'sriov-network-operator',
-      'bare-metal-event-relay',
-      'cluster-baremetal-operator',
-      'metal3-operator'
-    ];
-    res.json(fallbackOperators);
+    res.status(500).json({ error: 'Failed to get operators' });
   }
 });
 

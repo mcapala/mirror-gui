@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseOcMirrorVersion,
-  parseOcVersion,
   getCatalogNameFromUrl,
   getCatalogDescription,
   compareVersionStrings,
@@ -26,22 +25,6 @@ describe('parseOcMirrorVersion', () => {
 
   it('returns "Not available" when no version found', () => {
     expect(parseOcMirrorVersion('no version here')).toBe('Not available');
-  });
-});
-
-describe('parseOcVersion', () => {
-  it('extracts from Client Version line', () => {
-    const output = `Client Version: 4.15.0
-Server Version: 4.14.0`;
-    expect(parseOcVersion(output)).toBe('4.15.0');
-  });
-
-  it('uses fallback regex when Client Version not present', () => {
-    expect(parseOcVersion('4.21.0')).toBe('4.21.0');
-  });
-
-  it('returns "Not available" when no version found', () => {
-    expect(parseOcVersion('oc version')).toBe('Not available');
   });
 });
 

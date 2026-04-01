@@ -13,7 +13,7 @@ LOG_FILE="${LOG_DIR}/build-$(date +%Y%m%d-%H%M%S).log"
 
 read_project_version() {
     if [ ! -f "${PACKAGE_JSON}" ]; then
-        echo "4.3"
+        echo "4.4"
         return 0
     fi
 
@@ -23,7 +23,7 @@ read_project_version() {
     if [ -n "${package_version}" ]; then
         echo "${package_version}"
     else
-        echo "4.3"
+        echo "4.4"
     fi
 }
 

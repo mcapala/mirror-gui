@@ -8,8 +8,8 @@ set -e
 
 # Optional behavior flags (can be set via env vars or script args)
 # - BUILD_NO_CACHE=true -> pass --no-cache to podman build
-# - IMAGE_VERSION=4.3   -> set OCI image version label during build
-# - BUILD_VERSION=4.3   -> compatibility alias for IMAGE_VERSION
+# - IMAGE_VERSION=4.4   -> set OCI image version label during build
+# - BUILD_VERSION=4.4   -> compatibility alias for IMAGE_VERSION
 BUILD_NO_CACHE="${BUILD_NO_CACHE:-false}"
 IMAGE_VERSION="${IMAGE_VERSION:-${BUILD_VERSION:-}}"
 
@@ -405,14 +405,14 @@ show_help() {
     echo ""
     echo "Environment Variables:"
     echo "  BUILD_NO_CACHE=true        Disable build cache when building the container image"
-    echo "  IMAGE_VERSION=4.3          Set OCI image version label during build"
-    echo "  BUILD_VERSION=4.3          Compatibility alias for IMAGE_VERSION"
+    echo "  IMAGE_VERSION=4.4          Set OCI image version label during build"
+    echo "  BUILD_VERSION=4.4          Compatibility alias for IMAGE_VERSION"
     echo "  WEB_PORT=$DEFAULT_WEB_PORT            Override the host port used for the web UI"
     echo ""
     echo "Examples:"
     echo "  $0"
     echo "  $0 --build-only"
-    echo "  $0 --build-only --version 4.3"
+    echo "  $0 --build-only --version 4.4"
     echo "  $0 --build-only --no-cache"
     echo "  WEB_PORT=3002 $0 --run-only"
     echo ""

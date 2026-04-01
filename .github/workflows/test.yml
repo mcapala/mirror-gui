@@ -21,6 +21,12 @@ jobs:
       - name: Install test catalog fixture
         run: cp -rT tests/fixtures/catalog-data catalog-data
 
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
       - name: Run unit and integration tests
         run: npm run test
 
@@ -73,3 +79,15 @@ jobs:
               echo "Skipping $script (not present, gitignored)"
             fi
           done
+
+  container-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Podman
+        run: sudo apt-get update && sudo apt-get install -y podman
+
+      - name: Build container image
+        run: podman build -t oc-mirror-web-app:ci .

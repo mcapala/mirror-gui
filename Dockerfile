@@ -2,7 +2,7 @@ FROM node:22-slim AS builder
 
 ARG BUILD_DATE=""
 ARG VCS_REF=""
-ARG VERSION=4.3
+ARG VERSION=4.4
 
 WORKDIR /app
 RUN npm install -g npm@11.6.2
@@ -31,46 +31,54 @@ RUN mkdir -p /app/catalog-data-minimal && \
     done
 RUN npx vite build
 
+# Fetch oc-mirror only; wget/tar stay in this stage (not copied to production).
+FROM node:22-slim AS downloader
+
+ARG TARGETARCH
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        wget ca-certificates tar libgpgme11 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV OCMIRROR_URL_AMD64="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/oc-mirror.tar.gz"
+ENV OCMIRROR_URL_ARM64="https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/stable/oc-mirror.rhel9.tar.gz"
+
+RUN set -eux; \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      OCMIRROR_URL=$OCMIRROR_URL_ARM64; \
+    else \
+      OCMIRROR_URL=$OCMIRROR_URL_AMD64; \
+    fi; \
+    wget -O /tmp/oc-mirror.tar.gz "$OCMIRROR_URL"; \
+    tar -xzf /tmp/oc-mirror.tar.gz -C /usr/local/bin/; \
+    chmod +x /usr/local/bin/oc-mirror; \
+    rm /tmp/oc-mirror.tar.gz; \
+    which oc-mirror; \
+    oc-mirror version
+
 FROM node:22-slim AS production
 
 ARG BUILD_DATE=""
 ARG VCS_REF=""
-ARG VERSION=4.3
-ARG TARGETARCH
+ARG VERSION=4.4
 
-RUN npm install -g npm@11.6.2
+COPY --from=downloader /usr/local/bin/oc-mirror /usr/local/bin/oc-mirror
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl wget bash tar gzip ca-certificates libgpgme11 jq && \
+        bash ca-certificates libgpgme11 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-ENV OC_URL_AMD64="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz"
-ENV OC_URL_ARM64="https://mirror.openshift.com/pub/openshift-v4/multi/clients/ocp/stable/arm64/openshift-client-linux.tar.gz"
-ENV OCMIRROR_URL_AMD64="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/oc-mirror.tar.gz"
-ENV OCMIRROR_URL_ARM64="https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/stable/oc-mirror.rhel9.tar.gz"
-
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-      OC_URL=$OC_URL_ARM64; \
-      OCMIRROR_URL=$OCMIRROR_URL_ARM64; \
-    else \
-      OC_URL=$OC_URL_AMD64; \
-      OCMIRROR_URL=$OCMIRROR_URL_AMD64; \
-    fi && \
-    wget -O /tmp/oc.tar.gz "$OC_URL" && \
-    tar -xzf /tmp/oc.tar.gz -C /usr/local/bin/ && \
-    chmod +x /usr/local/bin/oc && \
-    rm /tmp/oc.tar.gz && \
-    wget -O /tmp/oc-mirror.tar.gz "$OCMIRROR_URL" && \
-    tar -xzf /tmp/oc-mirror.tar.gz -C /usr/local/bin/ && \
-    chmod +x /usr/local/bin/oc-mirror && \
-    rm /tmp/oc-mirror.tar.gz && \
-    which oc && oc version --client && \
-    which oc-mirror && oc-mirror version && \
-    which node && node --version && \
-    which npm && npm --version && \
-    which curl && curl --version
+RUN set -eux; \
+    which oc-mirror; \
+    oc-mirror version; \
+    which node; \
+    node --version; \
+    which npm; \
+    npm --version
 
 WORKDIR /app
 

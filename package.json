@@ -1,6 +1,6 @@
 {
   "name": "oc-mirror-web-app",
-  "version": "4.3",
+  "version": "4.4",
   "description": "Web application for OpenShift Container Platform mirroring operations using oc-mirror v2",
   "license": "Apache-2.0",
   "repository": {
@@ -23,7 +23,7 @@
     "preview": "vite preview",
     "server": "tsx watch server/index.ts",
     "server:build": "tsc -p server/tsconfig.json",
-    "audit:fetch-catalogs": "python3 scripts/catalog_metadata.py audit",
+    "audit:fetch-catalogs": "node scripts/audit-fetch-catalogs.mjs",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "format": "prettier --write src/**/*.{ts,tsx,css}",

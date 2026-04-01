@@ -51,7 +51,6 @@ interface Operation {
 
 interface SystemStatus {
   ocMirrorVersion: string;
-  ocVersion: string;
   systemHealth: string;
 }
 
@@ -146,7 +145,6 @@ const Dashboard: React.FC = () => {
   const [recentOperations, setRecentOperations] = useState<Operation[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     ocMirrorVersion: '',
-    ocVersion: '',
     systemHealth: 'unknown',
   });
   const [loading, setLoading] = useState(true);
@@ -206,7 +204,7 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardBody>
             <Grid hasGutter>
-              <GridItem md={4}>
+              <GridItem md={6}>
                 <Card isPlain>
                   <CardBody>
                     <DescriptionList>
@@ -223,24 +221,7 @@ const Dashboard: React.FC = () => {
                   </CardBody>
                 </Card>
               </GridItem>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          <CogIcon style={{ marginRight: '0.5rem' }} />
-                          OC Version
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {systemStatus.ocVersion || 'Not available'}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-              <GridItem md={4}>
+              <GridItem md={6}>
                 <Card isPlain>
                   <CardBody>
                     <DescriptionList>

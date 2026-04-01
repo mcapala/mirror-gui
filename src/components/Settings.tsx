@@ -64,7 +64,6 @@ interface Settings {
 
 interface SystemInfo {
   ocMirrorVersion: string;
-  ocVersion: string;
   systemArchitecture: string;
   availableDiskSpace: string | number;
   totalDiskSpace: string | number;
@@ -94,7 +93,6 @@ const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<Settings>({ ...defaultSettings });
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({
     ocMirrorVersion: '',
-    ocVersion: '',
     systemArchitecture: '',
     availableDiskSpace: '',
     totalDiskSpace: '',
@@ -420,14 +418,6 @@ const SettingsPage: React.FC = () => {
                         <CardTitle>OC Mirror Version</CardTitle>
                       </CardHeader>
                       <CardBody>{systemInfo.ocMirrorVersion || 'Not available'}</CardBody>
-                    </Card>
-                  </GridItem>
-                  <GridItem span={6}>
-                    <Card isPlain>
-                      <CardHeader>
-                        <CardTitle>OC Version</CardTitle>
-                      </CardHeader>
-                      <CardBody>{systemInfo.ocVersion || 'Not available'}</CardBody>
                     </Card>
                   </GridItem>
                   <GridItem span={6}>

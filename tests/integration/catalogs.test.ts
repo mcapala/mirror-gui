@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { __routeTestHooks } from '../../server/index.js';
 import { getTestApp } from './helpers/testApp.js';
 
 describe('Catalogs API', () => {
@@ -27,6 +28,14 @@ describe('Catalogs API', () => {
         expect(typeof catalog.operatorCount).toBe('number');
         expect(catalog.operatorCount).toBeGreaterThanOrEqual(1);
       });
+    });
+
+    it('returns 500 when the catalogs route handler fails', async () => {
+      __routeTestHooks.failNextCatalogsGet = true;
+      const res = await request.get('/api/catalogs');
+      expect(res.status).toBe(500);
+      expect(res.body).toHaveProperty('error');
+      expect(String(res.body.error)).toMatch(/Failed to get catalogs/i);
     });
   });
 });

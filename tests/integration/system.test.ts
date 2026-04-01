@@ -28,7 +28,6 @@ describe('System API', () => {
       const res = await request.get('/api/system/info');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('ocMirrorVersion');
-      expect(res.body).toHaveProperty('ocVersion');
       expect(res.body).toHaveProperty('systemArchitecture');
       expect(typeof res.body.availableDiskSpace).toBe('number');
       expect(typeof res.body.totalDiskSpace).toBe('number');
@@ -40,7 +39,6 @@ describe('System API', () => {
       const res = await request.get('/api/system/status');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('ocMirrorVersion');
-      expect(res.body).toHaveProperty('ocVersion');
       expect(res.body).toHaveProperty('systemHealth');
       expect(['healthy', 'degraded', 'error']).toContain(res.body.systemHealth);
     });
