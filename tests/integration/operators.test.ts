@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { __routeTestHooks } from '../../server/index.js';
 import { getTestApp } from './helpers/testApp.js';
 
 describe('Operators API', () => {
@@ -40,6 +41,14 @@ describe('Operators API', () => {
       expect(acm.defaultChannel).toBe('release-2.16');
       expect(acm.allChannels).toContain('release-2.15');
       expect(acm.allChannels).toContain('release-2.16');
+    });
+
+    it('returns 500 when the operators route handler fails (no catalog filter)', async () => {
+      __routeTestHooks.failNextOperatorsGet = true;
+      const res = await request.get('/api/operators');
+      expect(res.status).toBe(500);
+      expect(res.body).toHaveProperty('error');
+      expect(String(res.body.error)).toMatch(/Failed to get operators/i);
     });
   });
 
