@@ -25,23 +25,6 @@ export function parseOcMirrorVersion(raw: string): string {
   return 'Not available';
 }
 
-export function parseOcVersion(raw: string): string {
-  const lines = raw.split('\n');
-  for (const line of lines) {
-    if (line.includes('Client Version:')) {
-      const match = line.match(/Client Version:\s*(\S+)/);
-      if (match) {
-        return match[1];
-      }
-    }
-  }
-  const fallback = raw.match(/(\d+\.\d+\.\d+)/);
-  if (fallback) {
-    return fallback[1];
-  }
-  return 'Not available';
-}
-
 export function getCatalogNameFromUrl(catalogUrl: string): string {
   if (catalogUrl.includes('redhat-operator-index')) {
     return 'redhat-operator-index';

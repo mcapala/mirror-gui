@@ -107,7 +107,6 @@ Get system information and health status.
   "success": true,
   "data": {
     "ocMirrorVersion": "2.0.0",
-    "ocVersion": "4.18.0",
     "systemArch": "x86_64",
     "availableSpace": 107374182400,
     "totalSpace": 500107862016,

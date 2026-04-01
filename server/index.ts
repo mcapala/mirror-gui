@@ -47,7 +47,6 @@ interface OperationRecord {
 
 interface SystemInfo {
   ocMirrorVersion: string;
-  ocVersion: string;
   systemArchitecture: string;
   availableDiskSpace: number;
   totalDiskSpace: number;
@@ -249,7 +248,6 @@ async function getSystemInfo(): Promise<SystemInfo> {
 
     return {
       ocMirrorVersion: parseOcMirrorVersion(ocMirrorVersion.stdout.trim()),
-      ocVersion: 'Not available',
       systemArchitecture: systemArch.stdout.trim(),
       availableDiskSpace: availableSpace,
       totalDiskSpace: totalSpace
@@ -258,7 +256,6 @@ async function getSystemInfo(): Promise<SystemInfo> {
     console.error('Error getting system info:', error);
     return {
       ocMirrorVersion: 'Not available',
-      ocVersion: 'Not available',
       systemArchitecture: 'Not available',
       availableDiskSpace: 0,
       totalDiskSpace: 0
@@ -734,7 +731,6 @@ app.get('/api/system/status', async (req: Request, res: Response) => {
     const systemHealth = await getSystemHealth();
     res.json({
       ocMirrorVersion: systemInfo.ocMirrorVersion,
-      ocVersion: systemInfo.ocVersion,
       systemHealth
     });
   } catch (error: any) {
