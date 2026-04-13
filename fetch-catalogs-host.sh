@@ -288,28 +288,6 @@ EOF
         done
     done
     
-    # Create master dependencies.json by merging all per-catalog dependency files
-    print_status "Creating master dependencies index..."
-    echo '{}' > "${CATALOG_DATA_DIR}/dependencies.json"
-    
-    for ocp_version in "${OCP_VERSIONS[@]}"; do
-        for catalog_type in "${CATALOG_TYPES[@]}"; do
-            local catalog_dir="${CATALOG_DATA_DIR}/${catalog_type}/v${ocp_version}"
-            local deps_file="${catalog_dir}/dependencies.json"
-            local catalog_key="${catalog_type}:v${ocp_version}"
-            
-            if [ -f "$deps_file" ]; then
-                local deps_content=$(cat "$deps_file")
-                jq --arg key "$catalog_key" --argjson deps "$deps_content" \
-                   '. + {($key): $deps}' "${CATALOG_DATA_DIR}/dependencies.json" > "${CATALOG_DATA_DIR}/dependencies.json.tmp" && \
-                mv "${CATALOG_DATA_DIR}/dependencies.json.tmp" "${CATALOG_DATA_DIR}/dependencies.json"
-            fi
-        done
-    done
-    
-    local total_deps=$(jq '[.[] | keys | length] | add // 0' "${CATALOG_DATA_DIR}/dependencies.json" 2>/dev/null || echo "0")
-    print_success "Created master dependencies.json with dependencies for $total_deps operators"
-    
     print_success "Catalog fetch process completed!"
     print_status "Catalog data available in: $CATALOG_DATA_DIR"
     
