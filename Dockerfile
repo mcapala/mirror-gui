@@ -21,7 +21,7 @@ RUN npm config set fetch-timeout 300000 && \
 COPY . .
 RUN mkdir -p /app/catalog-data-minimal && \
     (cp /app/catalog-data/catalog-index.json /app/catalog-data-minimal/ 2>/dev/null || \
-     echo '{"generated_at":"","ocp_versions":[],"catalog_types":[],"catalogs":[]}' > /app/catalog-data-minimal/catalog-index.json) && \
+     echo '{"ocp_versions":[],"catalog_types":[],"catalogs":[]}' > /app/catalog-data-minimal/catalog-index.json) && \
     (cp /app/catalog-data/dependencies.json /app/catalog-data-minimal/ 2>/dev/null || \
      echo '{}' > /app/catalog-data-minimal/dependencies.json) && \
     find /app/catalog-data -type f \( -name "operators.json" -o -name "dependencies.json" \) ! -path "*/configs/*" 2>/dev/null | while read file; do \
