@@ -1,10 +1,10 @@
-# OC Mirror v2 Web Application - API Documentation
+# Mirror-GUI Application - API Documentation
 
-**Current Version: v4.4**
+**Current Version: v1.0**
 
 ## Overview
 
-The OC Mirror v2 Web Application provides a RESTful API for managing OpenShift Container Platform mirroring operations. The UI and API are served on the same port. Use the URL printed by the startup script and append `/api`.
+The Mirror-GUI Application provides a RESTful API for managing OpenShift Container Platform mirroring operations. The UI and API are served on the same port. Use the URL printed by the startup script and append `/api`.
 
 ### Key Features
 - **Archive Size Control**: Optional `archiveSize` parameter to limit archive file sizes (in GiB)
@@ -94,7 +94,7 @@ Health check endpoint for container orchestration and monitoring.
 {
   "status": "healthy",
   "timestamp": "2024-01-15T10:30:00Z",
-  "service": "oc-mirror-web-app"
+  "service": "mirror-gui"
 }
 ```
 

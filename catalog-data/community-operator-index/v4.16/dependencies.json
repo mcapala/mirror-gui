@@ -1,0 +1,60 @@
+{
+  "dbaas-operator": [
+    {
+      "packageName": "ack-rds-controller",
+      "versionRange": ">=0.0.27 <=0.1.3"
+    }
+  ],
+  "eclipse-che": [
+    {
+      "packageName": "devworkspace-operator",
+      "versionRange": ">=0.11.0"
+    }
+  ],
+  "kuadrant-operator": [
+    {
+      "packageName": "authorino-operator",
+      "versionRange": "0.13.0"
+    },
+    {
+      "packageName": "dns-operator",
+      "versionRange": "0.6.0"
+    },
+    {
+      "packageName": "limitador-operator",
+      "versionRange": "0.11.0"
+    }
+  ],
+  "l5-operator": [
+    {
+      "packageName": "crunchy-postgres-operator",
+      "versionRange": ">=5.1.0"
+    }
+  ],
+  "ndmspc-operator": [
+    {
+      "packageName": "knative-operator",
+      "versionRange": ">=1.17.0"
+    },
+    {
+      "packageName": "sailoperator",
+      "versionRange": ">=0.2.0"
+    }
+  ],
+  "pelorus-operator": [
+    {
+      "packageName": "grafana-operator",
+      "versionRange": "4.8.0"
+    },
+    {
+      "packageName": "prometheus",
+      "versionRange": "0.47.0"
+    }
+  ],
+  "rabbitmq-messaging-topology-operator": [
+    {
+      "packageName": "rabbitmq-cluster-operator",
+      "versionRange": ">2.0.0"
+    }
+  ]
+}

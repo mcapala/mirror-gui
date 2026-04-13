@@ -6,7 +6,7 @@ test.describe('Dashboard', () => {
   });
 
   test('dashboard page renders system overview section', async ({ page }) => {
-    await expect(page.getByText(/system overview|OC Mirror|version/i)).toBeVisible();
+    await expect(page.getByText(/system overview|Mirror-GUI|version/i)).toBeVisible();
   });
 
   test('operation stats cards display', async ({ page }) => {

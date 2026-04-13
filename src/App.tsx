@@ -91,14 +91,14 @@ const AppLayout: React.FC = () => {
           <ToolbarContent>
             <ToolbarItem>
               <div style={{ borderLeft: '1px solid var(--pf-v6-global--BorderColor--100)', paddingLeft: '16px', marginLeft: '8px' }}>
-                <Title headingLevel="h1" size="2xl" style={{ lineHeight: 1.2, fontSize: '2rem' }}>OC Mirror v2 Web Application</Title>
+                <Title headingLevel="h1" size="2xl" style={{ lineHeight: 1.2, fontSize: '2rem' }}>Mirror-GUI Application</Title>
                 <Content component="p" style={{ color: 'var(--pf-v6-global--Color--200)', fontSize: '1.25rem', lineHeight: 1.2 }}>
                   OpenShift Container Platform Mirroring Operations
                 </Content>
               </div>
             </ToolbarItem>
             <ToolbarItem align={{ default: 'alignEnd' }}>
-              <Label color="blue">v4.4</Label>
+              <Label color="blue">v1.0</Label>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>

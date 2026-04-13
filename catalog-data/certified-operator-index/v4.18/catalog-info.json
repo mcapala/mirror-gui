@@ -1,0 +1,6 @@
+{
+  "catalog_type": "certified-operator-index",
+  "ocp_version": "v4.18",
+  "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.18",
+  "operator_count": 246
+}
