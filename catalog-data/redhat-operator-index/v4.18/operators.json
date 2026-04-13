@@ -6276,7 +6276,8 @@
         "4.18.28",
         "4.18.29",
         "4.18.30",
-        "4.18.31"
+        "4.18.31",
+        "4.18.32"
       ],
       "stable": [
         "4.12.0",
@@ -6318,7 +6319,7 @@
     "channelVersionRanges": {
       "candidate": {
         "minVersion": "4.18.3",
-        "maxVersion": "4.18.31"
+        "maxVersion": "4.18.32"
       },
       "stable": {
         "minVersion": "4.12.0",
@@ -6380,10 +6381,11 @@
       "4.18.28",
       "4.18.29",
       "4.18.30",
-      "4.18.31"
+      "4.18.31",
+      "4.18.32"
     ],
     "minVersion": "4.12.0",
-    "maxVersion": "4.18.31",
+    "maxVersion": "4.18.32",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.18",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.18"

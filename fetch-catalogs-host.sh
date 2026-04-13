@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Host-side script to fetch all operator catalogs for different OCP versions
-# This script runs on the host system where podman is available
+# Uses `oc image extract` to pull configs directly from registry images (no Podman required)
 
 # Allow errors to be collected instead of exiting immediately
 set +e
@@ -43,7 +43,6 @@ CATALOG_DATA_DIR="./catalog-data"
 
 # Configuration
 MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-3}  # Number of parallel catalog fetches
-CLEANUP_IMAGES=${CLEANUP_IMAGES:-true}  # Remove images after extraction to save space
 
 # Create output directory
 mkdir -p "$CATALOG_DATA_DIR"
@@ -56,78 +55,40 @@ FAILED_LIST=()
 
 print_status "Starting catalog fetch for ${#OCP_VERSIONS[@]} OCP versions..."
 
-# Function to extract catalog data from container (based on existing container.sh logic)
+# Function to extract catalog data using oc image extract (no Podman required)
 extract_catalog_data() {
     local catalog_type=$1
     local ocp_version=$2
     local catalog_url="registry.redhat.io/redhat/${catalog_type}:v${ocp_version}"
     local output_dir="${CATALOG_DATA_DIR}/${catalog_type}/v${ocp_version}"
-    
+
     print_status "Fetching ${catalog_type} for OCP v${ocp_version}..."
-    
-    # Create output directory
     mkdir -p "$output_dir"
-    
-    # Generate unique container name
-    local container_name="${catalog_type}-v${ocp_version}-$(date +%s)"
-    local image_to_remove=""
-    
-    try_count=0
-    max_retries=3
-    
+
+    local try_count=0
+    local max_retries=3
+
     while [ $try_count -lt $max_retries ]; do
         try_count=$((try_count + 1))
-        
-        print_status "Attempt $try_count: Pulling ${catalog_url}..."
-        
-        # Add timeout to prevent hanging and use pull secret if available
-        local pull_args="--tls-verify=false"
-        if [ -f "pull-secret/pull-secret.json" ]; then
-            pull_args="--authfile pull-secret/pull-secret.json"
-        fi
-        
-        # Try to pull the image
-        if podman pull $pull_args "$catalog_url" 2>/dev/null; then
-            print_success "Successfully pulled ${catalog_url}"
-            image_to_remove="$catalog_url"
-            break
+        print_status "Attempt $try_count: Extracting configs from ${catalog_url}..."
+
+        mkdir -p "${output_dir}/configs"
+        if oc image extract \
+            --registry-config=pull-secret/pull-secret.json \
+            --path /configs/:"${output_dir}/configs" \
+            "$catalog_url" 2>/dev/null; then
+            print_success "Successfully extracted catalog data for ${catalog_type} v${ocp_version}"
+            return 0
         else
-            print_warning "Failed to pull ${catalog_url} (attempt $try_count/$max_retries)"
+            print_warning "Failed to extract ${catalog_url} (attempt $try_count/$max_retries)"
+            rm -rf "${output_dir}/configs" 2>/dev/null
             if [ $try_count -eq $max_retries ]; then
-                print_error "Failed to pull ${catalog_url} after $max_retries attempts"
+                print_error "Failed to extract ${catalog_url} after $max_retries attempts"
                 return 1
             fi
             sleep 2
         fi
     done
-    
-    print_status "Running container to extract catalog data..."
-    
-    if podman run -d --name "$container_name" "$catalog_url" 2>/dev/null; then
-        print_status "Container started, copying catalog data..."
-        
-        if podman cp "$container_name:/configs" "$output_dir/" 2>/dev/null; then
-            print_success "Successfully extracted catalog data for ${catalog_type} v${ocp_version}"
-            
-            # Clean up container
-            podman rm -f "$container_name" 2>/dev/null || true
-            
-            # Clean up image if requested (saves disk space)
-            if [ "$CLEANUP_IMAGES" = "true" ] && [ -n "$image_to_remove" ]; then
-                print_status "Removing image to save disk space: ${image_to_remove}"
-                podman rmi "$image_to_remove" 2>/dev/null || true
-            fi
-            
-            return 0
-        else
-            print_error "Failed to copy catalog data from container"
-            podman rm -f "$container_name" 2>/dev/null || true
-            return 1
-        fi
-    else
-        print_error "Failed to start container for ${catalog_type} v${ocp_version}"
-        return 1
-    fi
 }
 
 # Function to process catalog data and generate operator/dependency metadata
@@ -182,10 +143,10 @@ main() {
         exit 1
     fi
     
-    # Check if podman is available
-    if ! command -v podman >/dev/null 2>&1; then
-        print_error "podman is not available. Cannot fetch catalogs."
-        print_error "Please install podman and try again."
+    # Check if oc CLI is available
+    if ! command -v oc >/dev/null 2>&1; then
+        print_error "oc CLI is not available. Cannot extract catalog data."
+        print_error "Please install the OpenShift CLI (oc) and try again."
         exit 1
     fi
     
@@ -230,7 +191,7 @@ PY
     # Export functions for background jobs
     export -f extract_catalog_data process_catalog_data
     export -f print_status print_success print_warning print_error
-    export CATALOG_DATA_DIR CLEANUP_IMAGES
+    export CATALOG_DATA_DIR
     
     # Use background jobs for parallel processing
     # Track PIDs explicitly (avoids jobs -p in subshell, which is unreliable on macOS bash 3.2)
@@ -243,15 +204,17 @@ PY
         local catalog_type="$1"
         local ocp_version="$2"
         local job_num="$3"
+        local catalog_dir="${CATALOG_DATA_DIR}/${catalog_type}/v${ocp_version}"
         
-        # Extract if needed, then always regenerate metadata from the extracted configs.
         if extract_catalog_data "$catalog_type" "$ocp_version"; then
             if process_catalog_data "$catalog_type" "$ocp_version"; then
+                rm -rf "${catalog_dir}/configs"
                 echo "SUCCESS:${catalog_type}:${ocp_version}" >> "$results_file"
                 return 0
             fi
         fi
         
+        rm -rf "${catalog_dir}/configs" 2>/dev/null
         echo "FAILED:${catalog_type}:${ocp_version}" >> "$results_file"
         return 1
     }
@@ -399,26 +362,22 @@ parse_arguments() {
                 MAX_PARALLEL_JOBS="$2"
                 shift 2
                 ;;
-            --no-cleanup-images)
-                CLEANUP_IMAGES=false
-                shift
-                ;;
             --help|-h)
                 echo "Usage: $0 [OPTIONS]"
                 echo ""
+                echo "Fetches operator catalog metadata from registry.redhat.io using oc image extract."
+                echo "Requires: oc CLI, python3, PyYAML, jq, and a pull secret in pull-secret/pull-secret.json."
+                echo ""
                 echo "Options:"
                 echo "  --parallel N              Number of parallel catalog fetches (default: 3)"
-                echo "  --no-cleanup-images       Don't remove images after extraction"
                 echo "  --help, -h                Show this help message"
                 echo ""
                 echo "Environment Variables:"
                 echo "  MAX_PARALLEL_JOBS         Same as --parallel"
-                echo "  CLEANUP_IMAGES           Set to 'false' to disable image cleanup"
                 echo ""
                 echo "Examples:"
                 echo "  $0                        # Use defaults (3 parallel)"
                 echo "  $0 --parallel 5           # Use 5 parallel jobs"
-                echo "  $0 --no-cleanup-images    # Keep images after extraction"
                 exit 0
                 ;;
             *)
