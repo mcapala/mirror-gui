@@ -33,6 +33,9 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Run audit-catalog tests
+        run: npx vitest run tests/scripts/auditFetchCatalogs.test.ts
+
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -71,7 +74,7 @@ jobs:
 
       - name: Run shellcheck on scripts
         run: |
-          for script in start-app.sh clean-stale-ports.sh entrypoint.sh container-run.sh cron-build.sh fetch-catalogs-host.sh build-for-quay/build-for-quay.sh; do
+          for script in start-app.sh clean-stale-ports.sh entrypoint.sh container-run.sh fetch-catalogs-host.sh; do
             if [ -f "$script" ]; then
               echo "Checking $script"
               shellcheck -S error "$script"
@@ -90,4 +93,4 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y podman
 
       - name: Build container image
-        run: podman build -t oc-mirror-web-app:ci .
+        run: podman build -t mirror-gui:ci .

@@ -721,7 +721,7 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'oc-mirror-web-app'
+    service: 'mirror-gui'
   });
 });
 
@@ -1784,7 +1784,7 @@ async function configureDevelopmentFrontend(): Promise<void> {
 }
 
 function logStartup(): void {
-  console.log(`OC Mirror Web App server running on port ${PORT}`);
+  console.log(`Mirror-GUI server running on port ${PORT}`);
   console.log(`Storage directory: ${STORAGE_DIR}`);
   console.log(`Configs directory: ${CONFIGS_DIR}`);
   console.log(`Operations directory: ${OPERATIONS_DIR}`);

@@ -2,7 +2,7 @@ FROM node:22-slim AS builder
 
 ARG BUILD_DATE=""
 ARG VCS_REF=""
-ARG VERSION=4.4
+ARG VERSION=1.0
 
 WORKDIR /app
 RUN npm install -g npm@11.6.2
@@ -62,7 +62,7 @@ FROM node:22-slim AS production
 
 ARG BUILD_DATE=""
 ARG VCS_REF=""
-ARG VERSION=4.4
+ARG VERSION=1.0
 
 COPY --from=downloader /usr/local/bin/oc-mirror /usr/local/bin/oc-mirror
 
@@ -108,9 +108,9 @@ RUN mkdir -p /app/data && chown -R node:node /app
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.title="OC Mirror Web App" \
+      org.opencontainers.image.title="Mirror-GUI Application" \
       org.opencontainers.image.description="Web application for OpenShift Container Platform mirroring operations" \
-      org.opencontainers.image.source="https://github.com/yakovbeder/oc-mirror-web-app"
+      org.opencontainers.image.source="https://github.com/openshift/mirror-gui"
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
