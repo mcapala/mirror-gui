@@ -1,0 +1,50 @@
+{
+  "app-insights-operator": [
+    {
+      "packageName": "netobserv-operator",
+      "versionRange": ">=0.10.1"
+    },
+    {
+      "packageName": "opentelemetry-product",
+      "versionRange": ">=0.140.0-1"
+    }
+  ],
+  "infoscale-sds-operator": [
+    {
+      "packageName": "infoscale-licensing-operator",
+      "versionRange": ">=8.0.300"
+    }
+  ],
+  "openshift-fusion-access-operator": [
+    {
+      "packageName": "kernel-module-management",
+      "versionRange": ">=2.4.0"
+    }
+  ],
+  "operator-certification-operator": [
+    {
+      "packageName": "openshift-pipelines-operator-rh",
+      "versionRange": ">=1.5.2"
+    }
+  ],
+  "pg4k-pgd": [
+    {
+      "packageName": "cloud-native-postgresql",
+      "versionRange": ">=1.25.5 < 1.26.0 || >=1.28.0 <1.29.0"
+    }
+  ],
+  "tenant-operator": [
+    {
+      "packageName": "hibernation-operator",
+      "versionRange": ">=0.1.103"
+    },
+    {
+      "packageName": "mto-dependencies-operator",
+      "versionRange": ">=0.0.5"
+    },
+    {
+      "packageName": "template-operator",
+      "versionRange": ">=0.1.5"
+    }
+  ]
+}

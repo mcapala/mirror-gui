@@ -1,5 +1,4 @@
 {
-  "generated_at": "2026-01-01T00:00:00Z",
   "ocp_versions": ["4.21"],
   "catalog_types": [
     "redhat-operator-index",
@@ -11,21 +10,18 @@
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.21",
-      "extracted_at": "2026-01-01T00:00:00Z",
       "operator_count": 3
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.21",
-      "extracted_at": "2026-01-01T00:00:00Z",
       "operator_count": 1
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.21",
-      "extracted_at": "2026-01-01T00:00:00Z",
       "operator_count": 1
     }
   ]

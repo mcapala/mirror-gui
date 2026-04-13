@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# OC Mirror v2 Web Application - Containerized Runner
+# Mirror-GUI Application - Containerized Runner
 # This script runs the application in a container without requiring any host installations
 # Supports Podman only
 
@@ -8,14 +8,14 @@ set -e
 
 # Optional behavior flags (can be set via env vars or script args)
 # - BUILD_NO_CACHE=true -> pass --no-cache to podman build
-# - IMAGE_VERSION=4.4   -> set OCI image version label during build
-# - BUILD_VERSION=4.4   -> compatibility alias for IMAGE_VERSION
+# - IMAGE_VERSION=1.0   -> set OCI image version label during build
+# - BUILD_VERSION=1.0   -> compatibility alias for IMAGE_VERSION
 BUILD_NO_CACHE="${BUILD_NO_CACHE:-false}"
 IMAGE_VERSION="${IMAGE_VERSION:-${BUILD_VERSION:-}}"
 
 # Image name (use localhost/ prefix to prevent Podman from searching registries)
-IMAGE_NAME="localhost/oc-mirror-web-app"
-CONTAINER_NAME="oc-mirror-web-app"
+IMAGE_NAME="localhost/mirror-gui"
+CONTAINER_NAME="mirror-gui"
 DEFAULT_WEB_PORT="3000"
 CONTAINER_PORT="3001"
 DATA_DIR="data"
@@ -267,7 +267,7 @@ run_container() {
     local bind_retry_limit=10
     local bind_attempt=1
 
-    print_status "Starting OC Mirror Web Application container with $CONTAINER_ENGINE..."
+    print_status "Starting Mirror-GUI container with $CONTAINER_ENGINE..."
     ensure_available_web_port
 
     # Check if container is already running
@@ -362,7 +362,7 @@ show_status() {
 
     echo ""
     echo "=========================================="
-    echo "  OC Mirror v2 Web Application"
+    echo "  Mirror-GUI Application"
     echo "=========================================="
     echo ""
     print_success "Application is running!"
@@ -405,14 +405,14 @@ show_help() {
     echo ""
     echo "Environment Variables:"
     echo "  BUILD_NO_CACHE=true        Disable build cache when building the container image"
-    echo "  IMAGE_VERSION=4.4          Set OCI image version label during build"
-    echo "  BUILD_VERSION=4.4          Compatibility alias for IMAGE_VERSION"
+    echo "  IMAGE_VERSION=1.0          Set OCI image version label during build"
+    echo "  BUILD_VERSION=1.0          Compatibility alias for IMAGE_VERSION"
     echo "  WEB_PORT=$DEFAULT_WEB_PORT            Override the host port used for the web UI"
     echo ""
     echo "Examples:"
     echo "  $0"
     echo "  $0 --build-only"
-    echo "  $0 --build-only --version 4.4"
+    echo "  $0 --build-only --version 1.0"
     echo "  $0 --build-only --no-cache"
     echo "  WEB_PORT=3002 $0 --run-only"
     echo ""
@@ -428,7 +428,7 @@ show_help() {
 # Build image without running the container
 build_only() {
     echo "=========================================="
-    echo "  OC Mirror v2 Web Application"
+    echo "  Mirror-GUI Application"
     echo "  Containerized Runner"
     echo "=========================================="
     echo ""
@@ -512,7 +512,7 @@ parse_arguments() {
 # Main execution
 main() {
     echo "=========================================="
-    echo "  OC Mirror v2 Web Application"
+    echo "  Mirror-GUI Application"
     echo "  Containerized Runner"
     echo "=========================================="
     echo ""

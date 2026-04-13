@@ -13,7 +13,7 @@ describe('GET /api/health', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       status: 'healthy',
-      service: 'oc-mirror-web-app',
+      service: 'mirror-gui',
     });
     expect(res.body.timestamp).toBeDefined();
     expect(new Date(res.body.timestamp).toISOString()).toBe(res.body.timestamp);

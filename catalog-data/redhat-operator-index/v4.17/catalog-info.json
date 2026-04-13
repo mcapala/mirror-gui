@@ -1,0 +1,6 @@
+{
+  "catalog_type": "redhat-operator-index",
+  "ocp_version": "v4.17",
+  "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.17",
+  "operator_count": 142
+}

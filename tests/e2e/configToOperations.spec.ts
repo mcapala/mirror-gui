@@ -20,7 +20,7 @@ test.describe('Config to Operations workflow', () => {
     request,
   }) => {
     await page.goto('/');
-    await expect(page.getByText(/OC Mirror|mirror/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Mirror-GUI|mirror/i).first()).toBeVisible({ timeout: 15000 });
 
     const saveRes = await request.post('/api/config/save', {
       data: { config: MINIMAL_CONFIG, name: CONFIG_NAME },

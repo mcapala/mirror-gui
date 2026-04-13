@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Application starter script for oc-mirror-web-app using pre-built images from Quay.io
+# Application starter script for mirror-gui using pre-built images from Quay.io
 # Automatically detects architecture and uses the appropriate image
 
 set -e
@@ -13,9 +13,9 @@ if [ -n "${IMAGE_NAME:-}" ]; then
     IMAGE_NAME_WAS_SET="true"
 else
     IMAGE_NAME_WAS_SET="false"
-    IMAGE_NAME="quay.io/rh-ee-ybeder/oc-mirror-web-app"
+    IMAGE_NAME="quay.io/rh-ee-ybeder/mirror-gui"
 fi
-CONTAINER_NAME="oc-mirror-web-app"
+CONTAINER_NAME="mirror-gui"
 DEFAULT_WEB_PORT="3000"
 CONTAINER_PORT="3001"
 DATA_DIR="data"
@@ -344,7 +344,7 @@ show_status() {
 
     echo ""
     echo "=========================================="
-    echo "  OC Mirror v2 Web Application"
+    echo "  Mirror-GUI Application"
     echo "=========================================="
     echo ""
     print_success "Application is running!"
@@ -395,7 +395,7 @@ main() {
     case "$command" in
         start)
             echo "=========================================="
-            echo "  OC Mirror v2 Web Application"
+            echo "  Mirror-GUI Application"
             echo "  Application Starter"
             echo "=========================================="
             echo ""
@@ -422,14 +422,14 @@ main() {
             show_status
             ;;
         stop)
-            print_status "Stopping oc-mirror-web-app"
+            print_status "Stopping mirror-gui"
             check_container_runtime
             stop_container
             print_success "Application stopped"
             ;;
         restart)
             echo "=========================================="
-            echo "  OC Mirror v2 Web Application"
+            echo "  Mirror-GUI Application"
             echo "  Application Starter"
             echo "=========================================="
             echo ""
@@ -467,7 +467,7 @@ main() {
             echo ""
             echo "Environment:"
             echo "  WEB_PORT   - Override the host port used for the web UI (default: $DEFAULT_WEB_PORT)"
-            echo "  IMAGE_NAME - Override the container image (default: quay.io/rh-ee-ybeder/oc-mirror-web-app)"
+            echo "  IMAGE_NAME - Override the container image (default: quay.io/rh-ee-ybeder/mirror-gui)"
             exit 0
             ;;
         *)

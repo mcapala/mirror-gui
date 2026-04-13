@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Navigation', () => {
   test('app loads at root URL', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/OC Mirror/);
+    await expect(page).toHaveTitle(/Mirror-GUI/);
   });
 
   test('sidebar renders with 5 navigation items', async ({ page }) => {
@@ -29,14 +29,14 @@ test.describe('Navigation', () => {
     await expect(page).toHaveURL(/\/(\?.*)?$/);
   });
 
-  test('masthead shows OC Mirror v2 Web Application title', async ({ page }) => {
+  test('masthead shows Mirror-GUI Application title', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('OC Mirror v2 Web Application')).toBeVisible();
+    await expect(page.getByText('Mirror-GUI Application')).toBeVisible();
   });
 
   test('masthead shows current app version badge', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('v4.4')).toBeVisible();
+    await expect(page.getByText('v1.0')).toBeVisible();
   });
 
   test('Red Hat logo is visible', async ({ page }) => {

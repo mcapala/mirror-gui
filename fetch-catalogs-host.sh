@@ -165,7 +165,6 @@ process_catalog_data() {
   "catalog_type": "${catalog_type}",
   "ocp_version": "v${ocp_version}",
   "catalog_url": "registry.redhat.io/redhat/${catalog_type}:v${ocp_version}",
-  "extracted_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "operator_count": ${operator_count}
 }
 EOF
@@ -307,7 +306,6 @@ PY
     
     cat > "${CATALOG_DATA_DIR}/catalog-index.json" << EOF
 {
-  "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "ocp_versions": $(printf '%s\n' "${OCP_VERSIONS[@]}" | jq -R . | jq -s .),
   "catalog_types": $(printf '%s\n' "${CATALOG_TYPES[@]}" | jq -R . | jq -s .),
   "catalogs": []

@@ -1,4 +1,4 @@
-# OC Mirror v2 Web Application
+# Mirror-GUI Application
 
 A modern web-based interface for managing OpenShift Container Platform mirroring operations using oc-mirror v2. Create, manage, and execute mirror configurations without command-line expertise.
 
@@ -16,8 +16,8 @@ A modern web-based interface for managing OpenShift Container Platform mirroring
 ### Clone the repository
 
 ```bash
-git clone https://github.com/yakovbeder/oc-mirror-web-app.git
-cd oc-mirror-web-app
+git clone https://github.com/openshift/mirror-gui.git
+cd mirror-gui
 ```
 
 ### Option 1: Pre-built image (recommended)

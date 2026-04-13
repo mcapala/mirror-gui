@@ -383,11 +383,8 @@ const MirrorOperations: React.FC = () => {
 
   const getMirrorFullPath = (mirrorDestination: string) => {
     if (mirrorDestination.startsWith('/app/data')) {
-      const hostPath = mirrorDestination.replace('/app/data', 'data');
-      const projectRoot = '/home/ybeder/oc-mirror-web-app';
-      return `${projectRoot}/${hostPath}`.replace(/\/\//g, '/');
+      return mirrorDestination.replace('/app/data', 'data');
     }
-
     return mirrorDestination;
   };
 

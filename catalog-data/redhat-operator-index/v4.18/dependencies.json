@@ -1,0 +1,98 @@
+{
+  "devspaces": [
+    {
+      "packageName": "devworkspace-operator",
+      "versionRange": ">=0.12.0"
+    }
+  ],
+  "mta-operator": [
+    {
+      "packageName": "rhbk-operator",
+      "versionRange": ">=26.0.1 <27.0.0"
+    }
+  ],
+  "mtc-operator": [
+    {
+      "packageName": "redhat-oadp-operator",
+      "versionRange": ">=1.2.3 <1.6.0"
+    }
+  ],
+  "ocs-client-operator": [
+    {
+      "packageName": "cephcsi-operator",
+      "versionRange": ">=4.9.0 <=4.18.19"
+    },
+    {
+      "packageName": "mcg-operator",
+      "versionRange": ">=4.9.0 <=4.18.19"
+    },
+    {
+      "packageName": "odf-csi-addons-operator",
+      "versionRange": ">=4.9.0 <=4.18.19"
+    },
+    {
+      "packageName": "recipe",
+      "versionRange": ">=4.9.0 <=4.18.19"
+    }
+  ],
+  "odf-dependencies": [
+    {
+      "packageName": "cephcsi-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "mcg-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "ocs-client-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "ocs-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "odf-csi-addons-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "odf-prometheus-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "recipe",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    },
+    {
+      "packageName": "rook-ceph-operator",
+      "versionRange": ">=4.17.0 <=4.18.19"
+    }
+  ],
+  "odf-multicluster-orchestrator": [
+    {
+      "packageName": "odr-hub-operator",
+      "versionRange": "<=4.18.19"
+    }
+  ],
+  "rhcl-operator": [
+    {
+      "packageName": "authorino-operator",
+      "versionRange": "1.2.4"
+    },
+    {
+      "packageName": "dns-operator",
+      "versionRange": "1.2.0"
+    },
+    {
+      "packageName": "limitador-operator",
+      "versionRange": "1.2.0"
+    }
+  ],
+  "web-terminal": [
+    {
+      "packageName": "devworkspace-operator",
+      "versionRange": ">=0.6.0"
+    }
+  ]
+}
