@@ -16161,7 +16161,8 @@
         "7.6.12-opr-004",
         "7.6.12-opr-005",
         "7.6.12-opr-006",
-        "7.6.12-opr-007"
+        "7.6.12-opr-007",
+        "7.6.12-opr-008"
       ]
     },
     "channelVersionRanges": {
@@ -16171,7 +16172,7 @@
       },
       "stable": {
         "minVersion": "7.5.0",
-        "maxVersion": "7.6.12-opr-007"
+        "maxVersion": "7.6.12-opr-008"
       }
     },
     "availableVersions": [
@@ -16237,10 +16238,11 @@
       "7.6.12-opr-004",
       "7.6.12-opr-005",
       "7.6.12-opr-006",
-      "7.6.12-opr-007"
+      "7.6.12-opr-007",
+      "7.6.12-opr-008"
     ],
     "minVersion": "7.5.0",
-    "maxVersion": "7.6.12-opr-007",
+    "maxVersion": "7.6.12-opr-008",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.16"

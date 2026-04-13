@@ -13029,6 +13029,41 @@
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
   },
   {
+    "name": "submariner",
+    "defaultChannel": "stable-0.23",
+    "channels": [
+      "stable-0.22",
+      "stable-0.23"
+    ],
+    "channelVersions": {
+      "stable-0.22": [
+        "0.22.0"
+      ],
+      "stable-0.23": [
+        "0.23.1"
+      ]
+    },
+    "channelVersionRanges": {
+      "stable-0.22": {
+        "minVersion": "0.22.0",
+        "maxVersion": "0.22.0"
+      },
+      "stable-0.23": {
+        "minVersion": "0.23.1",
+        "maxVersion": "0.23.1"
+      }
+    },
+    "availableVersions": [
+      "0.22.0",
+      "0.23.1"
+    ],
+    "minVersion": "0.22.0",
+    "maxVersion": "0.23.1",
+    "catalog": "redhat-operator-index",
+    "ocpVersion": "v4.21",
+    "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
+  },
+  {
     "name": "support-log-gather-operator",
     "defaultChannel": "tech-preview",
     "channels": [
