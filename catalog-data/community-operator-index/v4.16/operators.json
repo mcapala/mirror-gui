@@ -253,13 +253,14 @@
         "1.3.2",
         "1.4.0",
         "1.4.1",
-        "1.4.2"
+        "1.4.2",
+        "1.4.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.4.2"
+        "maxVersion": "1.4.3"
       }
     },
     "availableVersions": [
@@ -282,10 +283,11 @@
       "1.3.2",
       "1.4.0",
       "1.4.1",
-      "1.4.2"
+      "1.4.2",
+      "1.4.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.4.2",
+    "maxVersion": "1.4.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -454,13 +456,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.2.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -508,10 +511,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.2.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -543,13 +547,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -572,10 +577,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -593,13 +599,14 @@
         "1.0.1",
         "1.1.0",
         "1.1.1",
-        "1.1.2"
+        "1.1.2",
+        "1.1.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.1.0",
-        "maxVersion": "1.1.2"
+        "maxVersion": "1.1.3"
       }
     },
     "availableVersions": [
@@ -608,10 +615,11 @@
       "1.0.1",
       "1.1.0",
       "1.1.1",
-      "1.1.2"
+      "1.1.2",
+      "1.1.3"
     ],
     "minVersion": "0.1.0",
-    "maxVersion": "1.1.2",
+    "maxVersion": "1.1.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -735,13 +743,14 @@
         "1.2.2",
         "1.3.0",
         "1.3.1",
-        "1.3.2"
+        "1.3.2",
+        "1.3.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.3.2"
+        "maxVersion": "1.3.3"
       }
     },
     "availableVersions": [
@@ -778,10 +787,11 @@
       "1.2.2",
       "1.3.0",
       "1.3.1",
-      "1.3.2"
+      "1.3.2",
+      "1.3.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.3.2",
+    "maxVersion": "1.3.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -824,13 +834,14 @@
         "1.1.1",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.1.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -864,10 +875,11 @@
       "1.1.1",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.1.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -984,13 +996,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.2",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -1018,10 +1031,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.2",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1041,13 +1055,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "1.0.11",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -1058,10 +1073,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "1.0.11",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1135,13 +1151,14 @@
         "1.2.1",
         "1.2.2",
         "1.3.0",
-        "1.3.1"
+        "1.3.1",
+        "1.3.2"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.6",
-        "maxVersion": "1.3.1"
+        "maxVersion": "1.3.2"
       }
     },
     "availableVersions": [
@@ -1168,10 +1185,11 @@
       "1.2.1",
       "1.2.2",
       "1.3.0",
-      "1.3.1"
+      "1.3.1",
+      "1.3.2"
     ],
     "minVersion": "0.0.6",
-    "maxVersion": "1.3.1",
+    "maxVersion": "1.3.2",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1247,13 +1265,14 @@
         "1.6.1",
         "1.7.0",
         "1.7.1",
-        "1.7.2"
+        "1.7.2",
+        "1.7.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.8",
-        "maxVersion": "1.7.2"
+        "maxVersion": "1.7.3"
       }
     },
     "availableVersions": [
@@ -1320,10 +1339,11 @@
       "1.6.1",
       "1.7.0",
       "1.7.1",
-      "1.7.2"
+      "1.7.2",
+      "1.7.3"
     ],
     "minVersion": "0.0.8",
-    "maxVersion": "1.7.2",
+    "maxVersion": "1.7.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1691,13 +1711,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "1.0.12",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -1708,10 +1729,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "1.0.12",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1744,13 +1766,14 @@
         "1.1.1",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.5",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -1774,10 +1797,11 @@
       "1.1.1",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.5",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1817,13 +1841,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.4",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -1854,10 +1879,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.4",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -1948,13 +1974,14 @@
         "1.11.2",
         "1.11.3",
         "1.11.4",
-        "1.12.0"
+        "1.12.0",
+        "1.12.2"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.2",
-        "maxVersion": "1.12.0"
+        "maxVersion": "1.12.2"
       }
     },
     "availableVersions": [
@@ -2036,10 +2063,11 @@
       "1.11.2",
       "1.11.3",
       "1.11.4",
-      "1.12.0"
+      "1.12.0",
+      "1.12.2"
     ],
     "minVersion": "0.0.2",
-    "maxVersion": "1.12.0",
+    "maxVersion": "1.12.2",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2103,13 +2131,14 @@
         "1.3.1",
         "1.3.2",
         "1.3.3",
-        "1.3.4"
+        "1.3.4",
+        "1.3.5"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.8",
-        "maxVersion": "1.3.4"
+        "maxVersion": "1.3.5"
       }
     },
     "availableVersions": [
@@ -2164,10 +2193,11 @@
       "1.3.1",
       "1.3.2",
       "1.3.3",
-      "1.3.4"
+      "1.3.4",
+      "1.3.5"
     ],
     "minVersion": "0.0.8",
-    "maxVersion": "1.3.4",
+    "maxVersion": "1.3.5",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2210,13 +2240,14 @@
         "1.3.0",
         "1.3.1",
         "1.3.2",
-        "1.3.3"
+        "1.3.3",
+        "1.3.5"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.2",
-        "maxVersion": "1.3.3"
+        "maxVersion": "1.3.5"
       }
     },
     "availableVersions": [
@@ -2250,10 +2281,11 @@
       "1.3.0",
       "1.3.1",
       "1.3.2",
-      "1.3.3"
+      "1.3.3",
+      "1.3.5"
     ],
     "minVersion": "0.0.2",
-    "maxVersion": "1.3.3",
+    "maxVersion": "1.3.5",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2301,13 +2333,14 @@
         "1.2.0",
         "1.3.0",
         "1.3.1",
-        "1.3.2"
+        "1.3.2",
+        "1.3.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.3.2"
+        "maxVersion": "1.3.3"
       }
     },
     "availableVersions": [
@@ -2346,10 +2379,11 @@
       "1.2.0",
       "1.3.0",
       "1.3.1",
-      "1.3.2"
+      "1.3.2",
+      "1.3.3"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.3.2",
+    "maxVersion": "1.3.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2395,13 +2429,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -2438,10 +2473,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2457,23 +2493,25 @@
         "0.1.0",
         "0.2.0",
         "0.2.1",
-        "0.2.2"
+        "0.2.2",
+        "0.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.1.0",
-        "maxVersion": "0.2.2"
+        "maxVersion": "0.2.3"
       }
     },
     "availableVersions": [
       "0.1.0",
       "0.2.0",
       "0.2.1",
-      "0.2.2"
+      "0.2.2",
+      "0.2.3"
     ],
     "minVersion": "0.1.0",
-    "maxVersion": "0.2.2",
+    "maxVersion": "0.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2492,13 +2530,14 @@
         "0.2.2",
         "0.3.0",
         "0.3.1",
-        "0.3.2"
+        "0.3.2",
+        "0.3.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.1.0",
-        "maxVersion": "0.3.2"
+        "maxVersion": "0.3.3"
       }
     },
     "availableVersions": [
@@ -2508,10 +2547,11 @@
       "0.2.2",
       "0.3.0",
       "0.3.1",
-      "0.3.2"
+      "0.3.2",
+      "0.3.3"
     ],
     "minVersion": "0.1.0",
-    "maxVersion": "0.3.2",
+    "maxVersion": "0.3.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2715,13 +2755,14 @@
         "1.3.2",
         "1.4.0",
         "1.4.1",
-        "1.5.0"
+        "1.5.0",
+        "1.5.1"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.5.0"
+        "maxVersion": "1.5.1"
       }
     },
     "availableVersions": [
@@ -2762,10 +2803,11 @@
       "1.3.2",
       "1.4.0",
       "1.4.1",
-      "1.5.0"
+      "1.5.0",
+      "1.5.1"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.5.0",
+    "maxVersion": "1.5.1",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -2811,13 +2853,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -2854,10 +2897,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3018,13 +3062,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -3082,10 +3127,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3158,13 +3204,14 @@
         "1.9.2",
         "1.10.0",
         "1.10.1",
-        "1.10.2"
+        "1.10.2",
+        "1.12.2"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.10.2"
+        "maxVersion": "1.12.2"
       }
     },
     "availableVersions": [
@@ -3228,10 +3275,11 @@
       "1.9.2",
       "1.10.0",
       "1.10.1",
-      "1.10.2"
+      "1.10.2",
+      "1.12.2"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.10.2",
+    "maxVersion": "1.12.2",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3274,13 +3322,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -3314,10 +3363,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3526,13 +3576,14 @@
         "0.2.2",
         "0.3.0",
         "0.3.1",
-        "0.3.2"
+        "0.3.2",
+        "0.3.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.1.0",
-        "maxVersion": "0.3.2"
+        "maxVersion": "0.3.3"
       }
     },
     "availableVersions": [
@@ -3544,10 +3595,11 @@
       "0.2.2",
       "0.3.0",
       "0.3.1",
-      "0.3.2"
+      "0.3.2",
+      "0.3.3"
     ],
     "minVersion": "0.1.0",
-    "maxVersion": "0.3.2",
+    "maxVersion": "0.3.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3597,13 +3649,15 @@
         "1.2.0",
         "1.2.1",
         "1.2.2",
-        "1.2.3"
+        "1.2.3",
+        "1.2.4",
+        "1.2.5"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.4",
-        "maxVersion": "1.2.3"
+        "maxVersion": "1.2.5"
       }
     },
     "availableVersions": [
@@ -3644,10 +3698,12 @@
       "1.2.0",
       "1.2.1",
       "1.2.2",
-      "1.2.3"
+      "1.2.3",
+      "1.2.4",
+      "1.2.5"
     ],
     "minVersion": "0.0.4",
-    "maxVersion": "1.2.3",
+    "maxVersion": "1.2.5",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3681,13 +3737,14 @@
         "1.2.0",
         "1.2.1",
         "1.2.2",
-        "1.2.3"
+        "1.2.3",
+        "1.2.4"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.6",
-        "maxVersion": "1.2.3"
+        "maxVersion": "1.2.4"
       }
     },
     "availableVersions": [
@@ -3712,10 +3769,11 @@
       "1.2.0",
       "1.2.1",
       "1.2.2",
-      "1.2.3"
+      "1.2.3",
+      "1.2.4"
     ],
     "minVersion": "0.0.6",
-    "maxVersion": "1.2.3",
+    "maxVersion": "1.2.4",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3755,13 +3813,14 @@
         "1.1.3",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "1.0.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -3792,10 +3851,11 @@
       "1.1.3",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "1.0.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3843,13 +3903,14 @@
         "1.3.2",
         "1.4.0",
         "1.4.1",
-        "1.4.2"
+        "1.4.2",
+        "1.4.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "1.4.2"
+        "maxVersion": "1.4.3"
       }
     },
     "availableVersions": [
@@ -3888,10 +3949,11 @@
       "1.3.2",
       "1.4.0",
       "1.4.1",
-      "1.4.2"
+      "1.4.2",
+      "1.4.3"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "1.4.2",
+    "maxVersion": "1.4.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -3905,21 +3967,23 @@
     "channelVersions": {
       "alpha": [
         "0.1.0",
-        "0.1.1"
+        "0.1.1",
+        "0.2.1"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.1.0",
-        "maxVersion": "0.1.1"
+        "maxVersion": "0.2.1"
       }
     },
     "availableVersions": [
       "0.1.0",
-      "0.1.1"
+      "0.1.1",
+      "0.2.1"
     ],
     "minVersion": "0.1.0",
-    "maxVersion": "0.1.1",
+    "maxVersion": "0.2.1",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4174,13 +4238,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -4204,10 +4269,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4250,13 +4316,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.2",
-        "1.3.1"
+        "1.3.1",
+        "1.3.2"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.2",
-        "maxVersion": "1.3.1"
+        "maxVersion": "1.3.2"
       }
     },
     "availableVersions": [
@@ -4290,10 +4357,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.2",
-      "1.3.1"
+      "1.3.1",
+      "1.3.2"
     ],
     "minVersion": "0.0.2",
-    "maxVersion": "1.3.1",
+    "maxVersion": "1.3.2",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4329,13 +4397,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.2",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -4362,10 +4431,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.2",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4442,13 +4512,15 @@
         "1.2.2",
         "1.3.0",
         "1.3.1",
-        "1.3.2"
+        "1.3.2",
+        "1.3.3",
+        "1.3.4"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.7",
-        "maxVersion": "1.3.2"
+        "maxVersion": "1.3.4"
       }
     },
     "availableVersions": [
@@ -4516,10 +4588,12 @@
       "1.2.2",
       "1.3.0",
       "1.3.1",
-      "1.3.2"
+      "1.3.2",
+      "1.3.3",
+      "1.3.4"
     ],
     "minVersion": "0.0.7",
-    "maxVersion": "1.3.2",
+    "maxVersion": "1.3.4",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4538,13 +4612,14 @@
         "1.1.1",
         "1.1.2",
         "1.2.0",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "1.0.10",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -4554,10 +4629,11 @@
       "1.1.1",
       "1.1.2",
       "1.2.0",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "1.0.10",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4612,13 +4688,14 @@
         "1.7.0",
         "1.7.1",
         "1.7.2",
-        "1.7.3"
+        "1.7.3",
+        "1.7.4"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.3.1",
-        "maxVersion": "1.7.3"
+        "maxVersion": "1.7.4"
       }
     },
     "availableVersions": [
@@ -4664,10 +4741,11 @@
       "1.7.0",
       "1.7.1",
       "1.7.2",
-      "1.7.3"
+      "1.7.3",
+      "1.7.4"
     ],
     "minVersion": "0.3.1",
-    "maxVersion": "1.7.3",
+    "maxVersion": "1.7.4",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4706,13 +4784,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -4742,10 +4821,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4777,13 +4857,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -4806,10 +4887,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4872,13 +4954,14 @@
         "1.1.2",
         "1.2.0",
         "1.2.1",
-        "1.2.2"
+        "1.2.2",
+        "1.2.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.5",
-        "maxVersion": "1.2.2"
+        "maxVersion": "1.2.3"
       }
     },
     "availableVersions": [
@@ -4932,10 +5015,11 @@
       "1.1.2",
       "1.2.0",
       "1.2.1",
-      "1.2.2"
+      "1.2.2",
+      "1.2.3"
     ],
     "minVersion": "0.0.5",
-    "maxVersion": "1.2.2",
+    "maxVersion": "1.2.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -4992,13 +5076,14 @@
         "1.3.0",
         "1.3.1",
         "1.3.2",
-        "1.4.0"
+        "1.4.0",
+        "1.4.1"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.4",
-        "maxVersion": "1.4.0"
+        "maxVersion": "1.4.1"
       }
     },
     "availableVersions": [
@@ -5046,10 +5131,11 @@
       "1.3.0",
       "1.3.1",
       "1.3.2",
-      "1.4.0"
+      "1.4.0",
+      "1.4.1"
     ],
     "minVersion": "0.0.4",
-    "maxVersion": "1.4.0",
+    "maxVersion": "1.4.1",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -5103,13 +5189,14 @@
         "1.3.0",
         "1.3.1",
         "1.4.0",
-        "1.4.2"
+        "1.4.2",
+        "1.4.3"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.4.2"
+        "maxVersion": "1.4.3"
       }
     },
     "availableVersions": [
@@ -5154,10 +5241,11 @@
       "1.3.0",
       "1.3.1",
       "1.4.0",
-      "1.4.2"
+      "1.4.2",
+      "1.4.3"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.4.2",
+    "maxVersion": "1.4.3",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -5189,13 +5277,14 @@
         "1.2.0",
         "1.2.1",
         "1.3.0",
-        "1.3.1"
+        "1.3.1",
+        "1.3.2"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.3.1"
+        "maxVersion": "1.3.2"
       }
     },
     "availableVersions": [
@@ -5218,10 +5307,11 @@
       "1.2.0",
       "1.2.1",
       "1.3.0",
-      "1.3.1"
+      "1.3.1",
+      "1.3.2"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.3.1",
+    "maxVersion": "1.3.2",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -5255,13 +5345,14 @@
         "1.2.1",
         "1.2.2",
         "1.3.0",
-        "1.3.1"
+        "1.3.1",
+        "1.3.2"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.1",
-        "maxVersion": "1.3.1"
+        "maxVersion": "1.3.2"
       }
     },
     "availableVersions": [
@@ -5286,10 +5377,11 @@
       "1.2.1",
       "1.2.2",
       "1.3.0",
-      "1.3.1"
+      "1.3.1",
+      "1.3.2"
     ],
     "minVersion": "0.0.1",
-    "maxVersion": "1.3.1",
+    "maxVersion": "1.3.2",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -5327,7 +5419,8 @@
         "4.1.1",
         "4.1.2",
         "4.2.0",
-        "4.3.0"
+        "4.3.0",
+        "4.4.0"
       ]
     },
     "channelVersionRanges": {
@@ -5337,7 +5430,7 @@
       },
       "stable": {
         "minVersion": "3.0.0",
-        "maxVersion": "4.3.0"
+        "maxVersion": "4.4.0"
       }
     },
     "availableVersions": [
@@ -5363,10 +5456,11 @@
       "4.1.1",
       "4.1.2",
       "4.2.0",
-      "4.3.0"
+      "4.3.0",
+      "4.4.0"
     ],
     "minVersion": "2.1.0",
-    "maxVersion": "4.3.0",
+    "maxVersion": "4.4.0",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -9834,13 +9928,14 @@
         "0.45.0",
         "0.45.1",
         "0.46.0",
-        "0.47.0"
+        "0.47.0",
+        "0.48.0"
       ]
     },
     "channelVersionRanges": {
       "stable": {
         "minVersion": "0.18.0",
-        "maxVersion": "0.47.0"
+        "maxVersion": "0.48.0"
       }
     },
     "availableVersions": [
@@ -9872,10 +9967,11 @@
       "0.45.0",
       "0.45.1",
       "0.46.0",
-      "0.47.0"
+      "0.47.0",
+      "0.48.0"
     ],
     "minVersion": "0.18.0",
-    "maxVersion": "0.47.0",
+    "maxVersion": "0.48.0",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -10045,7 +10141,8 @@
         "2.10.0",
         "2.10.1",
         "2.10.2",
-        "2.11.0"
+        "2.11.0",
+        "2.11.1"
       ],
       "unstable": [
         "1.3.0",
@@ -10114,17 +10211,18 @@
         "2.10.0",
         "2.10.1",
         "2.10.2",
-        "2.11.0"
+        "2.11.0",
+        "2.11.1"
       ]
     },
     "channelVersionRanges": {
       "stable": {
         "minVersion": "1.3.0",
-        "maxVersion": "2.11.0"
+        "maxVersion": "2.11.1"
       },
       "unstable": {
         "minVersion": "1.3.0",
-        "maxVersion": "2.11.0"
+        "maxVersion": "2.11.1"
       }
     },
     "availableVersions": [
@@ -10194,10 +10292,11 @@
       "2.10.0",
       "2.10.1",
       "2.10.2",
-      "2.11.0"
+      "2.11.0",
+      "2.11.1"
     ],
     "minVersion": "1.3.0",
-    "maxVersion": "2.11.0",
+    "maxVersion": "2.11.1",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -10219,13 +10318,14 @@
         "1.46.0",
         "1.47.0",
         "1.47.1",
-        "1.48.0"
+        "1.48.0",
+        "1.48.1"
       ]
     },
     "channelVersionRanges": {
       "stable": {
         "minVersion": "1.42.0",
-        "maxVersion": "1.48.0"
+        "maxVersion": "1.48.1"
       }
     },
     "availableVersions": [
@@ -10238,10 +10338,11 @@
       "1.46.0",
       "1.47.0",
       "1.47.1",
-      "1.48.0"
+      "1.48.0",
+      "1.48.1"
     ],
     "minVersion": "1.42.0",
-    "maxVersion": "1.48.0",
+    "maxVersion": "1.48.1",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -10657,7 +10758,8 @@
         "1.2.5135-afd4101",
         "1.2.5143-a5d0850",
         "1.2.5151-a6aa930",
-        "1.2.5177-a325b87"
+        "1.2.5177-a325b87",
+        "1.2.5181-aa1db74"
       ],
       "mce-2.0": [
         "2.5.3489-6dec9c3",
@@ -10701,7 +10803,7 @@
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "1.2.4355-e5f809f",
-        "maxVersion": "1.2.5177-a325b87"
+        "maxVersion": "1.2.5181-aa1db74"
       },
       "mce-2.0": {
         "minVersion": "2.5.3489-6dec9c3",
@@ -10797,6 +10899,7 @@
       "1.2.5143-a5d0850",
       "1.2.5151-a6aa930",
       "1.2.5177-a325b87",
+      "1.2.5181-aa1db74",
       "2.3.3039-60b8a9a",
       "2.4.3180-7299056",
       "2.4.3189-026033b",
@@ -12653,21 +12756,23 @@
     "channelVersions": {
       "alpha": [
         "0.0.3",
-        "0.0.4"
+        "0.0.4",
+        "0.0.5"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.0.3",
-        "maxVersion": "0.0.4"
+        "maxVersion": "0.0.5"
       }
     },
     "availableVersions": [
       "0.0.3",
-      "0.0.4"
+      "0.0.4",
+      "0.0.5"
     ],
     "minVersion": "0.0.3",
-    "maxVersion": "0.0.4",
+    "maxVersion": "0.0.5",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -15044,13 +15149,14 @@
         "0.143.0",
         "0.144.0",
         "0.145.0",
-        "0.148.0"
+        "0.148.0",
+        "0.149.0"
       ]
     },
     "channelVersionRanges": {
       "alpha": {
         "minVersion": "0.105.0",
-        "maxVersion": "0.148.0"
+        "maxVersion": "0.149.0"
       }
     },
     "availableVersions": [
@@ -15091,10 +15197,11 @@
       "0.143.0",
       "0.144.0",
       "0.145.0",
-      "0.148.0"
+      "0.148.0",
+      "0.149.0"
     ],
     "minVersion": "0.105.0",
-    "maxVersion": "0.148.0",
+    "maxVersion": "0.149.0",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
@@ -16583,11 +16690,6 @@
     ],
     "channelVersions": {
       "1.29-nightly": [
-        "1.29.0-nightly-2026-04-04",
-        "1.29.0-nightly-2026-04-05",
-        "1.29.0-nightly-2026-04-06",
-        "1.29.0-nightly-2026-04-07",
-        "1.29.0-nightly-2026-04-08",
         "1.29.0-nightly-2026-04-09"
       ],
       "1.30-nightly": [
@@ -16599,7 +16701,10 @@
         "1.30.0-nightly-2026-04-15",
         "1.30.0-nightly-2026-04-16",
         "1.30.0-nightly-2026-04-17",
-        "1.30.0-nightly-2026-04-18"
+        "1.30.0-nightly-2026-04-18",
+        "1.30.0-nightly-2026-04-19",
+        "1.30.0-nightly-2026-04-20",
+        "1.30.0-nightly-2026-04-21"
       ],
       "candidates": [
         "0.1.0",
@@ -16657,12 +16762,12 @@
     },
     "channelVersionRanges": {
       "1.29-nightly": {
-        "minVersion": "1.29.0-nightly-2026-04-04",
+        "minVersion": "1.29.0-nightly-2026-04-09",
         "maxVersion": "1.29.0-nightly-2026-04-09"
       },
       "1.30-nightly": {
         "minVersion": "1.30.0-nightly-2026-04-10",
-        "maxVersion": "1.30.0-nightly-2026-04-18"
+        "maxVersion": "1.30.0-nightly-2026-04-21"
       },
       "candidates": {
         "minVersion": "0.1.0",
@@ -16717,11 +16822,6 @@
       "1.28.2",
       "1.28.3",
       "1.29.0",
-      "1.29.0-nightly-2026-04-04",
-      "1.29.0-nightly-2026-04-05",
-      "1.29.0-nightly-2026-04-06",
-      "1.29.0-nightly-2026-04-07",
-      "1.29.0-nightly-2026-04-08",
       "1.29.0-nightly-2026-04-09",
       "1.29.1",
       "1.30.0-nightly-2026-04-10",
@@ -16732,10 +16832,13 @@
       "1.30.0-nightly-2026-04-15",
       "1.30.0-nightly-2026-04-16",
       "1.30.0-nightly-2026-04-17",
-      "1.30.0-nightly-2026-04-18"
+      "1.30.0-nightly-2026-04-18",
+      "1.30.0-nightly-2026-04-19",
+      "1.30.0-nightly-2026-04-20",
+      "1.30.0-nightly-2026-04-21"
     ],
     "minVersion": "0.1.0",
-    "maxVersion": "1.30.0-nightly-2026-04-18",
+    "maxVersion": "1.30.0-nightly-2026-04-21",
     "catalog": "community-operator-index",
     "ocpVersion": "v4.16",
     "catalogUrl": "registry.redhat.io/redhat/community-operator-index:v4.16"
