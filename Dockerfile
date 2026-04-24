@@ -58,6 +58,8 @@ RUN set -eux; \
 
 FROM node:22-slim AS production
 
+ENV NODE_ENV=production
+
 ARG BUILD_DATE=""
 ARG VCS_REF=""
 ARG VERSION=1.0
