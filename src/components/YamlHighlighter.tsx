@@ -65,7 +65,7 @@ function highlightYaml(code: string): string {
   const html = hljs.highlight(code, { language: 'yaml' }).value;
   return html.replace(
     /(?<![<\w])(\[\]|\{\})/g,
-    '<span class="hljs-literal">$1</span>'
+    '<span class="hljs-literal">$1</span>',
   );
 }
 
@@ -102,7 +102,7 @@ const YamlHighlighter: React.FC<YamlHighlighterProps> = ({
       const ta = e.currentTarget;
       const start = ta.selectionStart;
       const end = ta.selectionEnd;
-      const newValue = code.substring(0, start) + '  ' + code.substring(end);
+      const newValue = `${code.substring(0, start)}  ${code.substring(end)}`;
       onChange?.(newValue);
       requestAnimationFrame(() => {
         ta.selectionStart = ta.selectionEnd = start + 2;
@@ -121,7 +121,7 @@ const YamlHighlighter: React.FC<YamlHighlighterProps> = ({
             style={{ minHeight, overflow: 'auto' }}
             aria-hidden="true"
           >
-            <code dangerouslySetInnerHTML={{ __html: highlighted + '\n' }} />
+            <code dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }} />
           </pre>
           <textarea
             ref={textareaRef}
