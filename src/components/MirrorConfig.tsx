@@ -1397,7 +1397,7 @@ const MirrorConfig: React.FC = () => {
         mirror: {
           platform: {
             channels: platformChannels,
-            graph: mirror.platform?.graph !== undefined ? mirror.platform.graph : true,
+            graph: mirror.platform?.graph === true,
           },
           operators,
           additionalImages,
