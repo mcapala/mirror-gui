@@ -75,6 +75,8 @@ System status overview, operation statistics, recent operations, and quick actio
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
+**When no pull secret is detected**, a warning banner is displayed with a link to the Settings page where one can be uploaded.
+
 ![Dashboard without pull secret](docs/screenshots/dashboard-no-pull-secret.png)
 
 ### Mirror Configuration
