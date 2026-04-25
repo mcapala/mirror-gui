@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
                             }
                           >
                             <button type="button" aria-label="Disk space details" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '0.25rem', verticalAlign: 'middle' }}>
-                              <InfoCircleIcon color="var(--pf-v6-global--primary-color--100, #0066cc)" />
+                              <InfoCircleIcon />
                             </button>
                           </Popover>
                         </DescriptionListTerm>
