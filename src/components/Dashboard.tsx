@@ -89,7 +89,7 @@ const getStatusText = (status: string): string => {
     case 'degraded':
       return 'Low Disk Space';
     case 'warning':
-      return 'Last Operation Failed/Stopped';
+      return 'Warning';
     case 'error':
       return 'Error';
     case 'running':

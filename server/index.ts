@@ -144,9 +144,9 @@ let pullSecretDetected = false;
 
 async function detectPullSecret(): Promise<void> {
   const candidates = [
-    AUTHFILE_PATH,
     process.env.XDG_RUNTIME_DIR ? path.join(process.env.XDG_RUNTIME_DIR, 'containers', 'auth.json') : '',
     path.join(process.env.HOME || '~', '.docker', 'config.json'),
+    AUTHFILE_PATH,
   ].filter(Boolean);
 
   for (const candidate of candidates) {
