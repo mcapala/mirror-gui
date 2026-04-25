@@ -11,7 +11,7 @@ A modern web-based interface for managing OpenShift Container Platform mirroring
 ### Prerequisites
 
 - **Podman** (required)
-- **Pull secret** from [console.redhat.com](https://console.redhat.com/openshift/downloads#tool-pull-secret) saved to `pull-secret/pull-secret.json`
+- **Pull secret** from [console.redhat.com](https://console.redhat.com/openshift/downloads#tool-pull-secret) (optional at startup — can be saved to `pull-secret/pull-secret.json` beforehand, or provided later via **Settings > Pull Secret** in the UI)
 
 ### Clone the repository
 
@@ -28,7 +28,7 @@ chmod +x start-app.sh
 ```
 
 The script auto-detects your architecture (AMD64/ARM64), pulls the image, and starts the app.
-It validates `pull-secret/pull-secret.json` before launching the container.
+It will warn if `pull-secret/pull-secret.json` is missing but will still start. You can provide the pull secret later via **Settings > Pull Secret** in the UI.
 
 To use a specific image (e.g. a CI-built image), pass it via `IMAGE_NAME`:
 
@@ -105,7 +105,7 @@ Filter and review all past operations. Export to CSV.
 
 ### Settings
 
-Configure general preferences, registry credentials, proxy settings, and system maintenance.
+Configure general preferences, registry credentials, proxy settings, and system maintenance. The **Pull Secret** tab lets you view the current pull secret status and upload a new pull secret directly from the browser — no file system access required.
 
 ![Settings](docs/screenshots/settings.png)
 
