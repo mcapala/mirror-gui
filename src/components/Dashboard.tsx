@@ -18,6 +18,7 @@ import {
   DescriptionListGroup,
   DescriptionListTerm,
   DescriptionListDescription,
+  Alert,
   EmptyState,
   EmptyStateBody,
 } from '@patternfly/react-core';
@@ -55,6 +56,7 @@ interface Operation {
 interface SystemStatus {
   ocMirrorVersion: string;
   systemHealth: string;
+  pullSecretDetected: boolean;
 }
 
 interface SystemInfo {
@@ -154,6 +156,7 @@ const Dashboard: React.FC = () => {
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     ocMirrorVersion: '',
     systemHealth: 'unknown',
+    pullSecretDetected: true,
   });
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({
     availableDiskSpace: 0,
@@ -212,6 +215,23 @@ const Dashboard: React.FC = () => {
 
   return (
     <>
+      {!systemStatus.pullSecretDetected && (
+        <PageSection>
+          <Alert
+            variant="warning"
+            isInline
+            title="No pull secret detected"
+            actionLinks={
+              <Button variant="link" onClick={() => navigate('/settings')}>
+                Go to Settings
+              </Button>
+            }
+          >
+            Mirroring operations will not be available. Provide a pull secret in Settings &gt; Pull Secret.
+          </Alert>
+        </PageSection>
+      )}
+
       {/* System Overview */}
       <PageSection>
         <Card>

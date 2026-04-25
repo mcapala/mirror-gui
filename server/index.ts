@@ -139,6 +139,34 @@ const CUSTOM_MIRROR_DIR = path.join(MIRROR_BASE_DIR, 'custom');
 const EPHEMERAL_MIRROR_DIR = path.resolve(process.env.OC_MIRROR_EPHEMERAL_DIR || path.join(APP_ROOT_DIR, 'mirror'));
 const AUTHFILE_PATH = process.env.OC_MIRROR_AUTHFILE || '/app/pull-secret.json';
 
+let pullSecretPath: string | null = null;
+let pullSecretDetected = false;
+
+async function detectPullSecret(): Promise<void> {
+  const candidates = [
+    AUTHFILE_PATH,
+    process.env.XDG_RUNTIME_DIR ? path.join(process.env.XDG_RUNTIME_DIR, 'containers', 'auth.json') : '',
+    path.join(process.env.HOME || '~', '.docker', 'config.json'),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      await fsp.access(candidate, fs.constants.R_OK);
+      const content = await fsp.readFile(candidate, 'utf8');
+      if (content.trim().length > 2) {
+        pullSecretPath = candidate;
+        pullSecretDetected = true;
+        console.log(`Pull secret detected at: ${candidate}`);
+        return;
+      }
+    } catch {}
+  }
+
+  pullSecretPath = null;
+  pullSecretDetected = false;
+  console.log('No pull secret detected');
+}
+
 const runningProcesses = new Map<string, RunningProcess>();
 
 async function ensureDirectories(): Promise<void> {
@@ -331,6 +359,7 @@ async function getSystemHealth(): Promise<string> {
 
   if (!ocMirrorOk) return 'error';
   if (!diskOk) return 'degraded';
+  if (!pullSecretDetected) return 'warning';
   return 'healthy';
 }
 
@@ -744,10 +773,41 @@ app.get('/api/system/status', async (req: Request, res: Response) => {
     const systemHealth = await getSystemHealth();
     res.json({
       ocMirrorVersion: systemInfo.ocMirrorVersion,
-      systemHealth
+      systemHealth,
+      pullSecretDetected,
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to get system status' });
+  }
+});
+
+app.get('/api/pull-secret/status', (_req: Request, res: Response) => {
+  res.json({ detected: pullSecretDetected, path: pullSecretPath });
+});
+
+app.post('/api/pull-secret', async (req: Request, res: Response) => {
+  try {
+    const { content } = req.body;
+    if (!content || typeof content !== 'string' || content.trim().length < 2) {
+      res.status(400).json({ error: 'Invalid pull secret content' });
+      return;
+    }
+
+    try {
+      JSON.parse(content);
+    } catch {
+      res.status(400).json({ error: 'Pull secret must be valid JSON' });
+      return;
+    }
+
+    await fsp.writeFile(AUTHFILE_PATH, content, 'utf8');
+    pullSecretPath = AUTHFILE_PATH;
+    pullSecretDetected = true;
+    console.log(`Pull secret saved to: ${AUTHFILE_PATH}`);
+    res.json({ message: 'Pull secret saved successfully' });
+  } catch (error: any) {
+    console.error('Error saving pull secret:', error);
+    res.status(500).json({ error: 'Failed to save pull secret' });
   }
 });
 
@@ -1815,6 +1875,8 @@ function logStartup(): void {
 }
 
 async function startServer(): Promise<void> {
+  await detectPullSecret();
+
   if (IS_PRODUCTION) {
     configureProductionFrontend();
   } else {
