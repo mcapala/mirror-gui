@@ -452,7 +452,7 @@ const MirrorOperations: React.FC = () => {
                   onChange={(_event, value) => setSelectedConfig(value)}
                   aria-label="Select configuration file"
                 >
-                  <FormSelectOption key="" value="" label="Select a configuration file..." isPlaceholder />
+                  <FormSelectOption key="" value="" label="Select a configuration file..." isPlaceholder isDisabled />
                   {availableConfigs.map(config => (
                     <FormSelectOption
                       key={config.name}
