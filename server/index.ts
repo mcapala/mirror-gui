@@ -240,7 +240,7 @@ async function getSystemInfo(): Promise<SystemInfo> {
       execAsync('uname -m').catch(() => ({ stdout: 'Not available', stderr: '' }))
     ]);
 
-    const diskSpace = await execAsync('df -k .').catch(() => ({ stdout: '', stderr: '' }));
+    const diskSpace = await execAsync(`df -k ${STORAGE_DIR}`).catch(() => ({ stdout: '', stderr: '' }));
     const lines = diskSpace.stdout.split('\n');
     const diskInfo = lines[1] ? lines[1].split(/\s+/) : [];
     const availableSpace = diskInfo[3] ? parseInt(diskInfo[3]) * 1024 : 0;
@@ -322,7 +322,7 @@ async function getSystemHealth(): Promise<string> {
 
   let diskOk = false;
   try {
-    const diskSpace = await execAsync('df -k .');
+    const diskSpace = await execAsync(`df -k ${STORAGE_DIR}`);
     const lines = diskSpace.stdout.split('\n');
     const diskInfo = lines[1] ? lines[1].split(/\s+/) : [];
     const availableSpace = diskInfo[3] ? parseInt(diskInfo[3]) * 1024 : 0;
