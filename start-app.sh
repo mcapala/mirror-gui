@@ -306,6 +306,7 @@ run_container() {
             $pull_secret_mount \
             -e PORT="$CONTAINER_PORT" \
             -e STORAGE_DIR=/app/data \
+            -e HOST_DATA_DIR="$(pwd)/$DATA_DIR" \
             -e OC_MIRROR_CACHE_DIR=/app/data/cache \
             -e OC_MIRROR_BASE_MIRROR_DIR=/app/data/mirrors \
             --restart unless-stopped \

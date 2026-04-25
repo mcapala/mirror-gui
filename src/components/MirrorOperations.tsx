@@ -86,6 +86,7 @@ const MirrorOperations: React.FC = () => {
   const [deleteOperationId, setDeleteOperationId] = useState<string | null>(null);
   const [mirrorDestinationSubdir, setMirrorDestinationSubdir] = useState('');
   const [showMirrorLocation, setShowMirrorLocation] = useState<Record<string, boolean>>({});
+  const [hostDataDir, setHostDataDir] = useState('');
 
   const operationsRef = useRef<Operation[]>([]);
   const notifiedOperationsRef = useRef(new Set<string>());
@@ -227,6 +228,7 @@ const MirrorOperations: React.FC = () => {
   useEffect(() => {
     fetchOperations();
     fetchConfigurations();
+    axios.get('/api/system/info').then(res => setHostDataDir(res.data.hostDataDir || '')).catch(() => {});
     const interval = setInterval(fetchOperations, 5000);
     return () => clearInterval(interval);
   }, [fetchOperations, fetchConfigurations]);
@@ -386,8 +388,8 @@ const MirrorOperations: React.FC = () => {
   };
 
   const getMirrorFullPath = (mirrorDestination: string) => {
-    if (mirrorDestination.startsWith('/app/data')) {
-      return mirrorDestination.replace('/app/data', 'data');
+    if (hostDataDir && mirrorDestination.startsWith('/app/data')) {
+      return mirrorDestination.replace('/app/data', hostDataDir);
     }
     return mirrorDestination;
   };

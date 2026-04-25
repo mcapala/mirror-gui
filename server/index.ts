@@ -50,6 +50,7 @@ interface SystemInfo {
   systemArchitecture: string;
   availableDiskSpace: number;
   totalDiskSpace: number;
+  hostDataDir: string;
 }
 
 interface CatalogEntry {
@@ -270,7 +271,8 @@ async function getSystemInfo(): Promise<SystemInfo> {
       ocMirrorVersion: parseOcMirrorVersion(ocMirrorVersion.stdout.trim()),
       systemArchitecture: systemArch.stdout.trim(),
       availableDiskSpace: availableSpace,
-      totalDiskSpace: totalSpace
+      totalDiskSpace: totalSpace,
+      hostDataDir: process.env.HOST_DATA_DIR || STORAGE_DIR,
     };
   } catch (error: any) {
     console.error('Error getting system info:', error);
@@ -278,7 +280,8 @@ async function getSystemInfo(): Promise<SystemInfo> {
       ocMirrorVersion: 'Not available',
       systemArchitecture: 'Not available',
       availableDiskSpace: 0,
-      totalDiskSpace: 0
+      totalDiskSpace: 0,
+      hostDataDir: process.env.HOST_DATA_DIR || STORAGE_DIR,
     };
   }
 }
