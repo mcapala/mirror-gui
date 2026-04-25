@@ -326,7 +326,7 @@ async function getSystemHealth(): Promise<string> {
     const lines = diskSpace.stdout.split('\n');
     const diskInfo = lines[1] ? lines[1].split(/\s+/) : [];
     const availableSpace = diskInfo[3] ? parseInt(diskInfo[3]) * 1024 : 0;
-    diskOk = availableSpace > 1_000_000_000;
+    diskOk = availableSpace > 30_000_000_000;
   } catch {}
 
   if (!ocMirrorOk) return 'error';
