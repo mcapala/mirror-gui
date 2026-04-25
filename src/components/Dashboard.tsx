@@ -224,7 +224,7 @@ const Dashboard: React.FC = () => {
             isInline
             title="No pull secret detected"
             actionLinks={
-              <Button variant="link" onClick={() => navigate('/settings')}>
+              <Button variant="link" onClick={() => navigate('/settings?tab=pull-secret')}>
                 Go to Settings
               </Button>
             }

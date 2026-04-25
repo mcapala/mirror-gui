@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   Card,
@@ -100,8 +101,9 @@ const SettingsPage: React.FC = () => {
     availableDiskSpace: '',
     totalDiskSpace: '',
   });
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<string | number>('general');
+  const [activeTab, setActiveTab] = useState<string | number>(searchParams.get('tab') || 'general');
   const [showResetModal, setShowResetModal] = useState(false);
   const [pullSecretContent, setPullSecretContent] = useState('');
   const [pullSecretFilename, setPullSecretFilename] = useState('');
