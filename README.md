@@ -71,9 +71,11 @@ Manage with: `./container-run.sh --stop`, `./container-run.sh --logs`, `./contai
 
 ### Dashboard
 
-System health overview, operation statistics, recent operations, and quick action buttons.
+System status overview, operation statistics, recent operations, and quick action buttons. Shows a warning banner when no pull secret is detected.
 
 ![Dashboard](docs/screenshots/dashboard.png)
+
+![Dashboard without pull secret](docs/screenshots/dashboard-no-pull-secret.png)
 
 ### Mirror Configuration
 
