@@ -27,8 +27,20 @@ chmod +x start-app.sh
 ./start-app.sh
 ```
 
-The script auto-detects your architecture (AMD64/ARM64), pulls the image from Quay.io, and starts the app.
+The script auto-detects your architecture (AMD64/ARM64), pulls the image, and starts the app.
 It validates `pull-secret/pull-secret.json` before launching the container.
+
+To use a specific image (e.g. a CI-built image), pass it via `IMAGE_NAME`:
+
+```bash
+IMAGE_NAME=registry.ci.openshift.org/ocp/5.0:mirror-gui ./start-app.sh
+```
+
+You can also override the host port:
+
+```bash
+WEB_PORT=3002 ./start-app.sh
+```
 
 Open the URL printed by the script in your browser. By default it uses **http://localhost:3000**, but it automatically selects another free host port if `3000` is already in use. If a different port is chosen, use the `Web UI:` line printed by the script output.
 
