@@ -17,8 +17,6 @@ import {
   Flex,
   FlexItem,
   FormGroup,
-  FormSelect,
-  FormSelectOption,
   Grid,
   GridItem,
   HelperText,
@@ -276,7 +274,7 @@ const getPlatformChannelValidationMessage = (channel: PlatformChannel): string =
 
 const getOperatorChannelValidationMessage = (
   channel: OperatorChannel,
-  _versions: string[],
+  _versions: string[], // eslint-disable-line @typescript-eslint/no-unused-vars
 ): string => {
   if (channel.minVersion && !isValidVersion(channel.minVersion)) {
     return 'Min version must be a valid version';

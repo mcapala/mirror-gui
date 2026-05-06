@@ -385,6 +385,20 @@ async function getSystemHealth(): Promise<string> {
 }
 
 let preFetchedCatalogData: PreFetchedCatalogData | null = null;
+const RUNTIME_CATALOG_DIR = path.join(STORAGE_DIR, 'catalog-data');
+const BUILTIN_CATALOG_DIR = path.join(__dirname, '../catalog-data');
+
+async function resolveCatalogDataDir(): Promise<string> {
+  const runtimeIndex = path.join(RUNTIME_CATALOG_DIR, 'catalog-index.json');
+  try {
+    await fsp.access(runtimeIndex, fs.constants.R_OK);
+    console.log(`Using runtime catalog data from ${RUNTIME_CATALOG_DIR}`);
+    return RUNTIME_CATALOG_DIR;
+  } catch {
+    console.log(`Using built-in catalog data from ${BUILTIN_CATALOG_DIR}`);
+    return BUILTIN_CATALOG_DIR;
+  }
+}
 
 async function loadPreFetchedCatalogData(): Promise<PreFetchedCatalogData | null> {
   if (preFetchedCatalogData) {
@@ -392,7 +406,8 @@ async function loadPreFetchedCatalogData(): Promise<PreFetchedCatalogData | null
   }
 
   try {
-    const catalogIndexPath = path.join(__dirname, '../catalog-data/catalog-index.json');
+    const catalogDir = await resolveCatalogDataDir();
+    const catalogIndexPath = path.join(catalogDir, 'catalog-index.json');
     const catalogIndex = JSON.parse(await fsp.readFile(catalogIndexPath, 'utf8'));
     
     preFetchedCatalogData = {
@@ -404,7 +419,7 @@ async function loadPreFetchedCatalogData(): Promise<PreFetchedCatalogData | null
     let totalOperators = 0;
 
     for (const catalog of catalogIndex.catalogs) {
-      const operatorsPath = path.join(__dirname, `../catalog-data/${catalog.catalog_type}/${catalog.ocp_version}/operators.json`);
+      const operatorsPath = path.join(catalogDir, `${catalog.catalog_type}/${catalog.ocp_version}/operators.json`);
       try {
         const operators: OperatorEntry[] = JSON.parse(await fsp.readFile(operatorsPath, 'utf8'));
         const key = `${catalog.catalog_type}:${catalog.ocp_version}`;
@@ -513,12 +528,13 @@ async function loadDependenciesData(): Promise<Record<string, Record<string, Ope
   }
 
   try {
-    const catalogIndexPath = path.join(__dirname, '../catalog-data/catalog-index.json');
+    const catalogDir = await resolveCatalogDataDir();
+    const catalogIndexPath = path.join(catalogDir, 'catalog-index.json');
     const catalogIndex = JSON.parse(await fsp.readFile(catalogIndexPath, 'utf8'));
     const merged: Record<string, Record<string, OperatorDependency[]>> = {};
 
     for (const catalog of catalogIndex.catalogs) {
-      const depsPath = path.join(__dirname, `../catalog-data/${catalog.catalog_type}/${catalog.ocp_version}/dependencies.json`);
+      const depsPath = path.join(catalogDir, `${catalog.catalog_type}/${catalog.ocp_version}/dependencies.json`);
       try {
         const deps = JSON.parse(await fsp.readFile(depsPath, 'utf8'));
         const key = `${catalog.catalog_type}:${catalog.ocp_version}`;
@@ -848,7 +864,11 @@ app.post('/api/pull-secret', async (req: Request, res: Response) => {
 app.delete('/api/pull-secret', async (_req: Request, res: Response) => {
   try {
     if (pullSecretPath) {
-      await fsp.rm(pullSecretPath, { force: true });
+      try {
+        await fsp.rm(pullSecretPath, { force: true });
+      } catch {
+        await fsp.writeFile(pullSecretPath, '', 'utf8');
+      }
     }
     pullSecretPath = null;
     pullSecretDetected = false;
@@ -1892,6 +1912,211 @@ app.post('/api/cache/cleanup', async (_req: Request, res: Response) => {
     console.error('Error cleaning up cache:', error);
     res.status(500).json({ error: 'Failed to cleanup cache' });
   }
+});
+
+function computeCatalogDiff(oldData: PreFetchedCatalogData, newData: PreFetchedCatalogData): CatalogSyncDiffEntry[] {
+  const diff: CatalogSyncDiffEntry[] = [];
+
+  const allKeys = new Set([...Object.keys(oldData.operators), ...Object.keys(newData.operators)]);
+
+  for (const catalogKey of allKeys) {
+    const oldOps = oldData.operators[catalogKey] || [];
+    const newOps = newData.operators[catalogKey] || [];
+
+    const oldByName = new Map(oldOps.map(op => [op.name, op]));
+    const newByName = new Map(newOps.map(op => [op.name, op]));
+
+    const newOperators = newOps.filter(op => !oldByName.has(op.name)).map(op => op.name);
+    const removedOperators = oldOps.filter(op => !newByName.has(op.name)).map(op => op.name);
+
+    const updatedOperators: { name: string; addedVersions: string[] }[] = [];
+    for (const newOp of newOps) {
+      const oldOp = oldByName.get(newOp.name);
+      if (!oldOp) continue;
+
+      const oldVersions = new Set(oldOp.availableVersions || []);
+      const addedVersions = (newOp.availableVersions || []).filter(v => !oldVersions.has(v));
+      if (addedVersions.length > 0) {
+        updatedOperators.push({ name: newOp.name, addedVersions });
+      }
+    }
+
+    if (newOperators.length > 0 || removedOperators.length > 0 || updatedOperators.length > 0) {
+      diff.push({ catalog: catalogKey, newOperators, removedOperators, updatedOperators });
+    }
+  }
+
+  return diff;
+}
+
+const CATALOG_SYNC_TOTAL = 18; // 6 OCP versions x 3 catalog types
+
+interface CatalogSyncDiffEntry {
+  catalog: string;
+  newOperators: string[];
+  removedOperators: string[];
+  updatedOperators: { name: string; addedVersions: string[] }[];
+}
+
+interface CatalogSyncState {
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  lastSyncTime: string | null;
+  successCount: number;
+  failedCount: number;
+  totalCount: number;
+  completedCatalogs: number;
+  currentCatalog: string | null;
+  error: string | null;
+  logs: string[];
+  diff: CatalogSyncDiffEntry[];
+}
+
+let catalogSyncState: CatalogSyncState = {
+  status: 'idle',
+  lastSyncTime: null,
+  successCount: 0,
+  failedCount: 0,
+  totalCount: CATALOG_SYNC_TOTAL,
+  completedCatalogs: 0,
+  currentCatalog: null,
+  error: null,
+  logs: [],
+  diff: [],
+};
+let catalogSyncProcess: ChildProcess | null = null;
+
+app.post('/api/catalogs/sync', async (_req: Request, res: Response) => {
+  if (catalogSyncState.status === 'running') {
+    res.status(409).json({ error: 'Catalog sync is already running' });
+    return;
+  }
+
+  if (!pullSecretDetected || !pullSecretPath) {
+    res.status(400).json({ error: 'Pull secret not configured. Please add a pull secret in the Pull Secret tab first.' });
+    return;
+  }
+
+  const syncScriptPath = path.join(APP_ROOT_DIR, 'sync-catalogs.sh');
+  try {
+    await fsp.access(syncScriptPath, fs.constants.X_OK);
+  } catch {
+    res.status(500).json({ error: 'Catalog sync is not available. The sync script is missing from this installation.' });
+    return;
+  }
+
+  const previousCatalogData = preFetchedCatalogData;
+
+  catalogSyncState = {
+    status: 'running',
+    lastSyncTime: null,
+    successCount: 0,
+    failedCount: 0,
+    totalCount: CATALOG_SYNC_TOTAL,
+    completedCatalogs: 0,
+    currentCatalog: null,
+    error: null,
+    logs: [],
+    diff: [],
+  };
+
+  const env = {
+    ...process.env,
+    CATALOG_DATA_DIR: RUNTIME_CATALOG_DIR,
+    PULL_SECRET_PATH: AUTHFILE_PATH,
+    SCRIPT_DIR: APP_ROOT_DIR,
+    MAX_PARALLEL_JOBS: '3',
+  };
+
+  catalogSyncProcess = spawn('bash', [syncScriptPath], {
+    env,
+    cwd: APP_ROOT_DIR,
+  });
+
+  const handleSyncOutput = (data: Buffer, stream: 'stdout' | 'stderr') => {
+    const lines = data.toString().split('\n').filter(Boolean);
+    catalogSyncState.logs.push(...lines);
+    for (const line of lines) {
+      if (stream === 'stdout') {
+        console.log(`[catalog-sync] ${line}`);
+      } else {
+        console.error(`[catalog-sync] ${line}`);
+      }
+      const extractMatch = line.match(/^Extracting (\S+) (v[\d.]+)/);
+      if (extractMatch) {
+        catalogSyncState.currentCatalog = `${extractMatch[1]} ${extractMatch[2]}`;
+      }
+      if (line.startsWith('Generated metadata for') || line.startsWith('ERROR: Failed to extract') || line.startsWith('ERROR: Failed to generate') || line.startsWith('ERROR: No configs directory')) {
+        catalogSyncState.completedCatalogs = Math.min(catalogSyncState.completedCatalogs + 1, CATALOG_SYNC_TOTAL);
+      }
+    }
+  };
+
+  catalogSyncProcess.stdout?.on('data', (data: Buffer) => handleSyncOutput(data, 'stdout'));
+  catalogSyncProcess.stderr?.on('data', (data: Buffer) => handleSyncOutput(data, 'stderr'));
+
+  catalogSyncProcess.on('close', (code: number | null) => {
+    catalogSyncProcess = null;
+    catalogSyncState.lastSyncTime = new Date().toISOString();
+
+    const completedLine = catalogSyncState.logs.find(l => l.startsWith('Completed:'));
+    if (completedLine) {
+      const match = completedLine.match(/(\d+)\/(\d+) catalogs successful, (\d+) failed/);
+      if (match) {
+        catalogSyncState.successCount = parseInt(match[1], 10);
+        catalogSyncState.totalCount = parseInt(match[2], 10);
+        catalogSyncState.failedCount = parseInt(match[3], 10);
+      }
+    }
+
+    if (code === 0) {
+      preFetchedCatalogData = null;
+      dependenciesDataCache = null;
+      operatorCache.catalogs = [];
+      operatorCache.operators = {};
+      operatorCache.channels = {};
+      operatorCache.lastUpdate = null;
+
+      loadPreFetchedCatalogData().then(newData => {
+        if (newData && previousCatalogData) {
+          catalogSyncState.diff = computeCatalogDiff(previousCatalogData, newData);
+        }
+        catalogSyncState.status = 'completed';
+        console.log('Catalog sync completed successfully. Cache reloaded.');
+      }).catch(() => {
+        catalogSyncState.status = 'completed';
+        console.log('Catalog sync completed but failed to compute diff.');
+      });
+    } else {
+      catalogSyncState.status = 'failed';
+      catalogSyncState.error = `Sync process exited with code ${code}`;
+      console.error(`Catalog sync failed with exit code ${code}`);
+    }
+  });
+
+  catalogSyncProcess.on('error', (err: Error) => {
+    catalogSyncProcess = null;
+    catalogSyncState.status = 'failed';
+    catalogSyncState.error = err.message;
+    catalogSyncState.lastSyncTime = new Date().toISOString();
+    console.error('Catalog sync process error:', err);
+  });
+
+  res.json({ message: 'Catalog sync started', status: catalogSyncState.status });
+});
+
+app.get('/api/catalogs/sync/status', (_req: Request, res: Response) => {
+  res.json({
+    status: catalogSyncState.status,
+    lastSyncTime: catalogSyncState.lastSyncTime,
+    successCount: catalogSyncState.successCount,
+    failedCount: catalogSyncState.failedCount,
+    totalCount: catalogSyncState.totalCount,
+    completedCatalogs: catalogSyncState.completedCatalogs,
+    currentCatalog: catalogSyncState.currentCatalog,
+    error: catalogSyncState.error,
+    logs: catalogSyncState.logs,
+    diff: catalogSyncState.diff,
+  });
 });
 
 app.get('/api/system/info', async (req: Request, res: Response) => {

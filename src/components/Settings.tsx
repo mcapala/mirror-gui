@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -17,6 +17,12 @@ import {
   Alert,
   Label,
   Popover,
+  Progress,
+  ProgressSize,
+  ProgressMeasureLocation,
+  ExpandableSection,
+  List,
+  ListItem,
 } from '@patternfly/react-core';
 import {
   CogIcon,
@@ -30,6 +36,7 @@ import {
   CheckCircleIcon,
   TimesCircleIcon,
   InProgressIcon,
+  SyncAltIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -50,6 +57,26 @@ interface SystemInfo {
   cacheDir: string;
   hostCacheDir: string;
   cacheSizeBytes: number;
+}
+
+interface CatalogSyncDiffEntry {
+  catalog: string;
+  newOperators: string[];
+  removedOperators: string[];
+  updatedOperators: { name: string; addedVersions: string[] }[];
+}
+
+interface CatalogSyncStatus {
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  lastSyncTime: string | null;
+  successCount: number;
+  failedCount: number;
+  totalCount: number;
+  completedCatalogs: number;
+  currentCatalog: string | null;
+  error: string | null;
+  logs: string[];
+  diff: CatalogSyncDiffEntry[];
 }
 
 const SettingsPage: React.FC = () => {
@@ -76,6 +103,85 @@ const SettingsPage: React.FC = () => {
   const [pullSecretFilename, setPullSecretFilename] = useState('');
   const [pullSecretStatus, setPullSecretStatus] = useState<{ detected: boolean; path: string | null }>({ detected: false, path: null });
   const [registries, setRegistries] = useState<RegistryEntry[]>([]);
+
+  const [catalogSyncStatus, setCatalogSyncStatus] = useState<CatalogSyncStatus>({
+    status: 'idle', lastSyncTime: null, successCount: 0, failedCount: 0, totalCount: 0,
+    completedCatalogs: 0, currentCatalog: null, error: null, logs: [], diff: [],
+  });
+  const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const prevSyncStatusRef = useRef<string>('idle');
+  const syncStartTimeRef = useRef<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [showSyncLogs, setShowSyncLogs] = useState(false);
+
+  const fetchSyncStatus = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/catalogs/sync/status');
+      setCatalogSyncStatus(response.data);
+      if (response.data.status !== 'running' && syncPollRef.current) {
+        clearInterval(syncPollRef.current);
+        syncPollRef.current = null;
+      }
+    } catch (error) {
+      console.error('Error fetching sync status:', error);
+    }
+  }, []);
+
+  const startCatalogSync = async () => {
+    try {
+      await axios.post('/api/catalogs/sync');
+      setCatalogSyncStatus(prev => ({ ...prev, status: 'running', logs: [], error: null, diff: [] }));
+      syncPollRef.current = setInterval(fetchSyncStatus, 3000);
+      syncStartTimeRef.current = Date.now();
+      setElapsedSeconds(0);
+      setShowSyncLogs(false);
+      elapsedTimerRef.current = setInterval(() => {
+        if (syncStartTimeRef.current) {
+          setElapsedSeconds(Math.floor((Date.now() - syncStartTimeRef.current) / 1000));
+        }
+      }, 1000);
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to start catalog sync';
+      addDangerAlert(msg);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (syncPollRef.current) clearInterval(syncPollRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const prev = prevSyncStatusRef.current;
+    const curr = catalogSyncStatus.status;
+    if (prev === 'running' && (curr === 'completed' || curr === 'failed')) {
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
+    }
+    if (prev === 'running' && curr === 'completed') {
+      addSuccessAlert(`Catalog sync completed: ${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs successful`);
+    } else if (prev === 'running' && curr === 'failed') {
+      addDangerAlert(`Catalog sync failed: ${catalogSyncStatus.error || 'Unknown error'}`);
+    }
+    prevSyncStatusRef.current = curr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogSyncStatus.status]);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [catalogSyncStatus.logs.length]);
+
+  const formatElapsed = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  };
 
   const fetchRegistries = async () => {
     try {
@@ -152,6 +258,8 @@ const SettingsPage: React.FC = () => {
     fetchSystemInfo();
     fetchPullSecretStatus();
     fetchRegistries();
+    fetchSyncStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSystemInfo = async () => {
@@ -380,6 +488,158 @@ const SettingsPage: React.FC = () => {
                     Clean Up Cache
                   </Button>
                 </ActionGroup>
+              </div>
+            </Tab>
+
+            <Tab
+              eventKey="sync-catalogs"
+              title={<TabTitleText><SyncAltIcon /> Sync Catalogs</TabTitleText>}
+            >
+              <div style={{ padding: '1.5rem 0' }}>
+                <Title headingLevel="h3" style={{ marginBottom: '1rem' }}>Sync Operator Catalogs</Title>
+
+                <Alert
+                  variant={pullSecretStatus.detected ? 'custom' : 'warning'}
+                  isInline
+                  isPlain
+                  customIcon={pullSecretStatus.detected ? <InfoCircleIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} /> : undefined}
+                  title={pullSecretStatus.detected ? 'Pull secret detected' : 'Pull secret required'}
+                  style={{ marginBottom: '1.5rem' }}
+                >
+                  {pullSecretStatus.detected
+                    ? 'Sync will fetch the latest operator catalogs metadata from registry.redhat.io for all supported OCP versions. This process takes several minutes.'
+                    : 'A pull secret is required to sync operator catalogs from registry.redhat.io. Please configure one in the Pull Secret tab.'}
+                </Alert>
+
+                {catalogSyncStatus.lastSyncTime && (
+                  <FormGroup label="Last Sync" fieldId="last-sync-time" style={{ marginBottom: '1rem' }}>
+                    <Label
+                      isCompact
+                      color={catalogSyncStatus.status === 'completed' ? 'green' : catalogSyncStatus.status === 'failed' ? 'red' : undefined}
+                      icon={catalogSyncStatus.status === 'completed' ? <CheckCircleIcon /> : catalogSyncStatus.status === 'failed' ? <TimesCircleIcon /> : undefined}
+                    >
+                      {new Date(catalogSyncStatus.lastSyncTime).toLocaleString()}
+                      {catalogSyncStatus.status === 'completed' && ` (${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs)`}
+                      {catalogSyncStatus.status === 'failed' && ' (failed)'}
+                    </Label>
+                  </FormGroup>
+                )}
+
+                <ActionGroup>
+                  <Button
+                    variant="primary"
+                    icon={catalogSyncStatus.status !== 'running' ? <SyncAltIcon /> : undefined}
+                    onClick={startCatalogSync}
+                    isDisabled={!pullSecretStatus.detected || catalogSyncStatus.status === 'running'}
+                    isLoading={catalogSyncStatus.status === 'running'}
+                  >
+                    {catalogSyncStatus.status === 'running' ? 'Syncing Catalogs...' : 'Sync Catalogs'}
+                  </Button>
+                </ActionGroup>
+
+                {catalogSyncStatus.status === 'running' && catalogSyncStatus.totalCount > 0 && (
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <Progress
+                      value={Math.round((catalogSyncStatus.completedCatalogs / catalogSyncStatus.totalCount) * 100)}
+                      title="Catalog sync progress"
+                      size={ProgressSize.lg}
+                      measureLocation={ProgressMeasureLocation.outside}
+                      label={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
+                      valueText={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
+                    />
+                    <HelperText style={{ marginTop: '0.25rem' }}>
+                      <HelperTextItem>
+                        {catalogSyncStatus.currentCatalog && `Processing: ${catalogSyncStatus.currentCatalog} | `}
+                        Elapsed: {formatElapsed(elapsedSeconds)}
+                      </HelperTextItem>
+                    </HelperText>
+                  </div>
+                )}
+
+                {catalogSyncStatus.status === 'completed' && catalogSyncStatus.diff.length > 0 && (
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <Alert variant="success" isInline isPlain title="Catalog changes detected" style={{ marginBottom: '1rem' }}>
+                      The following changes were found compared to the previously loaded catalog data.
+                    </Alert>
+                    {catalogSyncStatus.diff.map((entry) => (
+                      <ExpandableSection
+                        key={entry.catalog}
+                        toggleText={`${entry.catalog} (${entry.newOperators.length} new, ${entry.updatedOperators.length} updated, ${entry.removedOperators.length} removed)`}
+                        isIndented
+                      >
+                        {entry.newOperators.length > 0 && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <Title headingLevel="h5" style={{ marginBottom: '0.25rem' }}>
+                              <Label color="green" isCompact>New Operators ({entry.newOperators.length})</Label>
+                            </Title>
+                            <List isPlain>
+                              {entry.newOperators.map(op => <ListItem key={op}>{op}</ListItem>)}
+                            </List>
+                          </div>
+                        )}
+                        {entry.updatedOperators.length > 0 && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <Title headingLevel="h5" style={{ marginBottom: '0.25rem' }}>
+                              <Label color="blue" isCompact>Updated Operators ({entry.updatedOperators.length})</Label>
+                            </Title>
+                            <List isPlain>
+                              {entry.updatedOperators.map(op => (
+                                <ListItem key={op.name}>
+                                  <strong>{op.name}</strong>: {op.addedVersions.join(', ')}
+                                </ListItem>
+                              ))}
+                            </List>
+                          </div>
+                        )}
+                        {entry.removedOperators.length > 0 && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <Title headingLevel="h5" style={{ marginBottom: '0.25rem' }}>
+                              <Label color="red" isCompact>Removed Operators ({entry.removedOperators.length})</Label>
+                            </Title>
+                            <List isPlain>
+                              {entry.removedOperators.map(op => <ListItem key={op}>{op}</ListItem>)}
+                            </List>
+                          </div>
+                        )}
+                      </ExpandableSection>
+                    ))}
+                  </div>
+                )}
+
+                {catalogSyncStatus.status === 'completed' && catalogSyncStatus.diff.length === 0 && (
+                  <Alert variant="success" isInline isPlain title="Catalogs are up to date" style={{ marginTop: '1.5rem' }}>
+                    No differences found between the synced data and the previously loaded catalogs.
+                  </Alert>
+                )}
+
+                {catalogSyncStatus.logs.length > 0 && (
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <ExpandableSection
+                      toggleText={showSyncLogs ? 'Hide Logs' : 'Show Logs'}
+                      onToggle={(_event, expanded) => setShowSyncLogs(expanded)}
+                      isExpanded={showSyncLogs}
+                    >
+                      <div
+                        style={{
+                          backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
+                          border: '1px solid var(--pf-t--global--border--color--default)',
+                          borderRadius: '6px',
+                          padding: '0.75rem',
+                          maxHeight: '300px',
+                          overflowY: 'auto',
+                          fontFamily: 'var(--pf-t--global--font--family--mono)',
+                          fontSize: '0.8rem',
+                          lineHeight: '1.4',
+                        }}
+                      >
+                        {catalogSyncStatus.logs.map((line, i) => (
+                          <div key={i}>{line}</div>
+                        ))}
+                        <div ref={logsEndRef} />
+                      </div>
+                    </ExpandableSection>
+                  </div>
+                )}
               </div>
             </Tab>
 
