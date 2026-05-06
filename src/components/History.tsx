@@ -6,8 +6,6 @@ import {
   Toolbar,
   ToolbarContent,
   ToolbarItem,
-  FormSelect,
-  FormSelectOption,
   Select,
   SelectOption,
   SelectList,

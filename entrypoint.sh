@@ -2,7 +2,7 @@
 set -e
 
 APP_DATA="/app/data"
-DIRS="$APP_DATA/configs $APP_DATA/operations $APP_DATA/logs $APP_DATA/cache $APP_DATA/mirrors/default"
+DIRS="$APP_DATA/configs $APP_DATA/operations $APP_DATA/logs $APP_DATA/cache $APP_DATA/mirrors/default $APP_DATA/catalog-data"
 
 for d in $DIRS; do
     mkdir -p "$d"

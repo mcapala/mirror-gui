@@ -6,8 +6,6 @@ import {
   CardTitle,
   CardHeader,
   FormGroup,
-  FormSelect,
-  FormSelectOption,
   Select,
   SelectOption,
   SelectList,
