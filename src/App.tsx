@@ -6,9 +6,11 @@ import {
   MastheadMain,
   MastheadBrand,
   MastheadContent,
+  MastheadToggle,
   PageSidebar,
   PageSidebarBody,
   PageSection,
+  PageToggleButton,
   Nav,
   NavList,
   NavItem,
@@ -86,6 +88,9 @@ const AppLayout: React.FC = () => {
   const masthead = (
     <Masthead>
       <MastheadMain>
+        <MastheadToggle>
+          <PageToggleButton aria-label="Navigation toggle" isHamburgerButton />
+        </MastheadToggle>
         <MastheadBrand>
           <Brand src={effectiveTheme === 'dark' ? redhatLogoDark : redhatLogo} alt="Red Hat" heights={{ default: '36px' }} />
         </MastheadBrand>
@@ -114,7 +119,7 @@ const AppLayout: React.FC = () => {
   );
 
   return (
-    <Page masthead={masthead} sidebar={sidebar}>
+    <Page masthead={masthead} sidebar={sidebar} isManagedSidebar>
       <PageSection style={{ minHeight: 'calc(100vh - 76px)' }}>
         <Suspense
           fallback={

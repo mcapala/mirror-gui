@@ -177,6 +177,17 @@ const SettingsPage: React.FC = () => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [catalogSyncStatus.logs.length]);
 
+  const clearSyncData = async () => {
+    try {
+      const response = await axios.delete('/api/catalogs/sync/data');
+      addSuccessAlert(response.data.message);
+      await fetchSyncStatus();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to clear sync data';
+      addDangerAlert(msg);
+    }
+  };
+
   const formatElapsed = (seconds: number): string => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -534,6 +545,15 @@ const SettingsPage: React.FC = () => {
                     isLoading={catalogSyncStatus.status === 'running'}
                   >
                     {catalogSyncStatus.status === 'running' ? 'Syncing Catalogs...' : 'Sync Catalogs'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={<TrashAltIcon />}
+                    onClick={clearSyncData}
+                    isDisabled={catalogSyncStatus.status === 'running'}
+                    isDanger
+                  >
+                    Clear Sync Data
                   </Button>
                 </ActionGroup>
 

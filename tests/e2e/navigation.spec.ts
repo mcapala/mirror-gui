@@ -74,6 +74,15 @@ test.describe('Navigation', () => {
     await expect(page.locator('html')).not.toHaveClass(/pf-v6-theme-dark/);
   });
 
+  test('sidebar toggle button is visible and collapses sidebar', async ({ page }) => {
+    await page.goto('/');
+    const toggleBtn = page.getByRole('button', { name: /navigation toggle/i });
+    await expect(toggleBtn).toBeVisible();
+    await expect(page.getByText('Dashboard').first()).toBeVisible();
+    await toggleBtn.click();
+    await expect(page.locator('#page-sidebar')).toHaveClass(/pf-m-collapsed/, { timeout: 5000 });
+  });
+
   test('theme preference persists across page reload', async ({ page }) => {
     await page.goto('/');
     await page.getByLabel('Theme selection').click();

@@ -76,12 +76,12 @@ Runs Playwright browser tests using headless Chromium (port 3001 in CI via dev s
 
 | File                         | Tests | Description                                                                                                                    |
 | ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `navigation.spec.ts`         | 6     | App loads, page title matches, sidebar has 5 nav items, clicking each navigates correctly, masthead title and version badge    |
+| `navigation.spec.ts`         | 7     | App loads, page title matches, sidebar has 5 nav items, clicking each navigates correctly, masthead title and version badge, sidebar toggle    |
 | `dashboard.spec.ts`          | 4     | Dashboard shows environment overview, operation stats cards, recent operations section, quick action buttons                    |
 | `mirrorConfig.spec.ts`       | 7     | Mirror Configuration page -- platform channels, operators, additional images, YAML preview, save/download, inline validation   |
 | `mirrorOperations.spec.ts`   | 4     | Mirror Operations page -- config file selector, start/run controls, operation table or main content area                       |
 | `history.spec.ts`            | 3     | History page -- title, filter controls, Export CSV button                                                                      |
-| `settings.spec.ts`           | 4     | Settings page -- Pull Secret/Registry/Cache tabs, key fields visible                                                           |
+| `settings.spec.ts`           | 5     | Settings page -- Pull Secret/Registry/Cache/Sync Catalogs tabs, key fields visible, sync and clear buttons                       |
 | `configToOperations.spec.ts` | 1     | End-to-end workflow -- saves a YAML config via API, navigates to operations page, confirms it appears                          |
 | `pullSecret.spec.ts`         | 5     | Pull secret -- Dashboard pull secret status, Environment Status label, popover, Pull Secret tab, URL tab navigation            |
 
@@ -98,6 +98,7 @@ Runs [ShellCheck](https://www.shellcheck.net/) with `-S error` (error-level seve
 - `entrypoint.sh`
 - `container-run.sh`
 - `fetch-catalogs-host.sh`
+- `sync-catalogs.sh`
 
 Scripts that are not present (e.g., gitignored) are skipped gracefully.
 
@@ -148,7 +149,7 @@ npm run audit:fetch-catalogs
 | Unit             | 3      | 46         |
 | Integration      | 10     | 56         |
 | Scripts          | 3      | 86         |
-| E2E (Playwright) | 8      | 35         |
-| **Total**        | **24** | **223**    |
+| E2E (Playwright) | 8      | 37         |
+| **Total**        | **24** | **225**    |
 
 

@@ -2119,6 +2119,40 @@ app.get('/api/catalogs/sync/status', (_req: Request, res: Response) => {
   });
 });
 
+app.delete('/api/catalogs/sync/data', async (_req: Request, res: Response) => {
+  try {
+    const runtimeIndex = path.join(RUNTIME_CATALOG_DIR, 'catalog-index.json');
+    try {
+      await fsp.access(runtimeIndex, fs.constants.R_OK);
+    } catch {
+      res.json({ message: 'No synced catalog data to clear' });
+      return;
+    }
+
+    const entries = await fsp.readdir(RUNTIME_CATALOG_DIR);
+    for (const entry of entries) {
+      const entryPath = path.join(RUNTIME_CATALOG_DIR, entry);
+      await fsp.rm(entryPath, { recursive: true, force: true });
+    }
+
+    preFetchedCatalogData = null;
+    dependenciesDataCache = null;
+    operatorCache.catalogs = [];
+    operatorCache.operators = {};
+    operatorCache.channels = {};
+    operatorCache.lastUpdate = null;
+    catalogSyncState.diff = [];
+    catalogSyncState.lastSyncTime = null;
+    catalogSyncState.status = 'idle';
+
+    console.log('Runtime catalog data cleared. Will fall back to built-in data on next load.');
+    res.json({ message: 'Synced catalog data cleared. Falling back to built-in catalog data.' });
+  } catch (error: any) {
+    console.error('Error clearing synced catalog data:', error);
+    res.status(500).json({ error: 'Failed to clear synced catalog data' });
+  }
+});
+
 app.get('/api/system/info', async (req: Request, res: Response) => {
   try {
     const systemInfo = await getSystemInfo();
