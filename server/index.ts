@@ -864,7 +864,11 @@ app.post('/api/pull-secret', async (req: Request, res: Response) => {
 app.delete('/api/pull-secret', async (_req: Request, res: Response) => {
   try {
     if (pullSecretPath) {
-      await fsp.rm(pullSecretPath, { force: true });
+      try {
+        await fsp.rm(pullSecretPath, { force: true });
+      } catch {
+        await fsp.writeFile(pullSecretPath, '', 'utf8');
+      }
     }
     pullSecretPath = null;
     pullSecretDetected = false;

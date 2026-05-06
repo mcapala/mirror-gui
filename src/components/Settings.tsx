@@ -502,7 +502,7 @@ const SettingsPage: React.FC = () => {
                   variant={pullSecretStatus.detected ? 'custom' : 'warning'}
                   isInline
                   isPlain
-                  customIcon={pullSecretStatus.detected ? <InfoCircleIcon /> : undefined}
+                  customIcon={pullSecretStatus.detected ? <InfoCircleIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} /> : undefined}
                   title={pullSecretStatus.detected ? 'Pull secret detected' : 'Pull secret required'}
                   style={{ marginBottom: '1.5rem' }}
                 >
@@ -585,7 +585,7 @@ const SettingsPage: React.FC = () => {
                             <List isPlain>
                               {entry.updatedOperators.map(op => (
                                 <ListItem key={op.name}>
-                                  {op.name} — {op.addedVersions.length} new version{op.addedVersions.length !== 1 ? 's' : ''}
+                                  <strong>{op.name}</strong>: {op.addedVersions.join(', ')}
                                 </ListItem>
                               ))}
                             </List>
@@ -614,14 +614,11 @@ const SettingsPage: React.FC = () => {
 
                 {catalogSyncStatus.logs.length > 0 && (
                   <div style={{ marginTop: '1.5rem' }}>
-                    <Button
-                      variant="link"
-                      onClick={() => setShowSyncLogs(prev => !prev)}
-                      style={{ paddingLeft: 0 }}
+                    <ExpandableSection
+                      toggleText={showSyncLogs ? 'Hide Logs' : 'Show Logs'}
+                      onToggle={(_event, expanded) => setShowSyncLogs(expanded)}
+                      isExpanded={showSyncLogs}
                     >
-                      {showSyncLogs ? 'Hide Logs' : 'Show Logs'}
-                    </Button>
-                    {showSyncLogs && (
                       <div
                         style={{
                           backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
@@ -633,7 +630,6 @@ const SettingsPage: React.FC = () => {
                           fontFamily: 'var(--pf-t--global--font--family--mono)',
                           fontSize: '0.8rem',
                           lineHeight: '1.4',
-                          marginTop: '0.5rem',
                         }}
                       >
                         {catalogSyncStatus.logs.map((line, i) => (
@@ -641,7 +637,7 @@ const SettingsPage: React.FC = () => {
                         ))}
                         <div ref={logsEndRef} />
                       </div>
-                    )}
+                    </ExpandableSection>
                   </div>
                 )}
               </div>

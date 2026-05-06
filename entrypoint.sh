@@ -11,6 +11,12 @@ done
 chown -R node:node "$APP_DATA"
 chmod -R 775 "$APP_DATA"
 
+AUTHFILE="${OC_MIRROR_AUTHFILE:-/app/pull-secret.json}"
+if [ -f "$AUTHFILE" ]; then
+    chown node:node "$AUTHFILE"
+    chmod 664 "$AUTHFILE"
+fi
+
 if su -s /bin/sh node -c "test -w $APP_DATA/configs"; then
     echo "[ENTRYPOINT] Permissions OK"
 else
