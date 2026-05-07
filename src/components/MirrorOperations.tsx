@@ -69,7 +69,7 @@ interface Operation {
 }
 
 const MirrorOperations: React.FC = () => {
-  const { addSuccessAlert, addDangerAlert, addWarningAlert, addInfoAlert } = useAlerts();
+  const { addSuccessAlert, addDangerAlert, addWarningAlert } = useAlerts();
 
   const [operations, setOperations] = useState<Operation[]>([]);
   const [selectedConfig, setSelectedConfig] = useState('');
@@ -133,7 +133,7 @@ const MirrorOperations: React.FC = () => {
         addWarningAlert('Mirror Operation Stopped');
       }
     }
-  }, [addSuccessAlert, addDangerAlert, addWarningAlert, addInfoAlert, fetchLogs]);
+  }, [addSuccessAlert, addDangerAlert, addWarningAlert, fetchLogs]);
 
   const startLogStream = useCallback((operationId: string) => {
     if (logStream) {

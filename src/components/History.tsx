@@ -35,7 +35,6 @@ import {
   AngleUpIcon,
   OutlinedClockIcon,
   ListIcon,
-  SyncAltIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
