@@ -18,6 +18,6 @@ test.describe('Mirror Operations', () => {
   });
 
   test('operations table or content renders', async ({ page }) => {
-    await expect(page.locator('table, [role="grid"], .pf-v5-c-table, main').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('table, [role="grid"], .pf-v6-c-table, main').first()).toBeVisible({ timeout: 10000 });
   });
 });

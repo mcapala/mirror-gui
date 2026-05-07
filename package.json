@@ -37,9 +37,11 @@
   },
   "dependencies": {
     "@patternfly/patternfly": "^6",
+    "@patternfly/react-component-groups": "^6.4.0",
     "@patternfly/react-core": "^6",
     "@patternfly/react-icons": "^6",
     "@patternfly/react-table": "^6",
+    "@patternfly/react-templates": "^6.4.3",
     "axios": "^1.15.2",
     "compression": "^1.7.4",
     "cors": "^2.8.5",

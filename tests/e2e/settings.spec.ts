@@ -23,4 +23,10 @@ test.describe('Settings', () => {
     const saveBtn = page.getByRole('button', { name: /^Save$/i });
     await expect(saveBtn).toBeVisible({ timeout: 10000 });
   });
+
+  test('Sync Catalogs tab shows sync button and clear button', async ({ page }) => {
+    await page.getByText(/sync catalogs/i).first().click();
+    await expect(page.getByRole('button', { name: /sync catalogs/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /clear sync data/i })).toBeVisible({ timeout: 10000 });
+  });
 });
