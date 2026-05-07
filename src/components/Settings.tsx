@@ -309,7 +309,7 @@ const SettingsPage: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-md">
+      <Card className="pf-v6-u-mt-lg">
         <CardBody>
           <Tabs
             activeKey={activeTab}
@@ -528,7 +528,7 @@ const SettingsPage: React.FC = () => {
                   </FormGroup>
                 )}
 
-                <ActionGroup>
+                <ActionGroup className="pf-v6-u-mt-lg">
                   <Button
                     variant="primary"
                     icon={catalogSyncStatus.status !== 'running' ? <SyncAltIcon /> : undefined}

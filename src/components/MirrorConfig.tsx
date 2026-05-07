@@ -1473,7 +1473,7 @@ const MirrorConfig: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-md">
+      <Card className="pf-v6-u-mt-lg">
         <CardBody>
           {Object.entries(validationErrors).filter(([key]) => !key.includes('-warning') && !key.startsWith('yaml-')).length > 0 && (
             <Alert variant="danger" isInline title="Configuration has errors" className="pf-v6-u-mb-md">
@@ -1499,7 +1499,7 @@ const MirrorConfig: React.FC = () => {
               }
             >
               <div
-                className="pf-v6-u-mt-md"
+                className="pf-v6-u-mt-lg pf-v6-u-mb-sm"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1507,7 +1507,7 @@ const MirrorConfig: React.FC = () => {
                 }}
               >
                 <Title headingLevel="h3" style={{ margin: 0 }}>
-                  <ServerIcon /> Platform Channels
+                  Platform Channels
                 </Title>
                 <InfoPopoverButton
                   ariaLabel="Platform channel version guidance"
@@ -1521,13 +1521,9 @@ const MirrorConfig: React.FC = () => {
                   }
                 />
               </div>
-              <p>Configure OpenShift Container Platform channels to mirror.</p>
+              <p className="pf-v6-u-mb-md">Configure OpenShift Container Platform channels to mirror.</p>
 
-              {config.mirror.platform.channels.length === 0 ? (
-                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPlatformChannel()}>
-                  Add platform channel
-                </Button>
-              ) : (
+              {config.mirror.platform.channels.length > 0 ? (
               <FieldBuilder
                 firstColumnLabel="Channel Name"
                 secondColumnLabel="Version Range (optional)"
@@ -1607,6 +1603,10 @@ const MirrorConfig: React.FC = () => {
                   ];
                 }}
               </FieldBuilder>
+              ) : (
+                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPlatformChannel()} style={{ paddingInlineStart: 0 }}>
+                  Add platform channel
+                </Button>
               )}
             </Tab>
 
@@ -1619,8 +1619,8 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <Title headingLevel="h3" className="pf-v6-u-mt-md"><CogIcon /> Operators</Title>
-              <p>Configure operator catalogs and packages to mirror.</p>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Operators</Title>
+              <p className="pf-v6-u-mb-md">Configure operator catalogs and packages to mirror.</p>
 
               {loading && <Spinner size="lg" />}
 
@@ -1695,12 +1695,8 @@ const MirrorConfig: React.FC = () => {
                     </SplitItem>
                   </Split>
 
-                  {operator.packages.length === 0 ? (
-                    <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPackageToOperator(opIndex)} className="pf-v6-u-mt-sm">
-                      Add operator
-                    </Button>
-                  ) : (
                   <div className="pf-v6-u-mt-sm">
+                    {operator.packages.length > 0 ? (
                     <FieldBuilder
                       firstColumnLabel="Operator"
                       rowCount={operator.packages.length}
@@ -1883,12 +1879,16 @@ const MirrorConfig: React.FC = () => {
                         );
                       }}
                     </FieldBuilder>
+                    ) : (
+                      <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPackageToOperator(opIndex)} style={{ paddingInlineStart: 0 }}>
+                        Add operator
+                      </Button>
+                    )}
                   </div>
-                  )}
                 </div>
               ))}
 
-              <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addOperator()}>
+              <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addOperator()} style={{ paddingInlineStart: 0 }}>
                 Add operator catalog
               </Button>
             </Tab>
@@ -1902,14 +1902,10 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <Title headingLevel="h3" className="pf-v6-u-mt-md"><CubesIcon /> Additional Images</Title>
-              <p>Add additional container images to mirror.</p>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Additional Images</Title>
+              <p className="pf-v6-u-mb-md">Add additional container images to mirror.</p>
 
-              {config.mirror.additionalImages.length === 0 ? (
-                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addAdditionalImage()}>
-                  Add image
-                </Button>
-              ) : (
+              {config.mirror.additionalImages.length > 0 ? (
               <FieldBuilder
                 firstColumnLabel="Image Name"
                 rowCount={config.mirror.additionalImages.length}
@@ -1942,6 +1938,10 @@ const MirrorConfig: React.FC = () => {
                   );
                 }}
               </FieldBuilder>
+              ) : (
+                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addAdditionalImage()} style={{ paddingInlineStart: 0 }}>
+                  Add image
+                </Button>
               )}
             </Tab>
 
@@ -1954,9 +1954,9 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <Split hasGutter className="pf-v6-u-mt-md">
+              <Split hasGutter className="pf-v6-u-mt-lg">
                 <SplitItem isFilled>
-                  <Title headingLevel="h3"><EyeIcon /> Configuration Preview</Title>
+                  <Title headingLevel="h3" className="pf-v6-u-mb-sm">Configuration Preview</Title>
                   <p>Preview and edit the generated YAML configuration.</p>
                 </SplitItem>
                 <SplitItem>
@@ -2088,7 +2088,7 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <Title headingLevel="h3" className="pf-v6-u-mt-md"><UploadIcon /> Load YAML Configuration</Title>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Load YAML Configuration</Title>
               <p>
                 Upload an existing ImageSetConfiguration YAML file, review and edit it, then
                 save it or load it into the form editor for further modification.

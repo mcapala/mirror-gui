@@ -414,7 +414,7 @@ const History: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-md">
+      <Card className="pf-v6-u-mt-lg">
         <CardBody>
           <Toolbar>
             <ToolbarContent>
@@ -457,7 +457,7 @@ const History: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-md" style={{ minWidth: 0 }}>
+      <Card className="pf-v6-u-mt-lg" style={{ minWidth: 0 }}>
         <CardBody>
           <Title headingLevel="h3" className="pf-v6-u-mb-md">
             <ListIcon /> Operations List

@@ -436,7 +436,7 @@ const MirrorOperations: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-md">
+      <Card className="pf-v6-u-mt-lg">
         <CardHeader>
           <CardTitle>
             <Title headingLevel="h3">
@@ -591,7 +591,7 @@ const MirrorOperations: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-md">
+      <Card className="pf-v6-u-mt-lg">
         <CardHeader>
           <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
             <FlexItem>
@@ -717,7 +717,7 @@ const MirrorOperations: React.FC = () => {
       </Card>
 
       {showLogs && (
-        <Card className="pf-v6-u-mt-md">
+        <Card className="pf-v6-u-mt-lg">
           <CardHeader>
             <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
               <FlexItem>
