@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import YAML from 'yaml';
 import { useAlerts } from '../AlertContext';
@@ -57,7 +57,6 @@ import {
   InfoCircleIcon,
   SaveIcon,
   ArrowRightIcon,
-  BundleIcon,
   PencilAltIcon,
   CheckIcon,
 } from '@patternfly/react-icons';
