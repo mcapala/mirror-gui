@@ -1633,8 +1633,8 @@ const MirrorConfig: React.FC = () => {
                     borderBottom: '1px solid var(--pf-t--global--border--color--default)',
                   }}
                 >
-                  <Grid hasGutter>
-                    <GridItem span={6}>
+                  <Flex alignItems={{ default: 'alignItemsCenter' }}>
+                    <FlexItem grow={{ default: 'grow' }}>
                       <Select
                         id={`op-catalog-${opIndex}`}
                         isOpen={catalogSelectOpen[opIndex] || false}
@@ -1685,16 +1685,16 @@ const MirrorConfig: React.FC = () => {
                           ))}
                         </SelectList>
                       </Select>
-                    </GridItem>
-                    <GridItem span={1}>
+                    </FlexItem>
+                    <FlexItem>
                       <Button
                         variant="plain"
                         icon={<MinusCircleIcon />}
                         onClick={() => removeOperator(opIndex)}
                         aria-label={`Remove catalog ${opIndex + 1}`}
                       />
-                    </GridItem>
-                  </Grid>
+                    </FlexItem>
+                  </Flex>
 
                   <div className="pf-v6-u-mt-sm">
                     {operator.packages.length > 0 ? (
@@ -1735,7 +1735,7 @@ const MirrorConfig: React.FC = () => {
                               }}
                               placeholder="Type to search operators..."
                               noOptionsFoundMessage={(filter) => `No operators found for "${filter}"`}
-                              toggleProps={{ style: { maxWidth: '50%' } }}
+                              toggleProps={{ isFullWidth: true, className: 'hide-typeahead-clear' }}
                             />
 
                             {pkg.name && info && (
