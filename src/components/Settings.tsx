@@ -35,8 +35,9 @@ import {
   InfoCircleIcon,
   CheckCircleIcon,
   TimesCircleIcon,
-  InProgressIcon,
   SyncAltIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -69,6 +70,7 @@ interface CatalogSyncDiffEntry {
 interface CatalogSyncStatus {
   status: 'idle' | 'running' | 'completed' | 'failed';
   lastSyncTime: string | null;
+  syncStartTime: string | null;
   successCount: number;
   failedCount: number;
   totalCount: number;
@@ -105,14 +107,13 @@ const SettingsPage: React.FC = () => {
   const [registries, setRegistries] = useState<RegistryEntry[]>([]);
 
   const [catalogSyncStatus, setCatalogSyncStatus] = useState<CatalogSyncStatus>({
-    status: 'idle', lastSyncTime: null, successCount: 0, failedCount: 0, totalCount: 0,
-    completedCatalogs: 0, currentCatalog: null, error: null, logs: [], diff: [],
+    status: 'idle', lastSyncTime: null, syncStartTime: null, successCount: 0, failedCount: 0,
+    totalCount: 0, completedCatalogs: 0, currentCatalog: null, error: null, logs: [], diff: [],
   });
   const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const prevSyncStatusRef = useRef<string>('idle');
-  const syncStartTimeRef = useRef<number | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [, setTick] = useState(0);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showSyncLogs, setShowSyncLogs] = useState(false);
 
@@ -132,16 +133,11 @@ const SettingsPage: React.FC = () => {
   const startCatalogSync = async () => {
     try {
       await axios.post('/api/catalogs/sync');
-      setCatalogSyncStatus(prev => ({ ...prev, status: 'running', logs: [], error: null, diff: [] }));
+      setCatalogSyncStatus(prev => ({ ...prev, status: 'running', syncStartTime: new Date().toISOString(), logs: [], error: null, diff: [] }));
       syncPollRef.current = setInterval(fetchSyncStatus, 3000);
-      syncStartTimeRef.current = Date.now();
-      setElapsedSeconds(0);
       setShowSyncLogs(false);
-      elapsedTimerRef.current = setInterval(() => {
-        if (syncStartTimeRef.current) {
-          setElapsedSeconds(Math.floor((Date.now() - syncStartTimeRef.current) / 1000));
-        }
-      }, 1000);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = setInterval(() => setTick(t => t + 1), 1000);
     } catch (error: any) {
       const msg = error.response?.data?.error || 'Failed to start catalog sync';
       addDangerAlert(msg);
@@ -197,11 +193,7 @@ const SettingsPage: React.FC = () => {
   const fetchRegistries = async () => {
     try {
       const response = await axios.get('/api/registries');
-      const entries = (response.data.registries || []).map((r: RegistryEntry) => ({
-        ...r,
-        status: 'not_verified' as const,
-      }));
-      setRegistries(entries);
+      setRegistries(response.data.registries || []);
     } catch (error) {
       console.error('Error fetching registries:', error);
     }
@@ -422,15 +414,15 @@ const SettingsPage: React.FC = () => {
                             <Td>{r.registry}</Td>
                             <Td>
                               {r.status === 'authenticated' && (
-                                <Label color="green" icon={<CheckCircleIcon />}>Authenticated</Label>
+                                <Label status="success">Authenticated</Label>
                               )}
                               {r.status === 'failed' && (
                                 <Popover bodyContent={r.error || 'Authentication failed'} position="left">
-                                  <Label color="red" icon={<TimesCircleIcon />} style={{ cursor: 'pointer' }}>Failed</Label>
+                                  <Label status="danger" style={{ cursor: 'pointer' }}>Failed</Label>
                                 </Popover>
                               )}
                               {r.status === 'verifying' && (
-                                <Label color="blue" icon={<InProgressIcon />}>Verifying...</Label>
+                                <Label status="info">Verifying...</Label>
                               )}
                               {r.status === 'not_verified' && (
                                 <Label color="grey">Not verified</Label>
@@ -546,6 +538,15 @@ const SettingsPage: React.FC = () => {
                   >
                     {catalogSyncStatus.status === 'running' ? 'Syncing Catalogs...' : 'Sync Catalogs'}
                   </Button>
+                  {catalogSyncStatus.logs.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      icon={showSyncLogs ? <EyeSlashIcon /> : <EyeIcon />}
+                      onClick={() => setShowSyncLogs(prev => !prev)}
+                    >
+                      {showSyncLogs ? 'Hide Logs' : 'Show Logs'}
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     icon={<TrashAltIcon />}
@@ -570,7 +571,7 @@ const SettingsPage: React.FC = () => {
                     <HelperText style={{ marginTop: '0.25rem' }}>
                       <HelperTextItem>
                         {catalogSyncStatus.currentCatalog && `Processing: ${catalogSyncStatus.currentCatalog} | `}
-                        Elapsed: {formatElapsed(elapsedSeconds)}
+                        Elapsed: {formatElapsed(catalogSyncStatus.syncStartTime ? Math.floor((Date.now() - new Date(catalogSyncStatus.syncStartTime).getTime()) / 1000) : 0)}
                       </HelperTextItem>
                     </HelperText>
                   </div>
@@ -632,32 +633,26 @@ const SettingsPage: React.FC = () => {
                   </Alert>
                 )}
 
-                {catalogSyncStatus.logs.length > 0 && (
+                {showSyncLogs && catalogSyncStatus.logs.length > 0 && (
                   <div style={{ marginTop: '1.5rem' }}>
-                    <ExpandableSection
-                      toggleText={showSyncLogs ? 'Hide Logs' : 'Show Logs'}
-                      onToggle={(_event, expanded) => setShowSyncLogs(expanded)}
-                      isExpanded={showSyncLogs}
+                    <div
+                      style={{
+                        backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
+                        border: '1px solid var(--pf-t--global--border--color--default)',
+                        borderRadius: '6px',
+                        padding: '0.75rem',
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        fontFamily: 'var(--pf-t--global--font--family--mono)',
+                        fontSize: '0.8rem',
+                        lineHeight: '1.4',
+                      }}
                     >
-                      <div
-                        style={{
-                          backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
-                          border: '1px solid var(--pf-t--global--border--color--default)',
-                          borderRadius: '6px',
-                          padding: '0.75rem',
-                          maxHeight: '300px',
-                          overflowY: 'auto',
-                          fontFamily: 'var(--pf-t--global--font--family--mono)',
-                          fontSize: '0.8rem',
-                          lineHeight: '1.4',
-                        }}
-                      >
-                        {catalogSyncStatus.logs.map((line, i) => (
-                          <div key={i}>{line}</div>
-                        ))}
-                        <div ref={logsEndRef} />
-                      </div>
-                    </ExpandableSection>
+                      {catalogSyncStatus.logs.map((line, i) => (
+                        <div key={i}>{line}</div>
+                      ))}
+                      <div ref={logsEndRef} />
+                    </div>
                   </div>
                 )}
               </div>

@@ -12,7 +12,6 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
-  Checkbox,
   FileUpload,
   Flex,
   FlexItem,
@@ -41,9 +40,6 @@ import {
   SelectOption,
   SelectList,
   MenuToggle,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
   Tooltip,
   NumberInput,
 } from '@patternfly/react-core';
@@ -55,7 +51,7 @@ import {
   EyeIcon,
   UploadIcon,
   PlusCircleIcon,
-  TrashIcon,
+  MinusCircleIcon,
   CopyIcon,
   DownloadIcon,
   InfoCircleIcon,
@@ -65,6 +61,8 @@ import {
   PencilAltIcon,
   CheckIcon,
 } from '@patternfly/react-icons';
+import { FieldBuilder } from '@patternfly/react-component-groups';
+import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 
 interface PlatformChannel {
   name: string;
@@ -474,9 +472,6 @@ const MirrorConfig: React.FC = () => {
   const [catalogSelectOpen, setCatalogSelectOpen] = useState<Record<number, boolean>>({});
   const [opChannelSelectOpen, setOpChannelSelectOpen] = useState<Record<string, boolean>>({});
   const [opMinVersionSelectOpen, setOpMinVersionSelectOpen] = useState<Record<string, boolean>>({});
-  const [operatorSelectOpen, setOperatorSelectOpen] = useState<Record<string, boolean>>({});
-  const [operatorFilterText, setOperatorFilterText] = useState<Record<string, string>>({});
-  const operatorFilterInputRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [uploadFilename, setUploadFilename] = useState('');
   const [uploadedContent, setUploadedContent] = useState('');
@@ -1531,63 +1526,58 @@ const MirrorConfig: React.FC = () => {
               </div>
               <p>Configure OpenShift Container Platform channels to mirror.</p>
 
-              {config.mirror.platform.channels.map((channel, index) => (
-                <Card key={index} isCompact style={{ marginBottom: '1rem' }}>
-                  <CardHeader
-                    actions={{
-                      actions: (
-                        <Tooltip content="Remove channel">
-                          <Button
-                            variant="plain"
-                            icon={<TrashIcon />}
-                            onClick={() => removePlatformChannel(index)}
-                            aria-label="Remove channel"
-                          />
-                        </Tooltip>
-                      ),
-                    }}
-                  >
-                    <CardTitle>Channel {index + 1}</CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <Grid hasGutter>
-                      <GridItem span={3}>
-                        <FormGroup label="Channel Name" fieldId={`platform-ch-name-${index}`}>
-                          <Select
-                            id={`platform-ch-name-${index}`}
-                            isOpen={channelSelectOpen[index] || false}
-                            selected={channel.name}
-                            onSelect={(_e, val) => {
-                              updatePlatformChannel(index, 'name', val as string);
-                              setChannelSelectOpen(prev => ({ ...prev, [index]: false }));
-                            }}
-                            onOpenChange={(open) => setChannelSelectOpen(prev => ({ ...prev, [index]: open }))}
-                            toggle={(toggleRef) => (
-                              <MenuToggle
-                                ref={toggleRef}
-                                onClick={() => setChannelSelectOpen(prev => ({ ...prev, [index]: !prev[index] }))}
-                                isExpanded={channelSelectOpen[index] || false}
-                                style={{ width: '100%' }}
-                              >
-                                {channel.name || 'Select channel...'}
-                              </MenuToggle>
-                            )}
-                          >
-                            <SelectList>
-                              {OCP_VERSIONS.map(v => (
-                                <SelectOption key={v} value={`stable-${v}`}>
-                                  stable-{v}
-                                </SelectOption>
-                              ))}
-                            </SelectList>
-                          </Select>
-                        </FormGroup>
-                      </GridItem>
-                      <GridItem span={3}>
-                        <FormGroup
-                          label="Min Version (optional)"
-                          fieldId={`platform-ch-min-${index}`}
+              {config.mirror.platform.channels.length === 0 ? (
+                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPlatformChannel()}>
+                  Add platform channel
+                </Button>
+              ) : (
+              <FieldBuilder
+                firstColumnLabel="Channel"
+                secondColumnLabel="Version Range"
+                rowCount={config.mirror.platform.channels.length}
+                onAddRow={() => addPlatformChannel()}
+                onRemoveRow={(_e, index) => removePlatformChannel(index)}
+                addButtonContent="Add platform channel"
+                rowGroupLabelPrefix="Channel"
+                fieldBuilderIdPrefix="platform-channel"
+                aria-label="Platform channels"
+              >
+                {(_helpers, index) => {
+                  const channel = config.mirror.platform.channels[index];
+                  return [
+                    <Select
+                      key="channel"
+                      id={`platform-ch-name-${index}`}
+                      isOpen={channelSelectOpen[index] || false}
+                      selected={channel.name}
+                      onSelect={(_e, val) => {
+                        updatePlatformChannel(index, 'name', val as string);
+                        setChannelSelectOpen(prev => ({ ...prev, [index]: false }));
+                      }}
+                      onOpenChange={(open) => setChannelSelectOpen(prev => ({ ...prev, [index]: open }))}
+                      toggle={(toggleRef) => (
+                        <MenuToggle
+                          ref={toggleRef}
+                          onClick={() => setChannelSelectOpen(prev => ({ ...prev, [index]: !prev[index] }))}
+                          isExpanded={channelSelectOpen[index] || false}
+                          style={{ width: '100%' }}
                         >
+                          {channel.name || 'Select channel...'}
+                        </MenuToggle>
+                      )}
+                    >
+                      <SelectList>
+                        {OCP_VERSIONS.map(v => (
+                          <SelectOption key={v} value={`stable-${v}`}>
+                            stable-{v}
+                          </SelectOption>
+                        ))}
+                      </SelectList>
+                    </Select>,
+
+                    <Split key="versions" hasGutter>
+                      <SplitItem isFilled>
+                        <FormGroup label="Min Version (optional)" fieldId={`platform-ch-min-${index}`}>
                           <TextInput
                             id={`platform-ch-min-${index}`}
                             value={channel.minVersion}
@@ -1601,12 +1591,9 @@ const MirrorConfig: React.FC = () => {
                             </HelperText>
                           )}
                         </FormGroup>
-                      </GridItem>
-                      <GridItem span={3}>
-                        <FormGroup
-                          label="Max Version (optional)"
-                          fieldId={`platform-ch-max-${index}`}
-                        >
+                      </SplitItem>
+                      <SplitItem isFilled>
+                        <FormGroup label="Max Version (optional)" fieldId={`platform-ch-max-${index}`}>
                           <TextInput
                             id={`platform-ch-max-${index}`}
                             value={channel.maxVersion}
@@ -1620,40 +1607,12 @@ const MirrorConfig: React.FC = () => {
                             </HelperText>
                           )}
                         </FormGroup>
-                      </GridItem>
-                      <GridItem span={3}>
-                        <FormGroup
-                          label="Options"
-                          fieldId={`platform-ch-opts-${index}`}
-                        >
-                          <Checkbox
-                            id={`platform-ch-sp-${index}`}
-                            label="Shortest Path"
-                            isChecked={channel.shortestPath || false}
-                            onChange={(_e, checked) =>
-                              updatePlatformChannel(index, 'shortestPath', checked)
-                            }
-                          />
-                          <HelperText>
-                            <HelperTextItem>
-                              Find the most direct upgrade path between versions.
-                            </HelperTextItem>
-                          </HelperText>
-                        </FormGroup>
-                      </GridItem>
-                    </Grid>
-                  </CardBody>
-                </Card>
-              ))}
-
-              <Button
-                variant="primary"
-                icon={<PlusCircleIcon />}
-                onClick={addPlatformChannel}
-                style={{ marginTop: '1rem' }}
-              >
-                Add Platform Channel
-              </Button>
+                      </SplitItem>
+                    </Split>,
+                  ];
+                }}
+              </FieldBuilder>
+              )}
             </Tab>
 
             <Tab
@@ -1672,25 +1631,16 @@ const MirrorConfig: React.FC = () => {
               {loading && <Spinner size="lg" />}
 
               {config.mirror.operators.map((operator, opIndex) => (
-                <Card key={opIndex} isCompact style={{ marginBottom: '1rem' }}>
-                  <CardHeader
-                    actions={{
-                      actions: (
-                        <Tooltip content="Remove operator">
-                          <Button
-                            variant="plain"
-                            icon={<TrashIcon />}
-                            onClick={() => removeOperator(opIndex)}
-                            aria-label="Remove operator"
-                          />
-                        </Tooltip>
-                      ),
-                    }}
-                  >
-                    <CardTitle>Operator Catalog {opIndex + 1}</CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <FormGroup label="Catalog" fieldId={`op-catalog-${opIndex}`}>
+                <div
+                  key={opIndex}
+                  style={{
+                    borderBottom: '1px solid var(--pf-t--global--border--color--default)',
+                    paddingBottom: '1rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <Split hasGutter>
+                    <SplitItem isFilled>
                       <Select
                         id={`op-catalog-${opIndex}`}
                         isOpen={catalogSelectOpen[opIndex] || false}
@@ -1735,174 +1685,90 @@ const MirrorConfig: React.FC = () => {
                       >
                         <SelectList>
                           {operatorCatalogs.map(cat => (
-                            <SelectOption
-                              key={cat.url}
-                              value={cat.url}
-                            >
+                            <SelectOption key={cat.url} value={cat.url}>
                               {`${cat.name} (OCP ${cat.url.split(':').pop()}) - ${cat.description}`}
                             </SelectOption>
                           ))}
                         </SelectList>
                       </Select>
-                    </FormGroup>
+                    </SplitItem>
+                    <SplitItem>
+                      <Button
+                        variant="plain"
+                        icon={<MinusCircleIcon />}
+                        onClick={() => removeOperator(opIndex)}
+                        aria-label={`Remove catalog ${opIndex + 1}`}
+                      />
+                    </SplitItem>
+                  </Split>
 
-                    <br />
-                    <Title headingLevel="h5"><BundleIcon /> Operators</Title>
-
-                    {operator.packages.map((pkg, pkgIndex) => (
-                      <Card key={pkgIndex} isCompact isPlain style={{ marginBottom: '1rem' }}>
-                        <CardHeader
-                          actions={{
-                            actions: (
-                              <Tooltip content="Remove package">
-                                <Button
-                                  variant="plain"
-                                  icon={<TrashIcon />}
-                                  onClick={() => removePackageFromOperator(opIndex, pkgIndex)}
-                                  size="sm"
-                                  aria-label="Remove package"
-                                />
-                              </Tooltip>
-                            ),
-                          }}
-                        >
-                          <CardTitle>
+                  {operator.packages.length === 0 ? (
+                    <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPackageToOperator(opIndex)} style={{ marginTop: '0.5rem' }}>
+                      Add operator
+                    </Button>
+                  ) : (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <FieldBuilder
+                      firstColumnLabel="Operator"
+                      rowCount={operator.packages.length}
+                      onAddRow={() => addPackageToOperator(opIndex)}
+                      onRemoveRow={(_e, pkgIndex) => removePackageFromOperator(opIndex, pkgIndex)}
+                      addButtonContent="Add operator"
+                      rowGroupLabelPrefix="Operator"
+                      fieldBuilderIdPrefix={`catalog-${opIndex}-operator`}
+                      aria-label={`Operators for catalog ${opIndex + 1}`}
+                    >
+                      {(_pkgHelpers, pkgIndex) => {
+                        const pkg = operator.packages[pkgIndex];
+                        const dOps = detailedOperators[operator.catalog];
+                        const info = dOps?.find(o => o.name === pkg.name);
+                        return (
+                          <div>
                             <Split hasGutter>
-                              <SplitItem>Operator {pkgIndex + 1}</SplitItem>
-                              {pkg.isDependency && pkg.autoAddedBy && (
-                                <SplitItem>
-                                  <Badge isRead>
-                                    Auto-added for {pkg.autoAddedBy}
-                                  </Badge>
-                                </SplitItem>
-                              )}
+                              <SplitItem isFilled>
+                                {pkg.isDependency && pkg.autoAddedBy && (
+                                  <Badge isRead style={{ marginBottom: '0.5rem' }}>Auto-added for {pkg.autoAddedBy}</Badge>
+                                )}
+                              </SplitItem>
                             </Split>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardBody>
-                          <FormGroup label="Operator Name" fieldId={`op-pkg-name-${opIndex}-${pkgIndex}`}>
-                            {(() => {
-                              const selectKey = `${opIndex}-${pkgIndex}`;
-                              const isOpen = operatorSelectOpen[selectKey] || false;
-                              const filterText = operatorFilterText[selectKey] || '';
-                              const sorted = (operator.availableOperators || []).slice().sort((a, b) => a.localeCompare(b));
-                              const filtered = filterText
-                                ? sorted.filter(n => n.toLowerCase().includes(filterText.toLowerCase()))
-                                : sorted;
-
-                              const onToggle = () => {
-                                setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: !prev[selectKey] }));
-                                if (!isOpen) {
-                                  setTimeout(() => operatorFilterInputRef.current[selectKey]?.focus(), 0);
-                                }
-                              };
-
-                              const onSelect = (_e: any, value: string | number | undefined) => {
+                            <TypeaheadSelect
+                              id={`op-pkg-name-${opIndex}-${pkgIndex}`}
+                              initialOptions={(operator.availableOperators || [])
+                                .slice()
+                                .sort((a, b) => a.localeCompare(b))
+                                .map((name): TypeaheadSelectOption => ({
+                                  value: name,
+                                  content: name,
+                                  selected: name === pkg.name,
+                                }))}
+                              onSelect={(_e, value) => {
                                 if (value) {
                                   updateOperatorPackage(opIndex, pkgIndex, 'name', String(value));
                                 }
-                                setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: false }));
-                                setOperatorFilterText(prev => ({ ...prev, [selectKey]: '' }));
-                              };
-
-                              const onFilterChange = (_e: any, value: string) => {
-                                setOperatorFilterText(prev => ({ ...prev, [selectKey]: value }));
-                                if (!isOpen) {
-                                  setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: true }));
-                                }
-                              };
-
-                              const onClear = () => {
-                                setOperatorFilterText(prev => ({ ...prev, [selectKey]: '' }));
+                              }}
+                              onClearSelection={() => {
                                 updateOperatorPackage(opIndex, pkgIndex, 'name', '');
-                                operatorFilterInputRef.current[selectKey]?.focus();
-                              };
+                              }}
+                              placeholder="Type to search operators..."
+                              noOptionsFoundMessage={(filter) => `No operators found for "${filter}"`}
+                              toggleProps={{ isFullWidth: true }}
+                            />
 
-                              const toggle = (toggleRef: React.Ref<any>) => (
-                                <MenuToggle
-                                  ref={toggleRef}
-                                  variant="typeahead"
-                                  onClick={onToggle}
-                                  isExpanded={isOpen}
-                                  isFullWidth
-                                >
-                                  <TextInputGroup isPlain>
-                                    <TextInputGroupMain
-                                      value={isOpen ? filterText : (pkg.name || filterText)}
-                                      onChange={onFilterChange}
-                                      onClick={() => {
-                                        if (!isOpen) setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: true }));
-                                      }}
-                                      ref={(el: HTMLInputElement | null) => {
-                                        operatorFilterInputRef.current[selectKey] = el;
-                                      }}
-                                      placeholder="Type to search operators..."
-                                      autoComplete="off"
-                                    />
-                                    {(pkg.name || filterText) && (
-                                      <TextInputGroupUtilities>
-                                        <Button variant="plain" onClick={onClear} aria-label="Clear">
-                                          <TimesIcon />
-                                        </Button>
-                                      </TextInputGroupUtilities>
-                                    )}
-                                  </TextInputGroup>
-                                </MenuToggle>
-                              );
-
-                              return (
-                                <Select
-                                  id={`op-pkg-name-${opIndex}-${pkgIndex}`}
-                                  isOpen={isOpen}
-                                  selected={pkg.name || undefined}
-                                  onSelect={onSelect}
-                                  onOpenChange={(open) =>
-                                    setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: open }))
-                                  }
-                                  toggle={toggle}
-                                  shouldFocusFirstItemOnOpen={false}
-                                >
-                                  <SelectList style={{ maxHeight: '300px', overflow: 'auto' }}>
-                                    {filtered.length > 0 ? (
-                                      filtered.map(name => (
-                                        <SelectOption key={name} value={name}>
-                                          {name}
-                                        </SelectOption>
-                                      ))
-                                    ) : (
-                                      <SelectOption isDisabled>No results found</SelectOption>
-                                    )}
-                                  </SelectList>
-                                </Select>
-                              );
-                            })()}
-                          </FormGroup>
-
-                          {pkg.name && (() => {
-                            const dOps = detailedOperators[operator.catalog];
-                            const info = dOps?.find(o => o.name === pkg.name);
-                            if (!info) return null;
-                            return (
-                              <Card isPlain isCompact style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                                <CardBody>
-                                  <Split hasGutter>
-                                    <SplitItem>
-                                      <span style={{ fontWeight: 600 }}>Default Channel:</span>
-                                    </SplitItem>
-                                    <SplitItem>
-                                      <Label color="green">{info.defaultChannel}</Label>
-                                    </SplitItem>
-                                  </Split>
-                                  <br />
+                            {pkg.name && info && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <Split hasGutter>
+                                  <SplitItem>
+                                    <span style={{ fontWeight: 600 }}>Default Channel:</span>
+                                  </SplitItem>
+                                  <SplitItem>
+                                    <Label color="green">{info.defaultChannel}</Label>
+                                  </SplitItem>
+                                </Split>
+                                <div style={{ marginTop: '0.5rem' }}>
                                   <span style={{ fontWeight: 600 }}>
-                                    All Available Channels ({info.allChannels?.length || 0}):
+                                    Available Channels ({info.allChannels?.length || 0}):
                                   </span>
-                                  <HelperText>
-                                    <HelperTextItem>
-                                      Click on channels to add them to your selection
-                                    </HelperTextItem>
-                                  </HelperText>
-                                  <Flex style={{ marginTop: '0.5rem' }}>
+                                  <Flex style={{ marginTop: '0.25rem' }} gap={{ default: 'gapSm' }}>
                                     {info.allChannels?.map((ch, idx) => {
                                       const isDefault = ch === info.defaultChannel;
                                       const isSelected = pkg.channels?.some(c => c.name === ch);
@@ -1926,136 +1792,114 @@ const MirrorConfig: React.FC = () => {
                                       );
                                     })}
                                   </Flex>
-                                </CardBody>
-                              </Card>
-                            );
-                          })()}
+                                </div>
 
-                          <FormGroup
-                            label={`Channels for ${pkg.name || 'this operator'}`}
-                            fieldId={`op-pkg-channels-${opIndex}-${pkgIndex}`}
-                          >
-                            {pkg.channels?.map((channel, chIdx) => {
-                              const dOps = detailedOperators[operator.catalog];
-                              const info = dOps?.find(o => o.name === pkg.name);
-                              const versions = getChannelVersions(opIndex, pkgIndex, channel.name);
-                              const minVersionOptions = getSelectableVersions(
-                                versions,
-                              );
+                                {pkg.channels && pkg.channels.length > 0 && (
+                                  <div style={{ marginTop: '0.5rem' }}>
+                                    <FieldBuilder
+                                      firstColumnLabel="Channel"
+                                      secondColumnLabel="Min Version"
+                                      rowCount={pkg.channels.length}
+                                      onAddRow={() => addChannelToPackage(opIndex, pkgIndex, '')}
+                                      onRemoveRow={(_e, chIdx) => removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)}
+                                      addButtonContent="Add channel"
+                                      rowGroupLabelPrefix="Channel"
+                                      fieldBuilderIdPrefix={`catalog-${opIndex}-op-${pkgIndex}-ch`}
+                                      aria-label={`Channels for ${pkg.name}`}
+                                    >
+                                      {(_chHelpers, chIdx) => {
+                                        const channel = pkg.channels[chIdx];
+                                        const versions = getChannelVersions(opIndex, pkgIndex, channel.name);
+                                        const minVersionOptions = getSelectableVersions(versions);
 
-                              return (
-                                <Flex
-                                  key={chIdx}
-                                  alignItems={{ default: 'alignItemsFlexEnd' }}
-                                  style={{ marginBottom: '0.5rem' }}
-                                >
-                                  <FlexItem>
-                                    <FormGroup label="Channel" fieldId={`ch-sel-${opIndex}-${pkgIndex}-${chIdx}`}>
-                                      <Select
-                                        id={`ch-sel-${opIndex}-${pkgIndex}-${chIdx}`}
-                                        isOpen={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                        selected={channel.name}
-                                        onSelect={(_e, val) => {
-                                          setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: false }));
-                                          updateOperatorPackageChannel(opIndex, pkgIndex, chIdx, val as string);
-                                        }}
-                                        onOpenChange={(open) => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
-                                        toggle={(toggleRef) => (
-                                          <MenuToggle
-                                            ref={toggleRef}
-                                            onClick={() => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`${opIndex}-${pkgIndex}-${chIdx}`] }))}
-                                            isExpanded={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                            style={{ minWidth: '180px' }}
+                                        return [
+                                          <Select
+                                            key="channel"
+                                            id={`ch-sel-${opIndex}-${pkgIndex}-${chIdx}`}
+                                            isOpen={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                            selected={channel.name}
+                                            onSelect={(_e, val) => {
+                                              setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: false }));
+                                              updateOperatorPackageChannel(opIndex, pkgIndex, chIdx, val as string);
+                                            }}
+                                            onOpenChange={(open) => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
+                                            toggle={(toggleRef) => (
+                                              <MenuToggle
+                                                ref={toggleRef}
+                                                onClick={() => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`${opIndex}-${pkgIndex}-${chIdx}`] }))}
+                                                isExpanded={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                                isFullWidth
+                                              >
+                                                {channel.name
+                                                  ? (channel.name === info?.defaultChannel ? `${channel.name} (default)` : channel.name)
+                                                  : 'Select a channel...'}
+                                              </MenuToggle>
+                                            )}
                                           >
-                                            {channel.name
-                                              ? (channel.name === info?.defaultChannel ? `${channel.name} (default)` : channel.name)
-                                              : 'Select a channel...'}
-                                          </MenuToggle>
-                                        )}
-                                      >
-                                        <SelectList>
-                                          <SelectOption value="">Select a channel...</SelectOption>
-                                          {info?.allChannels?.map(ch => (
-                                            <SelectOption key={ch} value={ch}>
-                                              {ch === info.defaultChannel ? `${ch} (default)` : ch}
-                                            </SelectOption>
-                                          ))}
-                                        </SelectList>
-                                      </Select>
-                                    </FormGroup>
-                                  </FlexItem>
-                                  <FlexItem>
-                                    <FormGroup label="Min Version" fieldId={`ch-min-${opIndex}-${pkgIndex}-${chIdx}`}>
-                                      <Select
-                                        id={`ch-min-${opIndex}-${pkgIndex}-${chIdx}`}
-                                        isOpen={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                        selected={channel.minVersion || ''}
-                                        onSelect={(_e, val) => {
-                                          setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: false }));
-                                          clearFieldError(`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`);
-                                          updateOperatorPackageChannelVersion(opIndex, pkgIndex, chIdx, 'minVersion', val as string);
-                                        }}
-                                        onOpenChange={(open) => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
-                                        toggle={(toggleRef) => (
-                                          <MenuToggle
-                                            ref={toggleRef}
-                                            onClick={() => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`min-${opIndex}-${pkgIndex}-${chIdx}`] }))}
-                                            isExpanded={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                            status={validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] ? 'danger' : undefined}
-                                            style={{ width: '160px' }}
-                                          >
-                                            {channel.minVersion || 'Select version...'}
-                                          </MenuToggle>
-                                        )}
-                                      >
-                                        <SelectList>
-                                          <SelectOption value="">Select version...</SelectOption>
-                                          {minVersionOptions.map(v => (
-                                            <SelectOption key={v} value={v}>{v}</SelectOption>
-                                          ))}
-                                        </SelectList>
-                                      </Select>
-                                      {validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] && (
-                                        <HelperText>
-                                          <HelperTextItem variant="error">{validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`]}</HelperTextItem>
-                                        </HelperText>
-                                      )}
-                                    </FormGroup>
-                                  </FlexItem>
-                                  <FlexItem alignSelf={{ default: 'alignSelfFlexStart' }} style={{ marginTop: '1.1rem' }}>
-                                    <Tooltip content="Remove channel filter">
-                                      <Button
-                                        variant="plain"
-                                        icon={<TrashIcon />}
-                                        onClick={() =>
-                                          removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)
-                                        }
-                                        size="sm"
-                                        aria-label="Remove channel filter"
-                                      />
-                                    </Tooltip>
-                                  </FlexItem>
-                                </Flex>
-                              );
-                            })}
-                          </FormGroup>
-                        </CardBody>
-                      </Card>
-                    ))}
+                                            <SelectList>
+                                              <SelectOption value="">Select a channel...</SelectOption>
+                                              {info?.allChannels?.map(ch => (
+                                                <SelectOption key={ch} value={ch}>
+                                                  {ch === info.defaultChannel ? `${ch} (default)` : ch}
+                                                </SelectOption>
+                                              ))}
+                                            </SelectList>
+                                          </Select>,
 
-                    <Button
-                      variant="secondary"
-                      icon={<PlusCircleIcon />}
-                      onClick={() => addPackageToOperator(opIndex)}
-                    >
-                      Add Operator
-                    </Button>
-                  </CardBody>
-                </Card>
+                                          <div key="minversion">
+                                            <Select
+                                              id={`ch-min-${opIndex}-${pkgIndex}-${chIdx}`}
+                                              isOpen={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                              selected={channel.minVersion || ''}
+                                              onSelect={(_e, val) => {
+                                                setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: false }));
+                                                clearFieldError(`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`);
+                                                updateOperatorPackageChannelVersion(opIndex, pkgIndex, chIdx, 'minVersion', val as string);
+                                              }}
+                                              onOpenChange={(open) => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
+                                              toggle={(toggleRef) => (
+                                                <MenuToggle
+                                                  ref={toggleRef}
+                                                  onClick={() => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`min-${opIndex}-${pkgIndex}-${chIdx}`] }))}
+                                                  isExpanded={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                                  status={validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] ? 'danger' : undefined}
+                                                  isFullWidth
+                                                >
+                                                  {channel.minVersion || 'Select version...'}
+                                                </MenuToggle>
+                                              )}
+                                            >
+                                              <SelectList>
+                                                <SelectOption value="">Select version...</SelectOption>
+                                                {minVersionOptions.map(v => (
+                                                  <SelectOption key={v} value={v}>{v}</SelectOption>
+                                                ))}
+                                              </SelectList>
+                                            </Select>
+                                            {validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] && (
+                                              <HelperText>
+                                                <HelperTextItem variant="error">{validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`]}</HelperTextItem>
+                                              </HelperText>
+                                            )}
+                                          </div>,
+                                        ];
+                                      }}
+                                    </FieldBuilder>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }}
+                    </FieldBuilder>
+                  </div>
+                  )}
+                </div>
               ))}
 
-              <Button variant="primary" icon={<PlusCircleIcon />} onClick={addOperator} style={{ marginTop: '1rem' }}>
-                Add Operator Catalog
+              <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addOperator()}>
+                Add operator catalog
               </Button>
             </Tab>
 
@@ -2072,26 +1916,25 @@ const MirrorConfig: React.FC = () => {
               <Title headingLevel="h3"><CubesIcon /> Additional Images</Title>
               <p>Add additional container images to mirror.</p>
 
-              {config.mirror.additionalImages.map((image, index) => (
-                <Card key={index} isCompact style={{ marginBottom: '1rem' }}>
-                  <CardHeader
-                    actions={{
-                      actions: (
-                        <Tooltip content="Remove image">
-                          <Button
-                            variant="plain"
-                            icon={<TrashIcon />}
-                            onClick={() => removeAdditionalImage(index)}
-                            aria-label="Remove image"
-                          />
-                        </Tooltip>
-                      ),
-                    }}
-                  >
-                    <CardTitle>Image {index + 1}</CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <FormGroup label="Image Name" fieldId={`img-name-${index}`}>
+              {config.mirror.additionalImages.length === 0 ? (
+                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addAdditionalImage()}>
+                  Add image
+                </Button>
+              ) : (
+              <FieldBuilder
+                firstColumnLabel="Image Name"
+                rowCount={config.mirror.additionalImages.length}
+                onAddRow={() => addAdditionalImage()}
+                onRemoveRow={(_e, index) => removeAdditionalImage(index)}
+                addButtonContent="Add image"
+                rowGroupLabelPrefix="Image"
+                fieldBuilderIdPrefix="additional-image"
+                aria-label="Additional images"
+              >
+                {(_helpers, index) => {
+                  const image = config.mirror.additionalImages[index];
+                  return (
+                    <div>
                       <TextInput
                         id={`img-name-${index}`}
                         value={image.name}
@@ -2106,14 +1949,11 @@ const MirrorConfig: React.FC = () => {
                       {validationErrors[`img-${index}-warning`] && (
                         <Alert variant="warning" isInline title={validationErrors[`img-${index}-warning`]} style={{ marginTop: '0.5rem' }} />
                       )}
-                    </FormGroup>
-                  </CardBody>
-                </Card>
-              ))}
-
-              <Button variant="primary" icon={<PlusCircleIcon />} onClick={addAdditionalImage} style={{ marginTop: '1rem' }}>
-                Add Image
-              </Button>
+                    </div>
+                  );
+                }}
+              </FieldBuilder>
+              )}
             </Tab>
 
             <Tab

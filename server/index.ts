@@ -1808,6 +1808,8 @@ app.get('/api/operations/:id/logstream', (req: Request, res: Response) => {
 });
 
 
+const registryVerificationCache: Record<string, { status: string; error?: string }> = {};
+
 app.get('/api/registries', async (_req: Request, res: Response) => {
   try {
     if (!pullSecretDetected || !pullSecretPath) {
@@ -1830,7 +1832,14 @@ app.get('/api/registries', async (_req: Request, res: Response) => {
           username = decoded.split(':')[0] || '';
         } catch {}
       }
-      return { registry, username, hasAuth: !!authData.auth };
+      const cached = registryVerificationCache[registry];
+      return {
+        registry,
+        username,
+        hasAuth: !!authData.auth,
+        status: cached?.status || 'not_verified',
+        error: cached?.error,
+      };
     });
 
     res.json({ registries });
@@ -1866,8 +1875,13 @@ app.post('/api/registries/verify', async (req: Request, res: Response) => {
       signal: AbortSignal.timeout(10000),
     });
 
+    const sendResult = (result: { registry: string; status: string; error?: string }) => {
+      registryVerificationCache[result.registry] = { status: result.status, error: result.error };
+      res.json(result);
+    };
+
     if (response.ok || response.status === 200) {
-      res.json({ registry, status: 'authenticated' });
+      sendResult({ registry, status: 'authenticated' });
       return;
     }
 
@@ -1884,19 +1898,21 @@ app.post('/api/registries/verify', async (req: Request, res: Response) => {
           signal: AbortSignal.timeout(10000),
         });
         if (tokenRes.ok) {
-          res.json({ registry, status: 'authenticated' });
+          sendResult({ registry, status: 'authenticated' });
           return;
         }
         const body = await tokenRes.text().catch(() => '');
-        res.json({ registry, status: 'failed', error: `Authentication failed (${tokenRes.status}): ${body.slice(0, 200)}` });
+        sendResult({ registry, status: 'failed', error: `Authentication failed (${tokenRes.status}): ${body.slice(0, 200)}` });
         return;
       }
     }
 
-    res.json({ registry, status: 'failed', error: `HTTP ${response.status}` });
+    sendResult({ registry, status: 'failed', error: `HTTP ${response.status}` });
   } catch (error: any) {
     console.error(`Error verifying registry ${req.body?.registry}:`, error);
-    res.json({ registry: req.body?.registry, status: 'failed', error: error.message || 'Connection failed' });
+    const reg = req.body?.registry;
+    if (reg) registryVerificationCache[reg] = { status: 'failed', error: error.message || 'Connection failed' };
+    res.json({ registry: reg, status: 'failed', error: error.message || 'Connection failed' });
   }
 });
 
@@ -1961,6 +1977,7 @@ interface CatalogSyncDiffEntry {
 interface CatalogSyncState {
   status: 'idle' | 'running' | 'completed' | 'failed';
   lastSyncTime: string | null;
+  syncStartTime: string | null;
   successCount: number;
   failedCount: number;
   totalCount: number;
@@ -1974,6 +1991,7 @@ interface CatalogSyncState {
 let catalogSyncState: CatalogSyncState = {
   status: 'idle',
   lastSyncTime: null,
+  syncStartTime: null,
   successCount: 0,
   failedCount: 0,
   totalCount: CATALOG_SYNC_TOTAL,
@@ -2009,6 +2027,7 @@ app.post('/api/catalogs/sync', async (_req: Request, res: Response) => {
   catalogSyncState = {
     status: 'running',
     lastSyncTime: null,
+    syncStartTime: new Date().toISOString(),
     successCount: 0,
     failedCount: 0,
     totalCount: CATALOG_SYNC_TOTAL,
@@ -2108,6 +2127,7 @@ app.get('/api/catalogs/sync/status', (_req: Request, res: Response) => {
   res.json({
     status: catalogSyncState.status,
     lastSyncTime: catalogSyncState.lastSyncTime,
+    syncStartTime: catalogSyncState.syncStartTime,
     successCount: catalogSyncState.successCount,
     failedCount: catalogSyncState.failedCount,
     totalCount: catalogSyncState.totalCount,
@@ -2142,7 +2162,14 @@ app.delete('/api/catalogs/sync/data', async (_req: Request, res: Response) => {
     operatorCache.channels = {};
     operatorCache.lastUpdate = null;
     catalogSyncState.diff = [];
+    catalogSyncState.logs = [];
     catalogSyncState.lastSyncTime = null;
+    catalogSyncState.syncStartTime = null;
+    catalogSyncState.completedCatalogs = 0;
+    catalogSyncState.currentCatalog = null;
+    catalogSyncState.successCount = 0;
+    catalogSyncState.failedCount = 0;
+    catalogSyncState.error = null;
     catalogSyncState.status = 'idle';
 
     console.log('Runtime catalog data cleared. Will fall back to built-in data on next load.');

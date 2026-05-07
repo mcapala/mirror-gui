@@ -27,10 +27,6 @@ import {
 import {
   SyncAltIcon,
   CogIcon,
-  CheckCircleIcon,
-  TimesCircleIcon,
-  StopIcon,
-  InProgressIcon,
   HistoryIcon,
   ListIcon,
   ServerIcon,
@@ -71,21 +67,21 @@ interface SystemInfo {
   cacheSizeBytes: number;
 }
 
-type LabelColor = 'green' | 'red' | 'blue' | 'orange' | 'grey';
+type LabelStatus = 'success' | 'warning' | 'danger' | 'info' | 'custom';
 
-const getStatusLabelColor = (status: string): LabelColor => {
+const getStatusLabelStatus = (status: string): LabelStatus => {
   switch (status) {
     case 'healthy':
-      return 'green';
+      return 'success';
     case 'degraded':
     case 'warning':
-      return 'orange';
+      return 'warning';
     case 'error':
-      return 'red';
+      return 'danger';
     case 'running':
-      return 'blue';
+      return 'custom';
     default:
-      return 'grey';
+      return 'custom';
   }
 };
 
@@ -106,18 +102,18 @@ const getStatusText = (status: string): string => {
   }
 };
 
-const getOperationLabelColor = (status: string): LabelColor => {
+const getOperationLabelStatus = (status: string): LabelStatus => {
   switch (status) {
     case 'success':
-      return 'green';
+      return 'success';
     case 'running':
-      return 'blue';
+      return 'custom';
     case 'failed':
-      return 'red';
+      return 'danger';
     case 'stopped':
-      return 'orange';
+      return 'warning';
     default:
-      return 'grey';
+      return 'custom';
   }
 };
 
@@ -133,21 +129,6 @@ const getOperationStatusText = (status: string): string => {
       return 'Stopped';
     default:
       return 'Unknown';
-  }
-};
-
-const getOperationStatusIcon = (status: string) => {
-  switch (status) {
-    case 'success':
-      return <CheckCircleIcon />;
-    case 'running':
-      return <InProgressIcon />;
-    case 'failed':
-      return <TimesCircleIcon />;
-    case 'stopped':
-      return <StopIcon />;
-    default:
-      return null;
   }
 };
 
@@ -313,7 +294,7 @@ const Dashboard: React.FC = () => {
                           </Popover>
                         </DescriptionListTerm>
                         <DescriptionListDescription>
-                          <Label color={getStatusLabelColor(systemStatus.systemHealth)}>
+                          <Label status={getStatusLabelStatus(systemStatus.systemHealth)}>
                             {getStatusText(systemStatus.systemHealth)}
                           </Label>
                         </DescriptionListDescription>
@@ -332,7 +313,7 @@ const Dashboard: React.FC = () => {
                           Pull Secret
                         </DescriptionListTerm>
                         <DescriptionListDescription>
-                          <Label color={systemStatus.pullSecretDetected ? 'green' : 'orange'}>
+                          <Label status={systemStatus.pullSecretDetected ? 'success' : 'warning'}>
                             {systemStatus.pullSecretDetected ? 'Present' : 'Missing'}
                           </Label>
                         </DescriptionListDescription>
@@ -365,7 +346,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.totalOperations}
                     </Title>
-                    <Label color="blue">Total Operations</Label>
+                    <Label status="info">Total Operations</Label>
                   </CardBody>
                 </Card>
               </GridItem>
@@ -375,7 +356,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.successfulOperations}
                     </Title>
-                    <Label color="green" icon={<CheckCircleIcon />}>
+                    <Label status="success">
                       Successful
                     </Label>
                   </CardBody>
@@ -387,7 +368,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.failedOperations}
                     </Title>
-                    <Label color="red" icon={<TimesCircleIcon />}>
+                    <Label status="danger">
                       Failed
                     </Label>
                   </CardBody>
@@ -399,7 +380,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.runningOperations}
                     </Title>
-                    <Label color="blue" icon={<InProgressIcon />}>
+                    <Label status="custom" icon={<SyncAltIcon />}>
                       Running
                     </Label>
                   </CardBody>
@@ -408,7 +389,7 @@ const Dashboard: React.FC = () => {
             </Grid>
             {lastOperation && (
               <div style={{ marginTop: '1rem' }}>
-                <Label color={getOperationLabelColor(lastOperation.status)} icon={<ClockIcon />}>
+                <Label status={getOperationLabelStatus(lastOperation.status)} icon={<ClockIcon />}>
                   Last Operation: {getOperationStatusText(lastOperation.status)}
                 </Label>
               </div>
@@ -454,8 +435,7 @@ const Dashboard: React.FC = () => {
                       </Td>
                       <Td dataLabel="Status">
                         <Label
-                          color={getOperationLabelColor(op.status)}
-                          icon={getOperationStatusIcon(op.status)}
+                          status={getOperationLabelStatus(op.status)}
                         >
                           {getOperationStatusText(op.status)}
                         </Label>

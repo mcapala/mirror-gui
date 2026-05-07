@@ -47,8 +47,6 @@ import {
   ListIcon,
   CopyIcon,
   InfoCircleIcon,
-  CheckCircleIcon,
-  TimesCircleIcon,
   OutlinedClockIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -363,13 +361,13 @@ const MirrorOperations: React.FC = () => {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'success':
-        return <Label color="green" icon={<CheckCircleIcon />}>Success</Label>;
+        return <Label status="success">Success</Label>;
       case 'running':
-        return <Label color="blue" icon={<SyncAltIcon />}>Running</Label>;
+        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
       case 'failed':
-        return <Label color="red" icon={<TimesCircleIcon />}>Failed</Label>;
+        return <Label status="danger">Failed</Label>;
       case 'stopped':
-        return <Label color="orange" icon={<StopIcon />}>Stopped</Label>;
+        return <Label status="warning">Stopped</Label>;
       default:
         return <Label color="grey">Unknown</Label>;
     }
