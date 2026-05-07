@@ -99,7 +99,7 @@ const AppLayout: React.FC = () => {
         <Toolbar style={{ width: '100%' }}>
           <ToolbarContent>
             <ToolbarItem>
-              <div className="pf-v6-u-pl-md pf-v6-u-ml-sm" style={{ borderLeft: '1px solid var(--pf-t--global--border--color--default)' }}>
+              <div>
                 <Title headingLevel="h1" size="2xl" style={{ lineHeight: 1.2, fontSize: '2rem' }}>Mirror-GUI Application</Title>
                 <Content component="p" style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: '1.25rem', lineHeight: 1.2 }}>
                   OpenShift Container Platform Mirroring Operations
