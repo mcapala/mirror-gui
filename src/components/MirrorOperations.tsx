@@ -69,7 +69,7 @@ interface Operation {
 }
 
 const MirrorOperations: React.FC = () => {
-  const { addSuccessAlert, addDangerAlert, addInfoAlert } = useAlerts();
+  const { addSuccessAlert, addDangerAlert, addWarningAlert, addInfoAlert } = useAlerts();
 
   const [operations, setOperations] = useState<Operation[]>([]);
   const [selectedConfig, setSelectedConfig] = useState('');
@@ -130,10 +130,10 @@ const MirrorOperations: React.FC = () => {
       } else if (op.status === 'failed') {
         addDangerAlert('Mirror Operation Failed');
       } else if (op.status === 'stopped') {
-        addInfoAlert('Mirror Operation Stopped');
+        addWarningAlert('Mirror Operation Stopped');
       }
     }
-  }, [addSuccessAlert, addDangerAlert, addInfoAlert, fetchLogs]);
+  }, [addSuccessAlert, addDangerAlert, addWarningAlert, addInfoAlert, fetchLogs]);
 
   const startLogStream = useCallback((operationId: string) => {
     if (logStream) {
@@ -276,7 +276,7 @@ const MirrorOperations: React.FC = () => {
 
   const startOperation = async () => {
     if (!selectedConfig) {
-      addDangerAlert('Please select a configuration file');
+      addDangerAlert('Please select an ImageSetConfiguration file');
       return;
     }
 
@@ -341,7 +341,6 @@ const MirrorOperations: React.FC = () => {
   const stopOperation = async (operationId: string) => {
     try {
       await axios.post(`/api/operations/${operationId}/stop`);
-      addSuccessAlert('Operation stopped successfully!');
       fetchOperations();
     } catch (error) {
       console.error('Error stopping operation:', error);
@@ -386,7 +385,7 @@ const MirrorOperations: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<Spinner size="sm" />}>Running</Label>;
+        return <Label color="teal" icon={<Spinner size="sm" />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -454,7 +453,7 @@ const MirrorOperations: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardBody>
-          Execute and monitor oc-mirror v2 operations.
+          Run mirror operations using saved configurations and track their progress.
         </CardBody>
       </Card>
 
@@ -467,7 +466,7 @@ const MirrorOperations: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardBody>
-          <FormGroup label="Configuration File" fieldId="config-select">
+          <FormGroup label="ImageSetConfiguration File" fieldId="config-select">
             <InputGroup>
               <InputGroupItem isFill>
                 <Select
@@ -484,12 +483,12 @@ const MirrorOperations: React.FC = () => {
                       ref={toggleRef}
                       onClick={() => setConfigSelectOpen(prev => !prev)}
                       isExpanded={configSelectOpen}
-                      aria-label="Select configuration file"
+                      aria-label="Select ImageSetConfiguration file"
                       style={{ width: '100%' }}
                     >
                       {selectedConfig
                         ? `${selectedConfig} (${availableConfigs.find(c => c.name === selectedConfig)?.size || ''})`
-                        : 'Select a configuration file...'}
+                        : 'Select an ImageSetConfiguration file...'}
                     </MenuToggle>
                   )}
                 >
@@ -608,7 +607,7 @@ const MirrorOperations: React.FC = () => {
                 {operations.map((op) => (
                   <Tr key={op.id}>
                     <Td dataLabel="Operation">
-                      <b>{op.name}</b>
+                      {op.name}
                     </Td>
                     <Td dataLabel="Config">
                       {op.configFile}
@@ -742,7 +741,7 @@ const MirrorOperations: React.FC = () => {
         }}
         aria-label="Delete confirmation"
       >
-        <ModalHeader title={isDeleteConfig ? 'Delete Configuration File' : 'Delete Operation Record'} />
+        <ModalHeader title={isDeleteConfig ? 'Delete ImageSetConfiguration File' : 'Delete Operation Record'} />
         <ModalBody>
           {isDeleteConfig ? (
             <>
@@ -794,7 +793,7 @@ const MirrorOperations: React.FC = () => {
           <p>
             Are you sure you want to stop the running operation <span style={{ fontWeight: 600 }}>&quot;{stopOperationId}&quot;</span>?
           </p>
-          <Alert variant="info" isInline isPlain title="You can start a new operation with the same configuration." className="pf-v6-u-mt-md" />
+          <Alert variant="custom" isInline isPlain customIcon={<InfoCircleIcon />} title="You can start a new operation with the same configuration." className="pf-v6-u-mt-md" />
         </ModalBody>
         <ModalFooter>
           <Button variant="danger" onClick={confirmStopOperation}>

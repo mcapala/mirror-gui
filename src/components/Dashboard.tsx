@@ -380,7 +380,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.runningOperations}
                     </Title>
-                    <Label status="custom" icon={<SyncAltIcon />}>
+                    <Label color="teal" icon={<Spinner size="sm" />}>
                       Running
                     </Label>
                   </CardBody>
@@ -434,11 +434,13 @@ const Dashboard: React.FC = () => {
                         </div>
                       </Td>
                       <Td dataLabel="Status">
-                        <Label
-                          status={getOperationLabelStatus(op.status)}
-                        >
-                          {getOperationStatusText(op.status)}
-                        </Label>
+                        {op.status === 'running' ? (
+                          <Label color="teal" icon={<Spinner size="sm" />}>Running</Label>
+                        ) : (
+                          <Label status={getOperationLabelStatus(op.status)}>
+                            {getOperationStatusText(op.status)}
+                          </Label>
+                        )}
                       </Td>
                       <Td dataLabel="Started">{new Date(op.startedAt).toLocaleString()}</Td>
                       <Td dataLabel="Duration">{op.duration ? `${op.duration}s` : '-'}</Td>

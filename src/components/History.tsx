@@ -220,7 +220,7 @@ const History: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
+        return <Label color="teal" icon={<Spinner size="sm" />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
