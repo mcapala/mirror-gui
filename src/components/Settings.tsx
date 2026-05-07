@@ -23,6 +23,7 @@ import {
   ExpandableSection,
   List,
   ListItem,
+  Flex,
 } from '@patternfly/react-core';
 import {
   CogIcon,
@@ -433,7 +434,7 @@ const SettingsPage: React.FC = () => {
                       </Tbody>
                     </Table>
 
-                    <ActionGroup className="pf-v6-u-mt-lg">
+                    <ActionGroup className="pf-v6-u-mt-md">
                       <Button
                         variant="secondary"
                         icon={<SearchIcon />}
@@ -479,7 +480,7 @@ const SettingsPage: React.FC = () => {
                   <Label isCompact>{formatBytes(systemInfo.cacheSizeBytes)}</Label>
                 </FormGroup>
 
-                <ActionGroup className="pf-v6-u-mt-lg">
+                <ActionGroup className="pf-v6-u-mt-md">
                   <Button
                     variant="secondary"
                     icon={<TrashAltIcon />}
@@ -528,7 +529,7 @@ const SettingsPage: React.FC = () => {
                   </FormGroup>
                 )}
 
-                <ActionGroup className="pf-v6-u-mt-lg">
+                <Flex gap={{ default: 'gapSm' }} className="pf-v6-u-mt-md">
                   <Button
                     variant="primary"
                     icon={catalogSyncStatus.status !== 'running' ? <SyncAltIcon /> : undefined}
@@ -556,7 +557,7 @@ const SettingsPage: React.FC = () => {
                   >
                     Clear Sync Data
                   </Button>
-                </ActionGroup>
+                </Flex>
 
                 {catalogSyncStatus.status === 'running' && catalogSyncStatus.totalCount > 0 && (
                   <div className="pf-v6-u-mt-lg">

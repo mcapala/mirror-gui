@@ -1633,8 +1633,8 @@ const MirrorConfig: React.FC = () => {
                     borderBottom: '1px solid var(--pf-t--global--border--color--default)',
                   }}
                 >
-                  <Split hasGutter>
-                    <SplitItem isFilled>
+                  <Grid hasGutter>
+                    <GridItem span={6}>
                       <Select
                         id={`op-catalog-${opIndex}`}
                         isOpen={catalogSelectOpen[opIndex] || false}
@@ -1667,7 +1667,7 @@ const MirrorConfig: React.FC = () => {
                             ref={toggleRef}
                             onClick={() => setCatalogSelectOpen(prev => ({ ...prev, [opIndex]: !prev[opIndex] }))}
                             isExpanded={catalogSelectOpen[opIndex] || false}
-                            style={{ width: '100%' }}
+                            isFullWidth
                           >
                             {(() => {
                               const cat = operatorCatalogs.find(c => c.url === operator.catalog);
@@ -1685,16 +1685,16 @@ const MirrorConfig: React.FC = () => {
                           ))}
                         </SelectList>
                       </Select>
-                    </SplitItem>
-                    <SplitItem>
+                    </GridItem>
+                    <GridItem span={1}>
                       <Button
                         variant="plain"
                         icon={<MinusCircleIcon />}
                         onClick={() => removeOperator(opIndex)}
                         aria-label={`Remove catalog ${opIndex + 1}`}
                       />
-                    </SplitItem>
-                  </Split>
+                    </GridItem>
+                  </Grid>
 
                   <div className="pf-v6-u-mt-sm">
                     {operator.packages.length > 0 ? (
@@ -1715,13 +1715,9 @@ const MirrorConfig: React.FC = () => {
                         const info = dOps?.find(o => o.name === pkg.name);
                         return (
                           <div>
-                            <Split hasGutter>
-                              <SplitItem isFilled>
-                                {pkg.isDependency && pkg.autoAddedBy && (
-                                  <Badge isRead className="pf-v6-u-mb-sm">Auto-added for {pkg.autoAddedBy}</Badge>
-                                )}
-                              </SplitItem>
-                            </Split>
+                            {pkg.isDependency && pkg.autoAddedBy && (
+                              <Badge isRead className="pf-v6-u-mb-sm">Auto-added for {pkg.autoAddedBy}</Badge>
+                            )}
                             <TypeaheadSelect
                               id={`op-pkg-name-${opIndex}-${pkgIndex}`}
                               initialOptions={(operator.availableOperators || [])
@@ -1739,7 +1735,7 @@ const MirrorConfig: React.FC = () => {
                               }}
                               placeholder="Type to search operators..."
                               noOptionsFoundMessage={(filter) => `No operators found for "${filter}"`}
-                              toggleProps={{ isFullWidth: true }}
+                              toggleProps={{ style: { maxWidth: '50%' } }}
                             />
 
                             {pkg.name && info && (
@@ -1960,8 +1956,8 @@ const MirrorConfig: React.FC = () => {
             >
               <Split hasGutter className="pf-v6-u-mt-lg">
                 <SplitItem isFilled>
-                  <Title headingLevel="h3" className="pf-v6-u-mb-sm">Configuration Preview</Title>
-                  <p>Preview and edit the generated YAML configuration.</p>
+                  <Title headingLevel="h3" className="pf-v6-u-mb-sm">ImageSetConfiguration Preview</Title>
+                  <p>Preview and edit the generated ImageSetConfiguration YAML.</p>
                 </SplitItem>
                 <SplitItem>
                   <Split hasGutter>
@@ -2092,13 +2088,13 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Load YAML Configuration</Title>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Load ImageSetConfiguration YAML</Title>
               <p>
                 Upload an existing ImageSetConfiguration YAML file, review and edit it, then
                 save it or load it into the form editor for further modification.
               </p>
 
-              <FormGroup label="Upload YAML File" fieldId="yaml-file-upload" className="pf-v6-u-mt-md">
+              <div className="pf-v6-u-mt-md">
                 <FileUpload
                   id="yaml-file-upload"
                   type="text"
@@ -2115,7 +2111,7 @@ const MirrorConfig: React.FC = () => {
                     accept: { 'text/yaml': ['.yaml', '.yml'] },
                   }}
                 />
-              </FormGroup>
+              </div>
 
               {uploadError && (
                 <Alert
