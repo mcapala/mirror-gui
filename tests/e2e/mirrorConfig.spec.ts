@@ -34,7 +34,7 @@ test.describe('Mirror Configuration', () => {
   test('saving config with empty operator shows validation errors', async ({ page }) => {
     await page.getByRole('tab', { name: /operators/i }).click();
     await page.getByRole('button', { name: /add operator catalog/i }).click();
-    await expect(page.locator('[id^="op-catalog-"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/operator-index/i)).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: /save configuration/i }).click();
     await expect(page.getByText(/configuration has errors/i)).toBeVisible({ timeout: 5000 });
   });

@@ -1531,6 +1531,7 @@ const MirrorConfig: React.FC = () => {
                 onAddRow={() => addPlatformChannel()}
                 onRemoveRow={(_e, index) => removePlatformChannel(index)}
                 addButtonContent="Add platform channel"
+                addButtonProps={{ style: { paddingInlineStart: 0 } }}
                 rowGroupLabelPrefix="Channel"
                 fieldBuilderIdPrefix="platform-channel"
                 aria-label="Platform channels"
@@ -1703,6 +1704,7 @@ const MirrorConfig: React.FC = () => {
                       onAddRow={() => addPackageToOperator(opIndex)}
                       onRemoveRow={(_e, pkgIndex) => removePackageFromOperator(opIndex, pkgIndex)}
                       addButtonContent="Add operator"
+                      addButtonProps={{ style: { paddingInlineStart: 0 } }}
                       rowGroupLabelPrefix="Operator"
                       fieldBuilderIdPrefix={`catalog-${opIndex}-operator`}
                       aria-label={`Operators for catalog ${opIndex + 1}`}
@@ -1789,6 +1791,7 @@ const MirrorConfig: React.FC = () => {
                                       onAddRow={() => addChannelToPackage(opIndex, pkgIndex, '')}
                                       onRemoveRow={(_e, chIdx) => removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)}
                                       addButtonContent="Add channel"
+                                      addButtonProps={{ style: { paddingInlineStart: 0 } }}
                                       rowGroupLabelPrefix="Channel"
                                       fieldBuilderIdPrefix={`catalog-${opIndex}-op-${pkgIndex}-ch`}
                                       aria-label={`Channels for ${pkg.name}`}
@@ -1912,6 +1915,7 @@ const MirrorConfig: React.FC = () => {
                 onAddRow={() => addAdditionalImage()}
                 onRemoveRow={(_e, index) => removeAdditionalImage(index)}
                 addButtonContent="Add image"
+                addButtonProps={{ style: { paddingInlineStart: 0 } }}
                 rowGroupLabelPrefix="Image"
                 fieldBuilderIdPrefix="additional-image"
                 aria-label="Additional images"
@@ -2094,114 +2098,103 @@ const MirrorConfig: React.FC = () => {
                 save it or load it into the form editor for further modification.
               </p>
 
-              <Card isPlain isCompact className="pf-v6-u-mt-md">
-                <CardBody>
-                  <FormGroup label="Upload YAML File" fieldId="yaml-file-upload">
-                    <FileUpload
-                      id="yaml-file-upload"
-                      type="text"
-                      value={uploadedContent}
-                      filename={uploadFilename}
-                      filenamePlaceholder="Drag and drop a .yaml file or click to browse"
-                      onFileInputChange={handleFileChange}
-                      onClearClick={() => resetUploadState()}
-                      isLoading={isUploadLoading}
-                      browseButtonText="Browse"
-                      clearButtonText="Clear"
-                      hideDefaultPreview
-                      dropzoneProps={{
-                        accept: { 'text/yaml': ['.yaml', '.yml'] },
-                      }}
-                    />
-                  </FormGroup>
+              <FormGroup label="Upload YAML File" fieldId="yaml-file-upload" className="pf-v6-u-mt-md">
+                <FileUpload
+                  id="yaml-file-upload"
+                  type="text"
+                  value={uploadedContent}
+                  filename={uploadFilename}
+                  filenamePlaceholder="Drag and drop a .yaml file or click to browse"
+                  onFileInputChange={handleFileChange}
+                  onClearClick={() => resetUploadState()}
+                  isLoading={isUploadLoading}
+                  browseButtonText="Browse"
+                  clearButtonText="Clear"
+                  hideDefaultPreview
+                  dropzoneProps={{
+                    accept: { 'text/yaml': ['.yaml', '.yml'] },
+                  }}
+                />
+              </FormGroup>
 
-                  {uploadError && (
-                    <Alert
-                      variant={AlertVariant.danger}
-                      isInline
-                      title={uploadError}
-                      className="pf-v6-u-mt-md"
-                    />
-                  )}
+              {uploadError && (
+                <Alert
+                  variant={AlertVariant.danger}
+                  isInline
+                  title={uploadError}
+                  className="pf-v6-u-mt-md"
+                />
+              )}
 
-                  {parsedUpload && (
-                    <Alert
-                      variant={AlertVariant.success}
-                      isInline
-                      title="Valid ImageSetConfiguration detected"
-                      className="pf-v6-u-mt-md"
-                    >
-                      <DescriptionList isHorizontal isCompact>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>Kind</DescriptionListTerm>
-                          <DescriptionListDescription>{parsedUpload.kind}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>API Version</DescriptionListTerm>
-                          <DescriptionListDescription>{parsedUpload.apiVersion}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                        {parsedUpload.mirror?.platform?.channels && (
-                          <DescriptionListGroup>
-                            <DescriptionListTerm>Platform Channels</DescriptionListTerm>
-                            <DescriptionListDescription>{parsedUpload.mirror.platform.channels.length}</DescriptionListDescription>
-                          </DescriptionListGroup>
-                        )}
-                        {parsedUpload.mirror?.operators && (
-                          <DescriptionListGroup>
-                            <DescriptionListTerm>Operators</DescriptionListTerm>
-                            <DescriptionListDescription>{parsedUpload.mirror.operators.length}</DescriptionListDescription>
-                          </DescriptionListGroup>
-                        )}
-                        {parsedUpload.mirror?.additionalImages && (
-                          <DescriptionListGroup>
-                            <DescriptionListTerm>Additional Images</DescriptionListTerm>
-                            <DescriptionListDescription>{parsedUpload.mirror.additionalImages.length}</DescriptionListDescription>
-                          </DescriptionListGroup>
-                        )}
-                      </DescriptionList>
-                    </Alert>
-                  )}
+              {parsedUpload && (
+                <Alert
+                  variant={AlertVariant.success}
+                  isInline
+                  title="Valid ImageSetConfiguration detected"
+                  className="pf-v6-u-mt-md"
+                >
+                  <DescriptionList isHorizontal isCompact>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Kind</DescriptionListTerm>
+                      <DescriptionListDescription>{parsedUpload.kind}</DescriptionListDescription>
+                    </DescriptionListGroup>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>API Version</DescriptionListTerm>
+                      <DescriptionListDescription>{parsedUpload.apiVersion}</DescriptionListDescription>
+                    </DescriptionListGroup>
+                    {parsedUpload.mirror?.platform?.channels && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Platform Channels</DescriptionListTerm>
+                        <DescriptionListDescription>{parsedUpload.mirror.platform.channels.length}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                    {parsedUpload.mirror?.operators && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Operators</DescriptionListTerm>
+                        <DescriptionListDescription>{parsedUpload.mirror.operators.length}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                    {parsedUpload.mirror?.additionalImages && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Additional Images</DescriptionListTerm>
+                        <DescriptionListDescription>{parsedUpload.mirror.additionalImages.length}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                  </DescriptionList>
+                </Alert>
+              )}
 
-                  {uploadedContent && (
-                    <FormGroup
-                      label="YAML Content (editable)"
-                      fieldId="yaml-editor"
-                      className="pf-v6-u-mt-md"
-                    >
-                      <TextArea
-                        id="yaml-editor"
-                        value={uploadedContent}
-                        onChange={(_e, val) => handleTextAreaChange(val)}
-                        rows={18}
-                        resizeOrientation="vertical"
-                        aria-label="YAML editor"
-                        style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace', fontSize: '13px' }}
-                      />
-                    </FormGroup>
-                  )}
+              {uploadedContent && (
+                <FormGroup
+                  label="YAML Content (editable)"
+                  fieldId="yaml-editor"
+                  className="pf-v6-u-mt-md"
+                >
+                  <TextArea
+                    id="yaml-editor"
+                    value={uploadedContent}
+                    onChange={(_e, val) => handleTextAreaChange(val)}
+                    rows={18}
+                    resizeOrientation="vertical"
+                    aria-label="YAML editor"
+                    style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace', fontSize: '13px' }}
+                  />
+                </FormGroup>
+              )}
 
-                  {validationErrors['yaml-upload'] && (
-                    <Alert variant="danger" isInline title={validationErrors['yaml-upload']} className="pf-v6-u-mt-sm" />
-                  )}
-                  <Split hasGutter className="pf-v6-u-mt-md">
-                    <SplitItem>
-                      <Button
-                        variant="primary"
-                        icon={<ArrowRightIcon />}
-                        onClick={() => { clearFieldError('yaml-upload'); loadIntoEditor(); }}
-                        isDisabled={!parsedUpload}
-                      >
-                        Load into Editor
-                      </Button>
-                    </SplitItem>
-                    <SplitItem>
-                      <Button variant="link" onClick={resetUploadState}>
-                        Clear
-                      </Button>
-                    </SplitItem>
-                  </Split>
-                </CardBody>
-              </Card>
+              {validationErrors['yaml-upload'] && (
+                <Alert variant="danger" isInline title={validationErrors['yaml-upload']} className="pf-v6-u-mt-sm" />
+              )}
+              <div className="pf-v6-u-mt-md">
+                <Button
+                  variant="primary"
+                  icon={<ArrowRightIcon />}
+                  onClick={() => { clearFieldError('yaml-upload'); loadIntoEditor(); }}
+                  isDisabled={!parsedUpload}
+                >
+                  Load into Editor
+                </Button>
+              </div>
             </Tab>
           </Tabs>
 
