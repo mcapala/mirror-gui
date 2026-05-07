@@ -37,19 +37,22 @@ import {
   DescriptionListTerm,
   DescriptionListDescription,
   Tooltip,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  Divider,
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
   PlayIcon,
   StopIcon,
   TrashIcon,
-  FolderIcon,
   ListIcon,
   CopyIcon,
   InfoCircleIcon,
   OutlinedClockIcon,
-  EyeIcon,
-  EyeSlashIcon,
+  EllipsisVIcon,
+  AngleUpIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -87,7 +90,7 @@ const MirrorOperations: React.FC = () => {
   const [deleteFilename, setDeleteFilename] = useState('');
   const [deleteOperationId, setDeleteOperationId] = useState<string | null>(null);
   const [mirrorDestinationSubdir, setMirrorDestinationSubdir] = useState('');
-  const [showMirrorLocation, setShowMirrorLocation] = useState<Record<string, boolean>>({});
+  const [kebabOpen, setKebabOpen] = useState<Record<string, boolean>>({});
   const [hostDataDir, setHostDataDir] = useState('');
 
   const operationsRef = useRef<Operation[]>([]);
@@ -384,9 +387,8 @@ const MirrorOperations: React.FC = () => {
     return `${secs}s`;
   };
 
-  const clearLogs = () => {
-    setLogs('');
-    setShowLogs(false);
+  const scrollToOperations = () => {
+    document.getElementById('operation-history-card')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const getMirrorFullPath = (mirrorDestination: string) => {
@@ -440,7 +442,7 @@ const MirrorOperations: React.FC = () => {
         <CardHeader>
           <CardTitle>
             <Title headingLevel="h3">
-              <PlayIcon /> Start New Operation
+              Start New Operation
             </Title>
           </CardTitle>
         </CardHeader>
@@ -506,18 +508,9 @@ const MirrorOperations: React.FC = () => {
                       gap: 'var(--pf-t--global--spacer--xs)',
                     }}
                   >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 'var(--pf-t--global--spacer--sm)',
-                      }}
-                    >
-                      <FolderIcon />
-                      <span>Mirror Destination Subdirectory</span>
-                    </span>
+                    <span>Mirror Destination Folder</span>
                     <Popover
-                      bodyContent="Mirror files are saved to data/mirrors/<subdirectory>. Leave empty for &quot;default&quot;. The subdirectory is created automatically with correct permissions."
+                      bodyContent="Mirror files are saved to data/mirrors/<folder>. Leave empty for &quot;default&quot;. The folder is created automatically with correct permissions."
                     >
                       <Button
                         variant="plain"
@@ -568,22 +561,18 @@ const MirrorOperations: React.FC = () => {
             <Alert
               variant="info"
               isInline
-              title={
-                <Flex alignItems={{ default: 'alignItemsCenter' }}>
-                  <FlexItem>
-                    <SyncAltIcon /> Operation in progress: {runningOperation.name}
-                  </FlexItem>
-                  <FlexItem>
-                    <Button
-                      variant="danger"
-                      icon={<StopIcon />}
-                      onClick={() => stopOperation(runningOperation.id)}
-                      size="sm"
-                    >
-                      Stop Operation
-                    </Button>
-                  </FlexItem>
-                </Flex>
+              component="span"
+              title={`Operation in progress: ${runningOperation.name}`}
+              customIcon={<Spinner size="md" />}
+              actionLinks={
+                <Button
+                  variant="danger"
+                  icon={<StopIcon />}
+                  size="sm"
+                  onClick={() => stopOperation(runningOperation.id)}
+                >
+                  Stop Operation
+                </Button>
               }
               className="pf-v6-u-mt-md"
             />
@@ -591,26 +580,13 @@ const MirrorOperations: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-lg">
+      <Card className="pf-v6-u-mt-lg" id="operation-history-card">
         <CardHeader>
-          <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
-              <CardTitle>
-                <Title headingLevel="h3">
-                  <ListIcon /> Operation History
-                </Title>
-              </CardTitle>
-            </FlexItem>
-            <FlexItem>
-              <Button
-                variant="secondary"
-                icon={showLogs ? <EyeSlashIcon /> : <EyeIcon />}
-                onClick={() => setShowLogs(!showLogs)}
-              >
-                {showLogs ? 'Hide Logs' : 'Show Logs'}
-              </Button>
-            </FlexItem>
-          </Flex>
+          <CardTitle>
+            <Title headingLevel="h3">
+              <ListIcon /> Operation History
+            </Title>
+          </CardTitle>
         </CardHeader>
         <CardBody>
           {operations.length === 0 ? (
@@ -647,66 +623,76 @@ const MirrorOperations: React.FC = () => {
                       <OutlinedClockIcon /> {formatDuration(op.duration)}
                     </Td>
                     <Td dataLabel="Actions">
-                      <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-                        {op.status === 'running' && (
-                          <FlexItem>
-                            <Button variant="danger" icon={<StopIcon />} size="sm" onClick={() => stopOperation(op.id)}>
-                              Stop
-                            </Button>
-                          </FlexItem>
+                      <Dropdown
+                        isOpen={!!kebabOpen[op.id]}
+                        onOpenChange={(open) => setKebabOpen((prev) => ({ ...prev, [op.id]: open }))}
+                        toggle={(toggleRef) => (
+                          <MenuToggle
+                            ref={toggleRef}
+                            variant="plain"
+                            onClick={() => setKebabOpen((prev) => ({ ...prev, [op.id]: !prev[op.id] }))}
+                            isExpanded={!!kebabOpen[op.id]}
+                            icon={<EllipsisVIcon />}
+                            aria-label={`Actions for ${op.name}`}
+                          />
                         )}
-                        {op.status === 'success' && op.mirrorDestination && (
-                          <FlexItem>
-                            <Button
-                              variant="secondary"
-                              icon={<FolderIcon />}
-                              size="sm"
-                              onClick={() =>
-                                setShowMirrorLocation(prev => ({
-                                  ...prev,
-                                  [op.id]: !prev[op.id],
-                                }))
-                              }
+                        shouldFocusToggleOnSelect
+                        popperProps={{ position: 'right' }}
+                      >
+                        <DropdownList>
+                          {op.status === 'running' && (
+                            <DropdownItem
+                              key={`${op.id}-stop`}
+                              icon={<StopIcon />}
+                              isDanger
+                              onClick={() => {
+                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                                void stopOperation(op.id);
+                              }}
                             >
-                              {showMirrorLocation[op.id] ? 'Hide Location' : 'Location'}
-                            </Button>
-                          </FlexItem>
-                        )}
-                        <FlexItem>
-                          <Button
-                            variant="secondary"
+                              Stop
+                            </DropdownItem>
+                          )}
+                          {op.status === 'success' && op.mirrorDestination && (
+                            <DropdownItem
+                              key={`${op.id}-copy-location`}
+                              icon={<CopyIcon />}
+                              onClick={() => {
+                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                                void copyMirrorPath(op.mirrorDestination!);
+                              }}
+                            >
+                              Copy Location
+                            </DropdownItem>
+                          )}
+                          <DropdownItem
+                            key={`${op.id}-logs`}
                             icon={<ListIcon />}
-                            size="sm"
                             onClick={() => {
-                              setSelectedConfig(op.configFile);
-                              fetchLogs(op.id);
+                              setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                              void fetchLogs(op.id);
                               setShowLogs(true);
+                              setTimeout(() => {
+                                document.getElementById('operation-logs-card')?.scrollIntoView({ behavior: 'smooth' });
+                              }, 100);
                             }}
                           >
-                            Logs
-                          </Button>
-                        </FlexItem>
-                        <FlexItem>
-                          <Button variant="secondary" isDanger icon={<TrashIcon />} size="sm" onClick={() => promptDeleteOperation(op.id)}>
+                            View Logs
+                          </DropdownItem>
+                          <Divider key={`${op.id}-div`} component="li" />
+                          <DropdownItem
+                            key={`${op.id}-delete`}
+                            icon={<TrashIcon />}
+                            isDanger
+                            onClick={() => {
+                              setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                              promptDeleteOperation(op.id);
+                            }}
+                          >
                             Delete
-                          </Button>
-                        </FlexItem>
-                      </Flex>
-                      {op.status === 'success' && op.mirrorDestination && showMirrorLocation[op.id] && (
-                        <div className="pf-v6-u-mt-md">
-                          <Alert variant="success" isInline isPlain title="Mirror Files Location">
-                            <code>{getMirrorFullPath(op.mirrorDestination)}</code>
-                            {' '}
-                            <Button
-                              variant="plain"
-                              icon={<CopyIcon />}
-                              onClick={() => copyMirrorPath(op.mirrorDestination!)}
-                              aria-label="Copy path"
-                              style={{ padding: 0, verticalAlign: 'middle' }}
-                            />
-                          </Alert>
-                        </div>
-                      )}
+                          </DropdownItem>
+                        </DropdownList>
+                      </Dropdown>
                     </Td>
                   </Tr>
                 ))}
@@ -717,7 +703,7 @@ const MirrorOperations: React.FC = () => {
       </Card>
 
       {showLogs && (
-        <Card className="pf-v6-u-mt-lg">
+        <Card className="pf-v6-u-mt-lg" id="operation-logs-card">
           <CardHeader>
             <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
               <FlexItem>
@@ -728,8 +714,8 @@ const MirrorOperations: React.FC = () => {
                 </CardTitle>
               </FlexItem>
               <FlexItem>
-                <Button variant="secondary" icon={<TrashIcon />} onClick={clearLogs}>
-                  Clear Logs
+                <Button variant="secondary" icon={<AngleUpIcon />} onClick={scrollToOperations}>
+                  Back to Top
                 </Button>
               </FlexItem>
             </Flex>
