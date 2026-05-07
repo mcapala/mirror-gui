@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Configuration for npm dependencies (weekly security-updates)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Disable version updates, only allow security updates
+    open-pull-requests-limit: 0
+    groups:
+      mirror-gui-security-updates:
+        applies-to: security-updates
+        patterns: [ "*" ]
