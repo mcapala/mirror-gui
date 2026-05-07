@@ -1473,13 +1473,11 @@ const MirrorConfig: React.FC = () => {
         </CardBody>
       </Card>
 
-      <br />
-
-      <Card>
+      <Card className="pf-v6-u-mt-md">
         <CardBody>
           {Object.entries(validationErrors).filter(([key]) => !key.includes('-warning') && !key.startsWith('yaml-')).length > 0 && (
-            <Alert variant="danger" isInline title="Configuration has errors" style={{ marginBottom: '1rem' }}>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+            <Alert variant="danger" isInline title="Configuration has errors" className="pf-v6-u-mb-md">
+              <ul style={{ margin: 0 }} className="pf-v6-u-pl-md">
                 {Object.entries(validationErrors).filter(([key]) => !key.includes('-warning') && !key.startsWith('yaml-')).map(([, msg], i) => (
                   <li key={i}>{msg}</li>
                 ))}
@@ -1500,12 +1498,12 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
               <div
+                className="pf-v6-u-mt-md"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.25rem',
+                  gap: 'var(--pf-t--global--spacer--xs)',
                 }}
               >
                 <Title headingLevel="h3" style={{ margin: 0 }}>
@@ -1531,8 +1529,8 @@ const MirrorConfig: React.FC = () => {
                 </Button>
               ) : (
               <FieldBuilder
-                firstColumnLabel="Channel"
-                secondColumnLabel="Version Range"
+                firstColumnLabel="Channel Name"
+                secondColumnLabel="Version Range (optional)"
                 rowCount={config.mirror.platform.channels.length}
                 onAddRow={() => addPlatformChannel()}
                 onRemoveRow={(_e, index) => removePlatformChannel(index)}
@@ -1576,36 +1574,34 @@ const MirrorConfig: React.FC = () => {
 
                     <Split key="versions" hasGutter>
                       <SplitItem isFilled>
-                        <FormGroup label="Min Version (optional)" fieldId={`platform-ch-min-${index}`}>
-                          <TextInput
-                            id={`platform-ch-min-${index}`}
-                            value={channel.minVersion}
-                            validated={validationErrors[`platform-${index}-minVersion`] ? 'error' : 'default'}
-                            onChange={(_e, val) => { clearFieldError(`platform-${index}-minVersion`); updatePlatformChannel(index, 'minVersion', val); }}
-                            onBlur={() => validatePlatformChannel(index, 'minVersion')}
-                          />
-                          {validationErrors[`platform-${index}-minVersion`] && (
-                            <HelperText>
-                              <HelperTextItem variant="error">{validationErrors[`platform-${index}-minVersion`]}</HelperTextItem>
-                            </HelperText>
-                          )}
-                        </FormGroup>
+                        <TextInput
+                          id={`platform-ch-min-${index}`}
+                          value={channel.minVersion}
+                          validated={validationErrors[`platform-${index}-minVersion`] ? 'error' : 'default'}
+                          onChange={(_e, val) => { clearFieldError(`platform-${index}-minVersion`); updatePlatformChannel(index, 'minVersion', val); }}
+                          onBlur={() => validatePlatformChannel(index, 'minVersion')}
+                          placeholder="Min version"
+                        />
+                        {validationErrors[`platform-${index}-minVersion`] && (
+                          <HelperText>
+                            <HelperTextItem variant="error">{validationErrors[`platform-${index}-minVersion`]}</HelperTextItem>
+                          </HelperText>
+                        )}
                       </SplitItem>
                       <SplitItem isFilled>
-                        <FormGroup label="Max Version (optional)" fieldId={`platform-ch-max-${index}`}>
-                          <TextInput
-                            id={`platform-ch-max-${index}`}
-                            value={channel.maxVersion}
-                            validated={validationErrors[`platform-${index}-maxVersion`] ? 'error' : 'default'}
-                            onChange={(_e, val) => { clearFieldError(`platform-${index}-maxVersion`); updatePlatformChannel(index, 'maxVersion', val); }}
-                            onBlur={() => validatePlatformChannel(index, 'maxVersion')}
-                          />
-                          {validationErrors[`platform-${index}-maxVersion`] && (
-                            <HelperText>
-                              <HelperTextItem variant="error">{validationErrors[`platform-${index}-maxVersion`]}</HelperTextItem>
-                            </HelperText>
-                          )}
-                        </FormGroup>
+                        <TextInput
+                          id={`platform-ch-max-${index}`}
+                          value={channel.maxVersion}
+                          validated={validationErrors[`platform-${index}-maxVersion`] ? 'error' : 'default'}
+                          onChange={(_e, val) => { clearFieldError(`platform-${index}-maxVersion`); updatePlatformChannel(index, 'maxVersion', val); }}
+                          onBlur={() => validatePlatformChannel(index, 'maxVersion')}
+                          placeholder="Max version"
+                        />
+                        {validationErrors[`platform-${index}-maxVersion`] && (
+                          <HelperText>
+                            <HelperTextItem variant="error">{validationErrors[`platform-${index}-maxVersion`]}</HelperTextItem>
+                          </HelperText>
+                        )}
                       </SplitItem>
                     </Split>,
                   ];
@@ -1623,8 +1619,7 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Title headingLevel="h3"><CogIcon /> Operators</Title>
+              <Title headingLevel="h3" className="pf-v6-u-mt-md"><CogIcon /> Operators</Title>
               <p>Configure operator catalogs and packages to mirror.</p>
 
               {loading && <Spinner size="lg" />}
@@ -1632,10 +1627,9 @@ const MirrorConfig: React.FC = () => {
               {config.mirror.operators.map((operator, opIndex) => (
                 <div
                   key={opIndex}
+                  className="pf-v6-u-pb-md pf-v6-u-mb-md"
                   style={{
                     borderBottom: '1px solid var(--pf-t--global--border--color--default)',
-                    paddingBottom: '1rem',
-                    marginBottom: '1rem',
                   }}
                 >
                   <Split hasGutter>
@@ -1702,11 +1696,11 @@ const MirrorConfig: React.FC = () => {
                   </Split>
 
                   {operator.packages.length === 0 ? (
-                    <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPackageToOperator(opIndex)} style={{ marginTop: '0.5rem' }}>
+                    <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPackageToOperator(opIndex)} className="pf-v6-u-mt-sm">
                       Add operator
                     </Button>
                   ) : (
-                  <div style={{ marginTop: '0.5rem' }}>
+                  <div className="pf-v6-u-mt-sm">
                     <FieldBuilder
                       firstColumnLabel="Operator"
                       rowCount={operator.packages.length}
@@ -1726,7 +1720,7 @@ const MirrorConfig: React.FC = () => {
                             <Split hasGutter>
                               <SplitItem isFilled>
                                 {pkg.isDependency && pkg.autoAddedBy && (
-                                  <Badge isRead style={{ marginBottom: '0.5rem' }}>Auto-added for {pkg.autoAddedBy}</Badge>
+                                  <Badge isRead className="pf-v6-u-mb-sm">Auto-added for {pkg.autoAddedBy}</Badge>
                                 )}
                               </SplitItem>
                             </Split>
@@ -1745,16 +1739,13 @@ const MirrorConfig: React.FC = () => {
                                   updateOperatorPackage(opIndex, pkgIndex, 'name', String(value));
                                 }
                               }}
-                              onClearSelection={() => {
-                                updateOperatorPackage(opIndex, pkgIndex, 'name', '');
-                              }}
                               placeholder="Type to search operators..."
                               noOptionsFoundMessage={(filter) => `No operators found for "${filter}"`}
                               toggleProps={{ isFullWidth: true }}
                             />
 
                             {pkg.name && info && (
-                              <div style={{ marginTop: '0.5rem' }}>
+                              <div className="pf-v6-u-mt-sm">
                                 <Split hasGutter>
                                   <SplitItem>
                                     <span style={{ fontWeight: 600 }}>Default Channel:</span>
@@ -1763,11 +1754,11 @@ const MirrorConfig: React.FC = () => {
                                     <Label color="green">{info.defaultChannel}</Label>
                                   </SplitItem>
                                 </Split>
-                                <div style={{ marginTop: '0.5rem' }}>
+                                <div className="pf-v6-u-mt-sm">
                                   <span style={{ fontWeight: 600 }}>
                                     Available Channels ({info.allChannels?.length || 0}):
                                   </span>
-                                  <Flex style={{ marginTop: '0.25rem' }} gap={{ default: 'gapSm' }}>
+                                  <Flex className="pf-v6-u-mt-xs" gap={{ default: 'gapSm' }}>
                                     {info.allChannels?.map((ch, idx) => {
                                       const isDefault = ch === info.defaultChannel;
                                       const isSelected = pkg.channels?.some(c => c.name === ch);
@@ -1794,7 +1785,7 @@ const MirrorConfig: React.FC = () => {
                                 </div>
 
                                 {pkg.channels && pkg.channels.length > 0 && (
-                                  <div style={{ marginTop: '0.5rem' }}>
+                                  <div className="pf-v6-u-mt-sm">
                                     <FieldBuilder
                                       firstColumnLabel="Channel"
                                       secondColumnLabel="Min Version"
@@ -1911,8 +1902,7 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Title headingLevel="h3"><CubesIcon /> Additional Images</Title>
+              <Title headingLevel="h3" className="pf-v6-u-mt-md"><CubesIcon /> Additional Images</Title>
               <p>Add additional container images to mirror.</p>
 
               {config.mirror.additionalImages.length === 0 ? (
@@ -1946,7 +1936,7 @@ const MirrorConfig: React.FC = () => {
                         placeholder="registry.redhat.io/example/image:tag"
                       />
                       {validationErrors[`img-${index}-warning`] && (
-                        <Alert variant="warning" isInline title={validationErrors[`img-${index}-warning`]} style={{ marginTop: '0.5rem' }} />
+                        <Alert variant="warning" isInline title={validationErrors[`img-${index}-warning`]} className="pf-v6-u-mt-sm" />
                       )}
                     </div>
                   );
@@ -1964,8 +1954,7 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Split hasGutter>
+              <Split hasGutter className="pf-v6-u-mt-md">
                 <SplitItem isFilled>
                   <Title headingLevel="h3"><EyeIcon /> Configuration Preview</Title>
                   <p>Preview and edit the generated YAML configuration.</p>
@@ -1998,7 +1987,8 @@ const MirrorConfig: React.FC = () => {
               <Card
                 isPlain
                 isCompact
-                style={{ marginTop: '1rem', marginBottom: '1.5rem', overflow: 'visible' }}
+                className="pf-v6-u-mt-md pf-v6-u-mb-lg"
+                style={{ overflow: 'visible' }}
               >
                 <CardBody style={{ padding: 0 }}>
                   <Grid hasGutter>
@@ -2009,7 +1999,7 @@ const MirrorConfig: React.FC = () => {
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.25rem',
+                              gap: 'var(--pf-t--global--spacer--xs)',
                             }}
                           >
                             <span>Archive Size</span>
@@ -2069,9 +2059,9 @@ const MirrorConfig: React.FC = () => {
                     onChange={setEditedYaml}
                   />
                   {validationErrors['yaml-preview'] && (
-                    <Alert variant="danger" isInline title={validationErrors['yaml-preview']} style={{ marginTop: '0.5rem' }} />
+                    <Alert variant="danger" isInline title={validationErrors['yaml-preview']} className="pf-v6-u-mt-sm" />
                   )}
-                  <Split hasGutter style={{ marginTop: '0.5rem' }}>
+                  <Split hasGutter className="pf-v6-u-mt-sm">
                     <SplitItem>
                       <Button variant="primary" onClick={() => { clearFieldError('yaml-preview'); applyPreviewEdits(); }}>
                         Apply Changes
@@ -2098,14 +2088,13 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Title headingLevel="h3"><UploadIcon /> Load YAML Configuration</Title>
+              <Title headingLevel="h3" className="pf-v6-u-mt-md"><UploadIcon /> Load YAML Configuration</Title>
               <p>
                 Upload an existing ImageSetConfiguration YAML file, review and edit it, then
                 save it or load it into the form editor for further modification.
               </p>
 
-              <Card isPlain isCompact style={{ marginTop: '1rem' }}>
+              <Card isPlain isCompact className="pf-v6-u-mt-md">
                 <CardBody>
                   <FormGroup label="Upload YAML File" fieldId="yaml-file-upload">
                     <FileUpload
@@ -2131,7 +2120,7 @@ const MirrorConfig: React.FC = () => {
                       variant={AlertVariant.danger}
                       isInline
                       title={uploadError}
-                      style={{ marginTop: '1rem' }}
+                      className="pf-v6-u-mt-md"
                     />
                   )}
 
@@ -2140,7 +2129,7 @@ const MirrorConfig: React.FC = () => {
                       variant={AlertVariant.success}
                       isInline
                       title="Valid ImageSetConfiguration detected"
-                      style={{ marginTop: '1rem' }}
+                      className="pf-v6-u-mt-md"
                     >
                       <DescriptionList isHorizontal isCompact>
                         <DescriptionListGroup>
@@ -2177,7 +2166,7 @@ const MirrorConfig: React.FC = () => {
                     <FormGroup
                       label="YAML Content (editable)"
                       fieldId="yaml-editor"
-                      style={{ marginTop: '1rem' }}
+                      className="pf-v6-u-mt-md"
                     >
                       <TextArea
                         id="yaml-editor"
@@ -2192,9 +2181,9 @@ const MirrorConfig: React.FC = () => {
                   )}
 
                   {validationErrors['yaml-upload'] && (
-                    <Alert variant="danger" isInline title={validationErrors['yaml-upload']} style={{ marginTop: '0.5rem' }} />
+                    <Alert variant="danger" isInline title={validationErrors['yaml-upload']} className="pf-v6-u-mt-sm" />
                   )}
-                  <Split hasGutter style={{ marginTop: '1rem' }}>
+                  <Split hasGutter className="pf-v6-u-mt-md">
                     <SplitItem>
                       <Button
                         variant="primary"
@@ -2216,7 +2205,7 @@ const MirrorConfig: React.FC = () => {
             </Tab>
           </Tabs>
 
-          <div style={{ borderTop: '1px solid var(--pf-t--global--border--color--default)', paddingTop: '1rem', marginTop: '1rem' }}>
+          <div className="pf-v6-u-pt-md pf-v6-u-mt-md" style={{ borderTop: '1px solid var(--pf-t--global--border--color--default)' }}>
             <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
               <FlexItem>
                 {isEditingName ? (

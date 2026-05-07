@@ -76,14 +76,14 @@ Runs Playwright browser tests using headless Chromium (port 3001 in CI via dev s
 
 | File                         | Tests | Description                                                                                                                    |
 | ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `navigation.spec.ts`         | 7     | App loads, page title matches, sidebar has 5 nav items, clicking each navigates correctly, masthead title and version badge, sidebar toggle    |
+| `navigation.spec.ts`         | 12    | App loads, page title, sidebar nav items with correct routing, masthead title and version badge, sidebar toggle collapse/expand/persistence, dark theme class, logo image   |
 | `dashboard.spec.ts`          | 4     | Dashboard shows environment overview, operation stats cards, recent operations section, quick action buttons                    |
-| `mirrorConfig.spec.ts`       | 7     | Mirror Configuration page -- platform channels, operators, additional images, YAML preview, save/download, inline validation   |
+| `mirrorConfig.spec.ts`       | 7     | Mirror Configuration page -- platform channels, operators (FieldBuilder + TypeaheadSelect), additional images, YAML preview, save/download, inline validation   |
 | `mirrorOperations.spec.ts`   | 4     | Mirror Operations page -- config file selector, start/run controls, operation table or main content area                       |
 | `history.spec.ts`            | 3     | History page -- title, filter controls, Export CSV button                                                                      |
 | `settings.spec.ts`           | 5     | Settings page -- Pull Secret/Registry/Cache/Sync Catalogs tabs, key fields visible, sync and clear buttons                       |
 | `configToOperations.spec.ts` | 1     | End-to-end workflow -- saves a YAML config via API, navigates to operations page, confirms it appears                          |
-| `pullSecret.spec.ts`         | 5     | Pull secret -- Dashboard pull secret status, Environment Status label, popover, Pull Secret tab, URL tab navigation            |
+| `pullSecret.spec.ts`         | 6     | Pull secret -- Dashboard pull secret status, Environment Status label, popover, Pull Secret tab, URL tab navigation, status persistence   |
 
 
 Playwright reports are uploaded as CI artifacts (retained 14 days).
@@ -149,7 +149,7 @@ npm run audit:fetch-catalogs
 | Unit             | 3      | 46         |
 | Integration      | 10     | 56         |
 | Scripts          | 3      | 86         |
-| E2E (Playwright) | 8      | 37         |
-| **Total**        | **24** | **225**    |
+| E2E (Playwright) | 8      | 42         |
+| **Total**        | **24** | **230**    |
 
 

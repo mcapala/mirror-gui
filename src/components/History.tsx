@@ -259,8 +259,8 @@ const History: React.FC = () => {
     }
 
     return (
-      <div style={{ minWidth: 0, paddingTop: '0.5rem' }}>
-        <Title headingLevel="h4" style={{ marginBottom: '1rem' }}>
+      <div className="pf-v6-u-pt-sm" style={{ minWidth: 0 }}>
+        <Title headingLevel="h4" className="pf-v6-u-mb-md">
           <SearchIcon /> Operation Details
         </Title>
 
@@ -298,15 +298,15 @@ const History: React.FC = () => {
             variant="danger"
             isInline
             title="Error"
-            style={{ marginTop: '1rem' }}
+            className="pf-v6-u-mt-md"
           >
             {selectedOperation.errorMessage}
           </Alert>
         )}
 
         {operationDetails && (
-          <div style={{ marginTop: '1rem' }}>
-            <Title headingLevel="h4" style={{ marginBottom: '0.5rem' }}>
+          <div className="pf-v6-u-mt-md">
+            <Title headingLevel="h4" className="pf-v6-u-mb-sm">
               Operation Statistics
             </Title>
             <DescriptionList isCompact>
@@ -340,13 +340,13 @@ const History: React.FC = () => {
               isInline
               isPlain
               title={`Configuration File: ${operationDetails.configFile || selectedOperation.configFile}`}
-              style={{ marginTop: '1rem' }}
+              className="pf-v6-u-mt-md"
             />
           </div>
         )}
 
-        <div style={{ marginTop: '1.5rem' }}>
-          <Title headingLevel="h4" style={{ marginBottom: '0.5rem' }}>
+        <div className="pf-v6-u-mt-lg">
+          <Title headingLevel="h4" className="pf-v6-u-mb-sm">
             <ListIcon /> Log Output
           </Title>
           <div ref={logRef} style={{ maxHeight: '320px', overflow: 'auto' }}>
@@ -356,7 +356,7 @@ const History: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <div className="pf-v6-u-mt-md" style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             variant="secondary"
             icon={<AngleUpIcon />}
@@ -414,7 +414,7 @@ const History: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card style={{ marginTop: '1rem' }}>
+      <Card className="pf-v6-u-mt-md">
         <CardBody>
           <Toolbar>
             <ToolbarContent>
@@ -457,9 +457,9 @@ const History: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card style={{ marginTop: '1rem', minWidth: 0 }}>
+      <Card className="pf-v6-u-mt-md" style={{ minWidth: 0 }}>
         <CardBody>
-          <Title headingLevel="h3" style={{ marginBottom: '1rem' }}>
+          <Title headingLevel="h3" className="pf-v6-u-mb-md">
             <ListIcon /> Operations List
           </Title>
           {filteredOperations.length === 0 ? (
@@ -499,7 +499,7 @@ const History: React.FC = () => {
                             style={{
                               display: 'flex',
                               alignItems: 'flex-start',
-                              gap: '0.75rem',
+                              gap: 'var(--pf-t--global--spacer--sm)',
                             }}
                           >
                             <span
@@ -507,7 +507,7 @@ const History: React.FC = () => {
                               style={{
                                 color: 'var(--pf-t--global--text--color--subtle)',
                                 display: 'inline-flex',
-                                marginTop: '0.15rem',
+                                marginTop: 'var(--pf-t--global--spacer--xs)',
                               }}
                             >
                               {isSelected ? <AngleDownIcon /> : <AngleRightIcon />}

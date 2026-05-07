@@ -99,7 +99,7 @@ const AppLayout: React.FC = () => {
         <Toolbar style={{ width: '100%' }}>
           <ToolbarContent>
             <ToolbarItem>
-              <div style={{ borderLeft: '1px solid var(--pf-t--global--border--color--default)', paddingLeft: '16px', marginLeft: '8px' }}>
+              <div className="pf-v6-u-pl-md pf-v6-u-ml-sm" style={{ borderLeft: '1px solid var(--pf-t--global--border--color--default)' }}>
                 <Title headingLevel="h1" size="2xl" style={{ lineHeight: 1.2, fontSize: '2rem' }}>Mirror-GUI Application</Title>
                 <Content component="p" style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: '1.25rem', lineHeight: 1.2 }}>
                   OpenShift Container Platform Mirroring Operations
@@ -110,7 +110,7 @@ const AppLayout: React.FC = () => {
               <ThemeToggle />
             </ToolbarItem>
             <ToolbarItem>
-              <Label color="blue" style={{ fontSize: '0.875rem', padding: '0.4rem 0.75rem' }}>v1.0</Label>
+              <Label color="blue" className="pf-v6-u-py-xs pf-v6-u-px-sm" style={{ fontSize: '0.875rem' }}>v1.0</Label>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
@@ -123,7 +123,7 @@ const AppLayout: React.FC = () => {
       <PageSection style={{ minHeight: 'calc(100vh - 76px)' }}>
         <Suspense
           fallback={
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <div className="pf-v6-u-text-align-center pf-v6-u-p-2xl">
               <Spinner aria-label="Loading page" />
             </div>
           }

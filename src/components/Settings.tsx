@@ -309,7 +309,7 @@ const SettingsPage: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card style={{ marginTop: '1rem' }}>
+      <Card className="pf-v6-u-mt-md">
         <CardBody>
           <Tabs
             activeKey={activeTab}
@@ -320,15 +320,15 @@ const SettingsPage: React.FC = () => {
               eventKey="pull-secret"
               title={<TabTitleText><KeyIcon /> Pull Secret</TabTitleText>}
             >
-              <div style={{ padding: '1.5rem 0' }}>
-                <Title headingLevel="h3" style={{ marginBottom: '1rem' }}>Pull Secret</Title>
+              <div className="pf-v6-u-py-lg">
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Pull Secret</Title>
 
                 <Alert
                   variant={pullSecretStatus.detected ? 'success' : 'warning'}
                   isInline
                   isPlain
                   title={pullSecretStatus.detected ? 'Pull secret detected' : 'No pull secret detected'}
-                  style={{ marginBottom: '1.5rem' }}
+                  className="pf-v6-u-mb-lg"
                 >
                   {pullSecretStatus.detected
                     ? 'You can view and edit the pull secret content below.'
@@ -368,7 +368,7 @@ const SettingsPage: React.FC = () => {
                   </HelperText>
                 </FormGroup>
 
-                <ActionGroup style={{ marginTop: '1rem' }}>
+                <ActionGroup className="pf-v6-u-mt-md">
                   <Button
                     variant="primary"
                     icon={<SaveIcon />}
@@ -386,8 +386,8 @@ const SettingsPage: React.FC = () => {
               eventKey="registry"
               title={<TabTitleText><RegistryIcon /> Registry</TabTitleText>}
             >
-              <div style={{ padding: '1.5rem 0' }}>
-                <Title headingLevel="h3" style={{ marginBottom: '1rem' }}>Registry Authentication</Title>
+              <div className="pf-v6-u-py-lg">
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Registry Authentication</Title>
 
                 {registries.length === 0 ? (
                   <Alert
@@ -395,7 +395,7 @@ const SettingsPage: React.FC = () => {
                     isInline
                     isPlain
                     title="No registries found"
-                    style={{ marginBottom: '1rem' }}
+                    className="pf-v6-u-mb-md"
                   >
                     Add a pull secret in the Pull Secret tab to see registry authentication status.
                   </Alert>
@@ -433,7 +433,7 @@ const SettingsPage: React.FC = () => {
                       </Tbody>
                     </Table>
 
-                    <ActionGroup style={{ marginTop: '1.5rem' }}>
+                    <ActionGroup className="pf-v6-u-mt-lg">
                       <Button
                         variant="secondary"
                         icon={<SearchIcon />}
@@ -453,8 +453,8 @@ const SettingsPage: React.FC = () => {
               eventKey="cache"
               title={<TabTitleText><DatabaseIcon /> Cache</TabTitleText>}
             >
-              <div style={{ padding: '1.5rem 0' }}>
-                <Title headingLevel="h3" style={{ marginBottom: '1rem' }}>Cache</Title>
+              <div className="pf-v6-u-py-lg">
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Cache</Title>
 
                 <FormGroup
                   label={
@@ -464,7 +464,7 @@ const SettingsPage: React.FC = () => {
                         position="right"
                         bodyContent="To change the cache location, set the OC_MIRROR_CACHE_DIR environment variable when starting the container and mount the host directory as a volume."
                       >
-                        <button type="button" aria-label="Cache location info" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '0.25rem', verticalAlign: 'middle' }}>
+                        <button type="button" aria-label="Cache location info" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
                           <InfoCircleIcon />
                         </button>
                       </Popover>
@@ -475,11 +475,11 @@ const SettingsPage: React.FC = () => {
                   <Label isCompact>{systemInfo.hostCacheDir || systemInfo.cacheDir || 'Unknown'}</Label>
                 </FormGroup>
 
-                <FormGroup label="Cache Size" fieldId="cache-size" style={{ marginTop: '1rem' }}>
+                <FormGroup label="Cache Size" fieldId="cache-size" className="pf-v6-u-mt-md">
                   <Label isCompact>{formatBytes(systemInfo.cacheSizeBytes)}</Label>
                 </FormGroup>
 
-                <ActionGroup style={{ marginTop: '1.5rem' }}>
+                <ActionGroup className="pf-v6-u-mt-lg">
                   <Button
                     variant="secondary"
                     icon={<TrashAltIcon />}
@@ -498,8 +498,8 @@ const SettingsPage: React.FC = () => {
               eventKey="sync-catalogs"
               title={<TabTitleText><SyncAltIcon /> Sync Catalogs</TabTitleText>}
             >
-              <div style={{ padding: '1.5rem 0' }}>
-                <Title headingLevel="h3" style={{ marginBottom: '1rem' }}>Sync Operator Catalogs</Title>
+              <div className="pf-v6-u-py-lg">
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Sync Operator Catalogs</Title>
 
                 <Alert
                   variant={pullSecretStatus.detected ? 'custom' : 'warning'}
@@ -507,7 +507,7 @@ const SettingsPage: React.FC = () => {
                   isPlain
                   customIcon={pullSecretStatus.detected ? <InfoCircleIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} /> : undefined}
                   title={pullSecretStatus.detected ? 'Pull secret detected' : 'Pull secret required'}
-                  style={{ marginBottom: '1.5rem' }}
+                  className="pf-v6-u-mb-lg"
                 >
                   {pullSecretStatus.detected
                     ? 'Sync will fetch the latest operator catalogs metadata from registry.redhat.io for all supported OCP versions. This process takes several minutes.'
@@ -515,7 +515,7 @@ const SettingsPage: React.FC = () => {
                 </Alert>
 
                 {catalogSyncStatus.lastSyncTime && (
-                  <FormGroup label="Last Sync" fieldId="last-sync-time" style={{ marginBottom: '1rem' }}>
+                  <FormGroup label="Last Sync" fieldId="last-sync-time" className="pf-v6-u-mb-md">
                     <Label
                       isCompact
                       color={catalogSyncStatus.status === 'completed' ? 'green' : catalogSyncStatus.status === 'failed' ? 'red' : undefined}
@@ -559,7 +559,7 @@ const SettingsPage: React.FC = () => {
                 </ActionGroup>
 
                 {catalogSyncStatus.status === 'running' && catalogSyncStatus.totalCount > 0 && (
-                  <div style={{ marginTop: '1.5rem' }}>
+                  <div className="pf-v6-u-mt-lg">
                     <Progress
                       value={Math.round((catalogSyncStatus.completedCatalogs / catalogSyncStatus.totalCount) * 100)}
                       title="Catalog sync progress"
@@ -568,7 +568,7 @@ const SettingsPage: React.FC = () => {
                       label={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
                       valueText={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
                     />
-                    <HelperText style={{ marginTop: '0.25rem' }}>
+                    <HelperText className="pf-v6-u-mt-xs">
                       <HelperTextItem>
                         {catalogSyncStatus.currentCatalog && `Processing: ${catalogSyncStatus.currentCatalog} | `}
                         Elapsed: {formatElapsed(catalogSyncStatus.syncStartTime ? Math.floor((Date.now() - new Date(catalogSyncStatus.syncStartTime).getTime()) / 1000) : 0)}
@@ -578,8 +578,8 @@ const SettingsPage: React.FC = () => {
                 )}
 
                 {catalogSyncStatus.status === 'completed' && catalogSyncStatus.diff.length > 0 && (
-                  <div style={{ marginTop: '1.5rem' }}>
-                    <Alert variant="success" isInline isPlain title="Catalog changes detected" style={{ marginBottom: '1rem' }}>
+                  <div className="pf-v6-u-mt-lg">
+                    <Alert variant="success" isInline isPlain title="Catalog changes detected" className="pf-v6-u-mb-md">
                       The following changes were found compared to the previously loaded catalog data.
                     </Alert>
                     {catalogSyncStatus.diff.map((entry) => (
@@ -589,8 +589,8 @@ const SettingsPage: React.FC = () => {
                         isIndented
                       >
                         {entry.newOperators.length > 0 && (
-                          <div style={{ marginBottom: '0.75rem' }}>
-                            <Title headingLevel="h5" style={{ marginBottom: '0.25rem' }}>
+                          <div className="pf-v6-u-mb-sm">
+                            <Title headingLevel="h5" className="pf-v6-u-mb-xs">
                               <Label color="green" isCompact>New Operators ({entry.newOperators.length})</Label>
                             </Title>
                             <List isPlain>
@@ -599,8 +599,8 @@ const SettingsPage: React.FC = () => {
                           </div>
                         )}
                         {entry.updatedOperators.length > 0 && (
-                          <div style={{ marginBottom: '0.75rem' }}>
-                            <Title headingLevel="h5" style={{ marginBottom: '0.25rem' }}>
+                          <div className="pf-v6-u-mb-sm">
+                            <Title headingLevel="h5" className="pf-v6-u-mb-xs">
                               <Label color="blue" isCompact>Updated Operators ({entry.updatedOperators.length})</Label>
                             </Title>
                             <List isPlain>
@@ -613,8 +613,8 @@ const SettingsPage: React.FC = () => {
                           </div>
                         )}
                         {entry.removedOperators.length > 0 && (
-                          <div style={{ marginBottom: '0.75rem' }}>
-                            <Title headingLevel="h5" style={{ marginBottom: '0.25rem' }}>
+                          <div className="pf-v6-u-mb-sm">
+                            <Title headingLevel="h5" className="pf-v6-u-mb-xs">
                               <Label color="red" isCompact>Removed Operators ({entry.removedOperators.length})</Label>
                             </Title>
                             <List isPlain>
@@ -628,19 +628,19 @@ const SettingsPage: React.FC = () => {
                 )}
 
                 {catalogSyncStatus.status === 'completed' && catalogSyncStatus.diff.length === 0 && (
-                  <Alert variant="success" isInline isPlain title="Catalogs are up to date" style={{ marginTop: '1.5rem' }}>
+                  <Alert variant="success" isInline isPlain title="Catalogs are up to date" className="pf-v6-u-mt-lg">
                     No differences found between the synced data and the previously loaded catalogs.
                   </Alert>
                 )}
 
                 {showSyncLogs && catalogSyncStatus.logs.length > 0 && (
-                  <div style={{ marginTop: '1.5rem' }}>
+                  <div className="pf-v6-u-mt-lg">
                     <div
                       style={{
                         backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
                         border: '1px solid var(--pf-t--global--border--color--default)',
                         borderRadius: '6px',
-                        padding: '0.75rem',
+                        padding: 'var(--pf-t--global--spacer--sm)',
                         maxHeight: '300px',
                         overflowY: 'auto',
                         fontFamily: 'var(--pf-t--global--font--family--mono)',

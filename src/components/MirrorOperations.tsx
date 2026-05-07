@@ -436,7 +436,7 @@ const MirrorOperations: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Card style={{ marginTop: '1rem' }}>
+      <Card className="pf-v6-u-mt-md">
         <CardHeader>
           <CardTitle>
             <Title headingLevel="h3">
@@ -495,7 +495,7 @@ const MirrorOperations: React.FC = () => {
             </InputGroup>
           </FormGroup>
 
-          <Flex alignItems={{ default: 'alignItemsFlexEnd' }} style={{ marginTop: '1rem' }}>
+          <Flex alignItems={{ default: 'alignItemsFlexEnd' }} className="pf-v6-u-mt-md">
             <FlexItem>
               <FormGroup
                 label={
@@ -503,14 +503,14 @@ const MirrorOperations: React.FC = () => {
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '0.125rem',
+                      gap: 'var(--pf-t--global--spacer--xs)',
                     }}
                   >
                     <span
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '0.375rem',
+                        gap: 'var(--pf-t--global--spacer--sm)',
                       }}
                     >
                       <FolderIcon />
@@ -585,13 +585,13 @@ const MirrorOperations: React.FC = () => {
                   </FlexItem>
                 </Flex>
               }
-              style={{ marginTop: '1rem' }}
+              className="pf-v6-u-mt-md"
             />
           )}
         </CardBody>
       </Card>
 
-      <Card style={{ marginTop: '1rem' }}>
+      <Card className="pf-v6-u-mt-md">
         <CardHeader>
           <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
             <FlexItem>
@@ -693,7 +693,7 @@ const MirrorOperations: React.FC = () => {
                         </FlexItem>
                       </Flex>
                       {op.status === 'success' && op.mirrorDestination && showMirrorLocation[op.id] && (
-                        <div style={{ marginTop: '0.75rem' }}>
+                        <div className="pf-v6-u-mt-md">
                           <Alert variant="success" isInline isPlain title="Mirror Files Location">
                             <code>{getMirrorFullPath(op.mirrorDestination)}</code>
                             {' '}
@@ -717,7 +717,7 @@ const MirrorOperations: React.FC = () => {
       </Card>
 
       {showLogs && (
-        <Card style={{ marginTop: '1rem' }}>
+        <Card className="pf-v6-u-mt-md">
           <CardHeader>
             <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
               <FlexItem>
@@ -745,7 +745,7 @@ const MirrorOperations: React.FC = () => {
       )}
 
       {runningOperation && (
-        <Alert variant="info" isInline title="Operation in progress" style={{ marginTop: '1rem' }}>
+        <Alert variant="info" isInline title="Operation in progress" className="pf-v6-u-mt-md">
           <DescriptionList isHorizontal isCompact>
             <DescriptionListGroup>
               <DescriptionListTerm>Operation</DescriptionListTerm>
@@ -780,16 +780,14 @@ const MirrorOperations: React.FC = () => {
               <p>
                 Are you sure you want to delete <span style={{ fontWeight: 600 }}>&quot;{deleteFilename}&quot;</span>? This file will be permanently removed.
               </p>
-              <br />
-              <Alert variant="warning" isInline isPlain title="This action cannot be undone." />
+              <Alert variant="warning" isInline isPlain title="This action cannot be undone." className="pf-v6-u-mt-md" />
             </>
           ) : (
             <>
               <p>
                 Are you sure you want to delete the record for operation <span style={{ fontWeight: 600 }}>&quot;{deleteOperationId}&quot;</span>? The operation logs will be permanently removed.
               </p>
-              <br />
-              <Alert variant="warning" isInline isPlain title="This action cannot be undone." />
+              <Alert variant="warning" isInline isPlain title="This action cannot be undone." className="pf-v6-u-mt-md" />
             </>
           )}
         </ModalBody>

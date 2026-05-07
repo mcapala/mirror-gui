@@ -197,9 +197,9 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <PageSection>
-        <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <div className="pf-v6-u-text-align-center pf-v6-u-p-2xl">
           <Spinner aria-label="Loading dashboard" />
-          <Title headingLevel="h3" style={{ marginTop: '1rem' }}>
+          <Title headingLevel="h3" className="pf-v6-u-mt-md">
             Loading dashboard...
           </Title>
         </div>
@@ -232,7 +232,7 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>
               <Title headingLevel="h2">
-                <ServerIcon style={{ marginRight: '0.5rem' }} />
+                <ServerIcon className="pf-v6-u-mr-sm" />
                 Environment
               </Title>
             </CardTitle>
@@ -245,7 +245,7 @@ const Dashboard: React.FC = () => {
                     <DescriptionList>
                       <DescriptionListGroup>
                         <DescriptionListTerm>
-                          <SyncAltIcon style={{ marginRight: '0.5rem' }} />
+                          <SyncAltIcon className="pf-v6-u-mr-sm" />
                           OC Mirror Version
                         </DescriptionListTerm>
                         <DescriptionListDescription>
@@ -288,7 +288,7 @@ const Dashboard: React.FC = () => {
                               </DescriptionList>
                             }
                           >
-                            <button type="button" aria-label="Environment details" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '0.25rem', verticalAlign: 'middle' }}>
+                            <button type="button" aria-label="Environment details" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
                               <InfoCircleIcon />
                             </button>
                           </Popover>
@@ -309,7 +309,7 @@ const Dashboard: React.FC = () => {
                     <DescriptionList>
                       <DescriptionListGroup>
                         <DescriptionListTerm>
-                          <KeyIcon style={{ marginRight: '0.5rem' }} />
+                          <KeyIcon className="pf-v6-u-mr-sm" />
                           Pull Secret
                         </DescriptionListTerm>
                         <DescriptionListDescription>
@@ -333,7 +333,7 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>
               <Title headingLevel="h2">
-                <ListIcon style={{ marginRight: '0.5rem' }} />
+                <ListIcon className="pf-v6-u-mr-sm" />
                 Operation Statistics
               </Title>
             </CardTitle>
@@ -388,7 +388,7 @@ const Dashboard: React.FC = () => {
               </GridItem>
             </Grid>
             {lastOperation && (
-              <div style={{ marginTop: '1rem' }}>
+              <div className="pf-v6-u-mt-md">
                 <Label status={getOperationLabelStatus(lastOperation.status)} icon={<ClockIcon />}>
                   Last Operation: {getOperationStatusText(lastOperation.status)}
                 </Label>
@@ -404,7 +404,7 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>
               <Title headingLevel="h2">
-                <HistoryIcon style={{ marginRight: '0.5rem' }} />
+                <HistoryIcon className="pf-v6-u-mr-sm" />
                 Recent Operations
               </Title>
             </CardTitle>
