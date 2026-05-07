@@ -11,6 +11,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Checkbox,
   CardTitle,
   FileUpload,
   Flex,
@@ -1569,38 +1570,47 @@ const MirrorConfig: React.FC = () => {
                       </SelectList>
                     </Select>,
 
-                    <Split key="versions" hasGutter>
-                      <SplitItem isFilled>
-                        <TextInput
-                          id={`platform-ch-min-${index}`}
-                          value={channel.minVersion}
-                          validated={validationErrors[`platform-${index}-minVersion`] ? 'error' : 'default'}
-                          onChange={(_e, val) => { clearFieldError(`platform-${index}-minVersion`); updatePlatformChannel(index, 'minVersion', val); }}
-                          onBlur={() => validatePlatformChannel(index, 'minVersion')}
-                          placeholder="Min version"
-                        />
-                        {validationErrors[`platform-${index}-minVersion`] && (
-                          <HelperText>
-                            <HelperTextItem variant="error">{validationErrors[`platform-${index}-minVersion`]}</HelperTextItem>
-                          </HelperText>
-                        )}
-                      </SplitItem>
-                      <SplitItem isFilled>
-                        <TextInput
-                          id={`platform-ch-max-${index}`}
-                          value={channel.maxVersion}
-                          validated={validationErrors[`platform-${index}-maxVersion`] ? 'error' : 'default'}
-                          onChange={(_e, val) => { clearFieldError(`platform-${index}-maxVersion`); updatePlatformChannel(index, 'maxVersion', val); }}
-                          onBlur={() => validatePlatformChannel(index, 'maxVersion')}
-                          placeholder="Max version"
-                        />
-                        {validationErrors[`platform-${index}-maxVersion`] && (
-                          <HelperText>
-                            <HelperTextItem variant="error">{validationErrors[`platform-${index}-maxVersion`]}</HelperTextItem>
-                          </HelperText>
-                        )}
-                      </SplitItem>
-                    </Split>,
+                    <div key="versions">
+                      <Split hasGutter>
+                        <SplitItem isFilled>
+                          <TextInput
+                            id={`platform-ch-min-${index}`}
+                            value={channel.minVersion}
+                            validated={validationErrors[`platform-${index}-minVersion`] ? 'error' : 'default'}
+                            onChange={(_e, val) => { clearFieldError(`platform-${index}-minVersion`); updatePlatformChannel(index, 'minVersion', val); }}
+                            onBlur={() => validatePlatformChannel(index, 'minVersion')}
+                            placeholder="Min version"
+                          />
+                          {validationErrors[`platform-${index}-minVersion`] && (
+                            <HelperText>
+                              <HelperTextItem variant="error">{validationErrors[`platform-${index}-minVersion`]}</HelperTextItem>
+                            </HelperText>
+                          )}
+                        </SplitItem>
+                        <SplitItem isFilled>
+                          <TextInput
+                            id={`platform-ch-max-${index}`}
+                            value={channel.maxVersion}
+                            validated={validationErrors[`platform-${index}-maxVersion`] ? 'error' : 'default'}
+                            onChange={(_e, val) => { clearFieldError(`platform-${index}-maxVersion`); updatePlatformChannel(index, 'maxVersion', val); }}
+                            onBlur={() => validatePlatformChannel(index, 'maxVersion')}
+                            placeholder="Max version"
+                          />
+                          {validationErrors[`platform-${index}-maxVersion`] && (
+                            <HelperText>
+                              <HelperTextItem variant="error">{validationErrors[`platform-${index}-maxVersion`]}</HelperTextItem>
+                            </HelperText>
+                          )}
+                        </SplitItem>
+                      </Split>
+                      <Checkbox
+                        id={`platform-ch-sp-${index}`}
+                        label="Shortest path"
+                        isChecked={channel.shortestPath || false}
+                        onChange={(_e, checked) => updatePlatformChannel(index, 'shortestPath', checked)}
+                        className="pf-v6-u-mt-sm"
+                      />
+                    </div>,
                   ];
                 }}
               </FieldBuilder>
@@ -1740,19 +1750,17 @@ const MirrorConfig: React.FC = () => {
 
                             {pkg.name && info && (
                               <div className="pf-v6-u-mt-sm">
-                                <Split hasGutter>
-                                  <SplitItem>
-                                    <span style={{ fontWeight: 600 }}>Default Channel:</span>
-                                  </SplitItem>
-                                  <SplitItem>
-                                    <Label color="green">{info.defaultChannel}</Label>
-                                  </SplitItem>
-                                </Split>
-                                <div className="pf-v6-u-mt-sm">
-                                  <span style={{ fontWeight: 600 }}>
-                                    Available Channels ({info.allChannels?.length || 0}):
-                                  </span>
-                                  <Flex className="pf-v6-u-mt-xs" gap={{ default: 'gapSm' }}>
+                                <DescriptionList isCompact isHorizontal>
+                                  <DescriptionListGroup>
+                                    <DescriptionListTerm>Default Channel</DescriptionListTerm>
+                                    <DescriptionListDescription>
+                                      <Label color="green">{info.defaultChannel}</Label>
+                                    </DescriptionListDescription>
+                                  </DescriptionListGroup>
+                                  <DescriptionListGroup>
+                                    <DescriptionListTerm>Available Channels ({info.allChannels?.length || 0})</DescriptionListTerm>
+                                    <DescriptionListDescription>
+                                      <Flex gap={{ default: 'gapSm' }}>
                                     {info.allChannels?.map((ch, idx) => {
                                       const isDefault = ch === info.defaultChannel;
                                       const isSelected = pkg.channels?.some(c => c.name === ch);
@@ -1775,8 +1783,10 @@ const MirrorConfig: React.FC = () => {
                                         </FlexItem>
                                       );
                                     })}
-                                  </Flex>
-                                </div>
+                                      </Flex>
+                                    </DescriptionListDescription>
+                                  </DescriptionListGroup>
+                                </DescriptionList>
 
                                 {pkg.channels && pkg.channels.length > 0 && (
                                   <div className="pf-v6-u-mt-sm">
@@ -1787,7 +1797,7 @@ const MirrorConfig: React.FC = () => {
                                       onAddRow={() => addChannelToPackage(opIndex, pkgIndex, '')}
                                       onRemoveRow={(_e, chIdx) => removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)}
                                       addButtonContent="Add channel"
-                                      addButtonProps={{ style: { paddingInlineStart: 0 } }}
+                                      addButtonProps={{ size: 'sm', className: 'pf-v6-u-ml-md' }}
                                       rowGroupLabelPrefix="Channel"
                                       fieldBuilderIdPrefix={`catalog-${opIndex}-op-${pkgIndex}-ch`}
                                       aria-label={`Channels for ${pkg.name}`}

@@ -498,6 +498,7 @@ const SettingsPage: React.FC = () => {
             <Tab
               eventKey="sync-catalogs"
               title={<TabTitleText><SyncAltIcon /> Sync Catalogs</TabTitleText>}
+              isHidden
             >
               <div className="pf-v6-u-py-lg">
                 <Title headingLevel="h3" className="pf-v6-u-mb-md">Sync Operator Catalogs</Title>
