@@ -27,15 +27,9 @@ import {
   Flex,
   FlexItem,
   Popover,
-  Content,
-  ContentVariants,
   EmptyState,
   EmptyStateBody,
   Alert,
-  DescriptionList,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  DescriptionListDescription,
   Tooltip,
   Dropdown,
   DropdownItem,
@@ -90,8 +84,11 @@ const MirrorOperations: React.FC = () => {
   const [deleteFilename, setDeleteFilename] = useState('');
   const [deleteOperationId, setDeleteOperationId] = useState<string | null>(null);
   const [mirrorDestinationSubdir, setMirrorDestinationSubdir] = useState('');
+  const [showStopModal, setShowStopModal] = useState(false);
+  const [stopOperationId, setStopOperationId] = useState<string | null>(null);
   const [kebabOpen, setKebabOpen] = useState<Record<string, boolean>>({});
   const [hostDataDir, setHostDataDir] = useState('');
+  const [now, setNow] = useState(Date.now());
 
   const operationsRef = useRef<Operation[]>([]);
   const notifiedOperationsRef = useRef(new Set<string>());
@@ -266,6 +263,17 @@ const MirrorOperations: React.FC = () => {
     }
   }, [logs, showLogs]);
 
+  useEffect(() => {
+    const hasRunning = operations.some((op) => op.status === 'running');
+    if (!hasRunning) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [operations]);
+
+  const getElapsedSeconds = (startedAt: string) => {
+    return Math.floor((now - new Date(startedAt).getTime()) / 1000);
+  };
+
   const startOperation = async () => {
     if (!selectedConfig) {
       addDangerAlert('Please select a configuration file');
@@ -341,6 +349,18 @@ const MirrorOperations: React.FC = () => {
     }
   };
 
+  const promptStopOperation = (operationId: string) => {
+    setStopOperationId(operationId);
+    setShowStopModal(true);
+  };
+
+  const confirmStopOperation = async () => {
+    if (!stopOperationId) return;
+    await stopOperation(stopOperationId);
+    setShowStopModal(false);
+    setStopOperationId(null);
+  };
+
   const promptDeleteOperation = (operationId: string) => {
     setDeleteOperationId(operationId);
     setDeleteFilename('');
@@ -366,7 +386,7 @@ const MirrorOperations: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
+        return <Label status="custom" icon={<Spinner size="sm" />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -556,27 +576,6 @@ const MirrorOperations: React.FC = () => {
               </Button>
             </FlexItem>
           </Flex>
-
-          {runningOperation && (
-            <Alert
-              variant="info"
-              isInline
-              component="span"
-              title={`Operation in progress: ${runningOperation.name}`}
-              customIcon={<Spinner size="md" />}
-              actionLinks={
-                <Button
-                  variant="danger"
-                  icon={<StopIcon />}
-                  size="sm"
-                  onClick={() => stopOperation(runningOperation.id)}
-                >
-                  Stop Operation
-                </Button>
-              }
-              className="pf-v6-u-mt-md"
-            />
-          )}
         </CardBody>
       </Card>
 
@@ -584,34 +583,35 @@ const MirrorOperations: React.FC = () => {
         <CardHeader>
           <CardTitle>
             <Title headingLevel="h3">
-              <ListIcon /> Operation History
+              Operations
             </Title>
           </CardTitle>
         </CardHeader>
-        <CardBody>
+        <CardBody className="pf-v6-u-p-0">
           {operations.length === 0 ? (
             <EmptyState>
               <EmptyStateBody>No operations found.</EmptyStateBody>
             </EmptyState>
           ) : (
-            <Table aria-label="Operation history" variant="compact">
+            <Table aria-label="Operation history" variant="compact" borders={false}>
               <Thead>
                 <Tr>
                   <Th>Operation</Th>
+                  <Th>Config</Th>
                   <Th>Status</Th>
                   <Th>Started</Th>
                   <Th>Duration</Th>
-                  <Th>Actions</Th>
+                  <Th screenReaderText="Actions" />
                 </Tr>
               </Thead>
               <Tbody>
                 {operations.map((op) => (
                   <Tr key={op.id}>
                     <Td dataLabel="Operation">
-                      <div>
-                        <Content component={ContentVariants.p}><b>{op.name}</b></Content>
-                        <Content component={ContentVariants.small}>{op.configFile}</Content>
-                      </div>
+                      <b>{op.name}</b>
+                    </Td>
+                    <Td dataLabel="Config">
+                      {op.configFile}
                     </Td>
                     <Td dataLabel="Status">
                       {getStatusLabel(op.status)}
@@ -620,9 +620,11 @@ const MirrorOperations: React.FC = () => {
                       {new Date(op.startedAt).toLocaleString()}
                     </Td>
                     <Td dataLabel="Duration">
-                      <OutlinedClockIcon /> {formatDuration(op.duration)}
+                      <OutlinedClockIcon /> {op.status === 'running'
+                        ? formatDuration(getElapsedSeconds(op.startedAt))
+                        : formatDuration(op.duration)}
                     </Td>
-                    <Td dataLabel="Actions">
+                    <Td isActionCell>
                       <Dropdown
                         isOpen={!!kebabOpen[op.id]}
                         onOpenChange={(open) => setKebabOpen((prev) => ({ ...prev, [op.id]: open }))}
@@ -640,31 +642,6 @@ const MirrorOperations: React.FC = () => {
                         popperProps={{ position: 'right' }}
                       >
                         <DropdownList>
-                          {op.status === 'running' && (
-                            <DropdownItem
-                              key={`${op.id}-stop`}
-                              icon={<StopIcon />}
-                              isDanger
-                              onClick={() => {
-                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
-                                void stopOperation(op.id);
-                              }}
-                            >
-                              Stop
-                            </DropdownItem>
-                          )}
-                          {op.status === 'success' && op.mirrorDestination && (
-                            <DropdownItem
-                              key={`${op.id}-copy-location`}
-                              icon={<CopyIcon />}
-                              onClick={() => {
-                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
-                                void copyMirrorPath(op.mirrorDestination!);
-                              }}
-                            >
-                              Copy Location
-                            </DropdownItem>
-                          )}
                           <DropdownItem
                             key={`${op.id}-logs`}
                             icon={<ListIcon />}
@@ -679,7 +656,32 @@ const MirrorOperations: React.FC = () => {
                           >
                             View Logs
                           </DropdownItem>
+                          {op.status === 'success' && op.mirrorDestination && (
+                            <DropdownItem
+                              key={`${op.id}-copy-location`}
+                              icon={<CopyIcon />}
+                              onClick={() => {
+                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                                void copyMirrorPath(op.mirrorDestination!);
+                              }}
+                            >
+                              Copy Location
+                            </DropdownItem>
+                          )}
                           <Divider key={`${op.id}-div`} component="li" />
+                          {op.status === 'running' && (
+                            <DropdownItem
+                              key={`${op.id}-stop`}
+                              icon={<StopIcon />}
+                              isDanger
+                              onClick={() => {
+                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                                promptStopOperation(op.id);
+                              }}
+                            >
+                              Stop
+                            </DropdownItem>
+                          )}
                           <DropdownItem
                             key={`${op.id}-delete`}
                             icon={<TrashIcon />}
@@ -709,7 +711,7 @@ const MirrorOperations: React.FC = () => {
               <FlexItem>
                 <CardTitle>
                   <Title headingLevel="h4">
-                    <ListIcon /> Operation Logs
+                    Operation Logs
                   </Title>
                 </CardTitle>
               </FlexItem>
@@ -728,25 +730,6 @@ const MirrorOperations: React.FC = () => {
             </div>
           </CardBody>
         </Card>
-      )}
-
-      {runningOperation && (
-        <Alert variant="info" isInline title="Operation in progress" className="pf-v6-u-mt-md">
-          <DescriptionList isHorizontal isCompact>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Operation</DescriptionListTerm>
-              <DescriptionListDescription>{runningOperation.name}</DescriptionListDescription>
-            </DescriptionListGroup>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Started</DescriptionListTerm>
-              <DescriptionListDescription>{new Date(runningOperation.startedAt).toLocaleString()}</DescriptionListDescription>
-            </DescriptionListGroup>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Duration</DescriptionListTerm>
-              <DescriptionListDescription>{formatDuration(runningOperation.duration)}</DescriptionListDescription>
-            </DescriptionListGroup>
-          </DescriptionList>
-        </Alert>
       )}
 
       <Modal
@@ -790,6 +773,38 @@ const MirrorOperations: React.FC = () => {
               setShowDeleteModal(false);
               setDeleteFilename('');
               setDeleteOperationId(null);
+            }}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        variant={ModalVariant.small}
+        isOpen={showStopModal}
+        onClose={() => {
+          setShowStopModal(false);
+          setStopOperationId(null);
+        }}
+        aria-label="Stop confirmation"
+      >
+        <ModalHeader title="Stop Operation" />
+        <ModalBody>
+          <p>
+            Are you sure you want to stop the running operation <span style={{ fontWeight: 600 }}>&quot;{stopOperationId}&quot;</span>?
+          </p>
+          <Alert variant="info" isInline isPlain title="You can start a new operation with the same configuration." className="pf-v6-u-mt-md" />
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="danger" onClick={confirmStopOperation}>
+            Stop Operation
+          </Button>
+          <Button
+            variant="link"
+            onClick={() => {
+              setShowStopModal(false);
+              setStopOperationId(null);
             }}
           >
             Cancel
