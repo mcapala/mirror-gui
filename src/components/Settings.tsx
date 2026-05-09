@@ -24,6 +24,10 @@ import {
   List,
   ListItem,
   Flex,
+  Timestamp,
+  TextInput,
+  CodeBlock,
+  CodeBlockCode,
 } from '@patternfly/react-core';
 import {
   CogIcon,
@@ -39,6 +43,7 @@ import {
   SyncAltIcon,
   EyeIcon,
   EyeSlashIcon,
+  CopyIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -66,6 +71,13 @@ interface CatalogSyncDiffEntry {
   newOperators: string[];
   removedOperators: string[];
   updatedOperators: { name: string; addedVersions: string[] }[];
+}
+
+/** Bash-safe single-quoted string for CACHE_DIR=... */
+function shellSingleQuote(value: string): string {
+  const sq = '\'';
+  const escaped = value.split(sq).join(`${sq}\\${sq}${sq}`);
+  return `${sq}${escaped}${sq}`;
 }
 
 interface CatalogSyncStatus {
@@ -117,6 +129,10 @@ const SettingsPage: React.FC = () => {
   const [, setTick] = useState(0);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showSyncLogs, setShowSyncLogs] = useState(false);
+
+  const [cacheHostPath, setCacheHostPath] = useState('');
+  const [generatedRestartCommand, setGeneratedRestartCommand] = useState<string | null>(null);
+  const [cacheChangeExpanded, setCacheChangeExpanded] = useState(false);
 
   const fetchSyncStatus = useCallback(async () => {
     try {
@@ -272,6 +288,38 @@ const SettingsPage: React.FC = () => {
       setSystemInfo(response.data);
     } catch (error) {
       console.error('Error fetching system info:', error);
+    }
+  };
+
+  const generateRestartCommand = () => {
+    const trimmed = cacheHostPath.trim();
+    if (!trimmed) {
+      addDangerAlert('Enter a host path for the cache directory.');
+      return;
+    }
+    const cmd = `CACHE_DIR=${shellSingleQuote(trimmed)} ./mirror-gui.sh --restart`;
+    setGeneratedRestartCommand(cmd);
+  };
+
+  const copyRestartCommand = async () => {
+    if (!generatedRestartCommand) return;
+    try {
+      await navigator.clipboard.writeText(generatedRestartCommand);
+      addSuccessAlert('Command copied to clipboard');
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = generatedRestartCommand;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        addSuccessAlert('Command copied to clipboard');
+      } catch {
+        addDangerAlert('Could not copy to clipboard');
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -463,7 +511,7 @@ const SettingsPage: React.FC = () => {
                       Cache Location
                       <Popover
                         position="right"
-                        bodyContent="To change the cache location, set the OC_MIRROR_CACHE_DIR environment variable when starting the container and mount the host directory as a volume."
+                        bodyContent="This path reflects the running container (OC_MIRROR_CACHE_DIR / default data volume). To use a different host disk, save a host path below and restart with the generated command so the new directory can be mounted."
                       >
                         <button type="button" aria-label="Cache location info" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
                           <InfoCircleIcon />
@@ -479,6 +527,64 @@ const SettingsPage: React.FC = () => {
                 <FormGroup label="Cache Size" fieldId="cache-size" className="pf-v6-u-mt-md">
                   <Label isCompact>{formatBytes(systemInfo.cacheSizeBytes)}</Label>
                 </FormGroup>
+
+                <ExpandableSection
+                  className="pf-v6-u-mt-lg"
+                  toggleText="Change Cache Location"
+                  isExpanded={cacheChangeExpanded}
+                  onToggle={(_e, expanded) => setCacheChangeExpanded(expanded)}
+                >
+                  <FormGroup label="Host cache path" fieldId="cache-host-path">
+                    <TextInput
+                      id="cache-host-path"
+                      type="text"
+                      value={cacheHostPath}
+                      onChange={(_e, v) => {
+                        setCacheHostPath(v);
+                        setGeneratedRestartCommand(null);
+                      }}
+                      placeholder="/mnt/fast-ssd/mirror-cache"
+                    />
+                    <HelperText>
+                      <HelperTextItem>Directory on the host to mount as the oc-mirror cache (e.g. /mnt/fast-ssd/mirror-cache).</HelperTextItem>
+                    </HelperText>
+                  </FormGroup>
+
+                  <ActionGroup className="pf-v6-u-mt-md">
+                    <Button
+                      variant="primary"
+                      onClick={generateRestartCommand}
+                    >
+                      Generate Restart Command
+                    </Button>
+                  </ActionGroup>
+
+                  {generatedRestartCommand && (
+                    <div className="pf-v6-u-mt-md">
+                      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsFlexStart' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <CodeBlock>
+                            <CodeBlockCode>{generatedRestartCommand}</CodeBlockCode>
+                          </CodeBlock>
+                        </div>
+                        <Button
+                          variant="plain"
+                          aria-label="Copy restart command"
+                          icon={<CopyIcon />}
+                          onClick={() => void copyRestartCommand()}
+                          className="pf-v6-u-ml-sm"
+                        />
+                      </Flex>
+                      <Alert
+                        variant="success"
+                        isInline
+                        isPlain
+                        title="Run the command above on the host to apply the new cache location."
+                        className="pf-v6-u-mt-md"
+                      />
+                    </div>
+                  )}
+                </ExpandableSection>
 
                 <ActionGroup className="pf-v6-u-mt-md">
                   <Button
@@ -523,7 +629,7 @@ const SettingsPage: React.FC = () => {
                       color={catalogSyncStatus.status === 'completed' ? 'green' : catalogSyncStatus.status === 'failed' ? 'red' : undefined}
                       icon={catalogSyncStatus.status === 'completed' ? <CheckCircleIcon /> : catalogSyncStatus.status === 'failed' ? <TimesCircleIcon /> : undefined}
                     >
-                      {new Date(catalogSyncStatus.lastSyncTime).toLocaleString()}
+                      <Timestamp date={new Date(catalogSyncStatus.lastSyncTime)} tooltip={{ variant: 'default' }} />
                       {catalogSyncStatus.status === 'completed' && ` (${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs)`}
                       {catalogSyncStatus.status === 'failed' && ' (failed)'}
                     </Label>

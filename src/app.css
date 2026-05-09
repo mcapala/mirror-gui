@@ -1,3 +1,8 @@
 .hide-typeahead-clear .pf-v6-c-text-input-group__utilities {
   display: none !important;
 }
+
+.pf-v6-c-timestamp.pf-m-help-text,
+.pf-v6-c-timestamp.pf-m-help-text:is(:hover, :focus) {
+  text-decoration-line: none !important;
+}
