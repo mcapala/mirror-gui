@@ -1797,7 +1797,7 @@ const MirrorConfig: React.FC = () => {
                                       onAddRow={() => addChannelToPackage(opIndex, pkgIndex, '')}
                                       onRemoveRow={(_e, chIdx) => removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)}
                                       addButtonContent="Add channel"
-                                      addButtonProps={{ size: 'sm', className: 'pf-v6-u-ml-md' }}
+                                      addButtonProps={{ size: 'sm', style: { paddingInlineStart: 0 } }}
                                       rowGroupLabelPrefix="Channel"
                                       fieldBuilderIdPrefix={`catalog-${opIndex}-op-${pkgIndex}-ch`}
                                       aria-label={`Channels for ${pkg.name}`}
