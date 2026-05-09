@@ -421,7 +421,7 @@ const MirrorOperations: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>;
+        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -565,7 +565,7 @@ const MirrorOperations: React.FC = () => {
                   >
                     <span>Mirror Destination Folder</span>
                     <Popover
-                      bodyContent="Mirror files are saved to data/mirrors/<folder>. Leave empty for &quot;default&quot;. The folder is created automatically with correct permissions."
+                      bodyContent="Mirror output is saved to data/mirrors/<folder>. Defaults to &quot;default&quot; if unchanged. Select an existing folder or create a new one from the dropdown."
                     >
                       <Button
                         variant="plain"
@@ -909,7 +909,9 @@ const MirrorOperations: React.FC = () => {
           <p>
             Are you sure you want to stop the running operation <span style={{ fontWeight: 600 }}>&quot;{stopOperationId}&quot;</span>?
           </p>
-          <Alert variant="custom" isInline isPlain customIcon={<InfoCircleIcon />} title="You can start a new operation with the same configuration." className="pf-v6-u-mt-md" />
+          <p className="pf-v6-u-mt-md" style={{ display: 'flex', alignItems: 'center', gap: 'var(--pf-t--global--spacer--xs)', color: 'var(--pf-t--global--text--color--subtle)' }}>
+            <InfoCircleIcon /> You can start a new operation with the same configuration.
+          </p>
         </ModalBody>
         <ModalFooter>
           <Button variant="danger" onClick={confirmStopOperation}>

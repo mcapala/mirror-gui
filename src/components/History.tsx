@@ -36,6 +36,7 @@ import {
   AngleUpIcon,
   OutlinedClockIcon,
   ListIcon,
+  SyncAltIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -220,7 +221,7 @@ const History: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>;
+        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':

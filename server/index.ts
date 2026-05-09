@@ -1613,6 +1613,7 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
             .replace(/^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s*/, '')
             .replace(/\x1b\[[0-9;]*m/g, '')
             .replace(/^\s*\[ERROR\]\s*/i, '')
+            .replace(/^:\s*/, '')
             .trim();
         } else {
           errorMessage = `Process exited with code ${code}`;
