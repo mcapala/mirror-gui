@@ -15,7 +15,6 @@ import {
   NavList,
   NavItem,
   Brand,
-  Label,
   Spinner,
   Title,
   Content,
@@ -107,10 +106,10 @@ const AppLayout: React.FC = () => {
               </div>
             </ToolbarItem>
             <ToolbarItem align={{ default: 'alignEnd' }}>
-              <ThemeToggle />
+              <Content component="p" style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: '0.875rem' }}>v1.0</Content>
             </ToolbarItem>
             <ToolbarItem>
-              <Label color="blue" className="pf-v6-u-py-xs pf-v6-u-px-sm" style={{ fontSize: '0.875rem' }}>v1.0</Label>
+              <ThemeToggle />
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
