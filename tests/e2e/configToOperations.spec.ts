@@ -15,6 +15,10 @@ mirror:
 `;
 
 test.describe('Config to Operations workflow', () => {
+  test.afterAll(async ({ request }) => {
+    await request.delete(`/api/config/delete/${CONFIG_NAME}`).catch(() => {});
+  });
+
   test('create config via API, verify it appears in Mirror Operations', async ({
     page,
     request,

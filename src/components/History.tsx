@@ -36,7 +36,6 @@ import {
   AngleUpIcon,
   OutlinedClockIcon,
   ListIcon,
-  SyncAltIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -220,8 +219,6 @@ const History: React.FC = () => {
     switch (status) {
       case 'success':
         return <Label status="success">Success</Label>;
-      case 'running':
-        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -250,6 +247,7 @@ const History: React.FC = () => {
   };
 
   const filteredOperations = operations.filter(op => {
+    if (op.status === 'running') return false;
     if (filter === 'all') return true;
     return op.status === filter;
   });
@@ -458,7 +456,7 @@ const History: React.FC = () => {
                       isExpanded={filterSelectOpen}
                       aria-label="Filter operations"
                     >
-                      {{ all: 'All Operations', success: 'Successful', failed: 'Failed', stopped: 'Stopped', running: 'Running' }[filter] || 'All Operations'}
+                      {{ all: 'All Operations', success: 'Successful', failed: 'Failed', stopped: 'Stopped' }[filter] || 'All Operations'}
                     </MenuToggle>
                   )}
                 >
@@ -467,7 +465,6 @@ const History: React.FC = () => {
                     <SelectOption value="success">Successful</SelectOption>
                     <SelectOption value="failed">Failed</SelectOption>
                     <SelectOption value="stopped">Stopped</SelectOption>
-                    <SelectOption value="running">Running</SelectOption>
                   </SelectList>
                 </Select>
               </ToolbarItem>
