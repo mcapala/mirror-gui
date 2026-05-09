@@ -19,20 +19,17 @@ import {
   DescriptionListTerm,
   DescriptionListDescription,
   Alert,
-  Content,
-  ContentVariants,
   EmptyState,
   EmptyStateBody,
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
-  CogIcon,
   HistoryIcon,
   ListIcon,
   ServerIcon,
   KeyIcon,
-  ClockIcon,
   InfoCircleIcon,
+  OutlinedClockIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -132,6 +129,16 @@ const getOperationStatusText = (status: string): string => {
   }
 };
 
+const formatDuration = (seconds?: number) => {
+  if (!seconds) return '-';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+};
+
 const Dashboard: React.FC = () => {
   const { addDangerAlert } = useAlerts();
   const navigate = useNavigate();
@@ -192,7 +199,7 @@ const Dashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const lastOperation = recentOperations.length > 0 ? recentOperations[0] : null;
+
 
   if (loading) {
     return (
@@ -387,13 +394,6 @@ const Dashboard: React.FC = () => {
                 </Card>
               </GridItem>
             </Grid>
-            {lastOperation && (
-              <div className="pf-v6-u-mt-md">
-                <Label status={getOperationLabelStatus(lastOperation.status)} icon={<ClockIcon />}>
-                  Last Operation: {getOperationStatusText(lastOperation.status)}
-                </Label>
-              </div>
-            )}
           </CardBody>
         </Card>
       </PageSection>
@@ -409,16 +409,17 @@ const Dashboard: React.FC = () => {
               </Title>
             </CardTitle>
           </CardHeader>
-          <CardBody>
+          <CardBody className="pf-v6-u-p-0">
             {recentOperations.length === 0 ? (
               <EmptyState>
                 <EmptyStateBody>No recent operations found.</EmptyStateBody>
               </EmptyState>
             ) : (
-              <Table aria-label="Recent operations">
+              <Table aria-label="Recent operations" variant="compact" borders={false}>
                 <Thead>
                   <Tr>
                     <Th>Operation</Th>
+                    <Th>Config</Th>
                     <Th>Status</Th>
                     <Th>Started</Th>
                     <Th>Duration</Th>
@@ -428,20 +429,24 @@ const Dashboard: React.FC = () => {
                   {recentOperations.map((op, index) => (
                     <Tr key={index}>
                       <Td dataLabel="Operation">
-                        <div>
-                          <Content component={ContentVariants.p}><b>{op.name}</b></Content>
-                          <Content component={ContentVariants.small}>{op.configFile}</Content>
-                        </div>
+                        {op.name}
+                      </Td>
+                      <Td dataLabel="Config">
+                        {op.configFile}
                       </Td>
                       <Td dataLabel="Status">
-                        <Label
-                          status={getOperationLabelStatus(op.status)}
-                        >
-                          {getOperationStatusText(op.status)}
-                        </Label>
+                        {op.status === 'running' ? (
+                          <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>
+                        ) : (
+                          <Label status={getOperationLabelStatus(op.status)}>
+                            {getOperationStatusText(op.status)}
+                          </Label>
+                        )}
                       </Td>
                       <Td dataLabel="Started">{new Date(op.startedAt).toLocaleString()}</Td>
-                      <Td dataLabel="Duration">{op.duration ? `${op.duration}s` : '-'}</Td>
+                      <Td dataLabel="Duration">
+                        <OutlinedClockIcon /> {op.duration ? formatDuration(op.duration) : '-'}
+                      </Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -451,43 +456,6 @@ const Dashboard: React.FC = () => {
         </Card>
       </PageSection>
 
-      {/* Quick Actions */}
-      <PageSection>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Title headingLevel="h2">Quick Actions</Title>
-            </CardTitle>
-          </CardHeader>
-          <CardBody>
-            <Grid hasGutter>
-              <GridItem>
-                <Button variant="primary" icon={<CogIcon />} onClick={() => navigate('/config')}>
-                  Create New Configuration
-                </Button>
-              </GridItem>
-              <GridItem>
-                <Button
-                  variant="secondary"
-                  icon={<SyncAltIcon />}
-                  onClick={() => navigate('/operations')}
-                >
-                  View All Operations
-                </Button>
-              </GridItem>
-              <GridItem>
-                <Button
-                  variant="tertiary"
-                  icon={<HistoryIcon />}
-                  onClick={() => navigate('/history')}
-                >
-                  View History
-                </Button>
-              </GridItem>
-            </Grid>
-          </CardBody>
-        </Card>
-      </PageSection>
     </>
   );
 };

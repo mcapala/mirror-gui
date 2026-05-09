@@ -27,29 +27,29 @@ import {
   Flex,
   FlexItem,
   Popover,
-  Content,
-  ContentVariants,
   EmptyState,
   EmptyStateBody,
   Alert,
-  DescriptionList,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  DescriptionListDescription,
   Tooltip,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  Divider,
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
   PlayIcon,
   StopIcon,
   TrashIcon,
-  FolderIcon,
   ListIcon,
   CopyIcon,
   InfoCircleIcon,
   OutlinedClockIcon,
-  EyeIcon,
-  EyeSlashIcon,
+  EllipsisVIcon,
+  AngleUpIcon,
+  PlusCircleIcon,
+  CheckIcon,
+  TimesIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -72,7 +72,7 @@ interface Operation {
 }
 
 const MirrorOperations: React.FC = () => {
-  const { addSuccessAlert, addDangerAlert, addInfoAlert } = useAlerts();
+  const { addSuccessAlert, addDangerAlert, addWarningAlert } = useAlerts();
 
   const [operations, setOperations] = useState<Operation[]>([]);
   const [selectedConfig, setSelectedConfig] = useState('');
@@ -87,8 +87,15 @@ const MirrorOperations: React.FC = () => {
   const [deleteFilename, setDeleteFilename] = useState('');
   const [deleteOperationId, setDeleteOperationId] = useState<string | null>(null);
   const [mirrorDestinationSubdir, setMirrorDestinationSubdir] = useState('');
-  const [showMirrorLocation, setShowMirrorLocation] = useState<Record<string, boolean>>({});
+  const [availableFolders, setAvailableFolders] = useState<string[]>([]);
+  const [folderSelectOpen, setFolderSelectOpen] = useState(false);
+  const [folderCreateMode, setFolderCreateMode] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showStopModal, setShowStopModal] = useState(false);
+  const [stopOperationId, setStopOperationId] = useState<string | null>(null);
+  const [kebabOpen, setKebabOpen] = useState<Record<string, boolean>>({});
   const [hostDataDir, setHostDataDir] = useState('');
+  const [now, setNow] = useState(Date.now());
 
   const operationsRef = useRef<Operation[]>([]);
   const notifiedOperationsRef = useRef(new Set<string>());
@@ -130,10 +137,10 @@ const MirrorOperations: React.FC = () => {
       } else if (op.status === 'failed') {
         addDangerAlert('Mirror Operation Failed');
       } else if (op.status === 'stopped') {
-        addInfoAlert('Mirror Operation Stopped');
+        addWarningAlert('Mirror Operation Stopped');
       }
     }
-  }, [addSuccessAlert, addDangerAlert, addInfoAlert, fetchLogs]);
+  }, [addSuccessAlert, addDangerAlert, addWarningAlert, fetchLogs]);
 
   const startLogStream = useCallback((operationId: string) => {
     if (logStream) {
@@ -185,6 +192,33 @@ const MirrorOperations: React.FC = () => {
     }
   }, []);
 
+  const fetchFolders = useCallback(async () => {
+    try {
+      const response = await axios.get<{ folders: string[] }>('/api/mirror-folders');
+      setAvailableFolders(response.data.folders ?? []);
+    } catch (error) {
+      console.error('Error fetching mirror folders:', error);
+      setAvailableFolders([]);
+    }
+  }, []);
+
+  const confirmCreateFolder = useCallback(async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await axios.post('/api/mirror-folders', { name: trimmed });
+      await fetchFolders();
+      setMirrorDestinationSubdir(trimmed);
+      addSuccessAlert(`Folder "${trimmed}" created`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      addDangerAlert(`Failed to create folder: ${err.response?.data?.error || err.message}`);
+    }
+    setFolderCreateMode(false);
+    setNewFolderName('');
+    setFolderSelectOpen(false);
+  }, [fetchFolders, addSuccessAlert, addDangerAlert]);
+
   const fetchOperations = useCallback(async () => {
     try {
       const response = await axios.get('/api/operations');
@@ -230,10 +264,11 @@ const MirrorOperations: React.FC = () => {
   useEffect(() => {
     fetchOperations();
     fetchConfigurations();
+    void fetchFolders();
     axios.get('/api/system/info').then(res => setHostDataDir(res.data.hostDataDir || '')).catch(() => {});
     const interval = setInterval(fetchOperations, 5000);
     return () => clearInterval(interval);
-  }, [fetchOperations, fetchConfigurations]);
+  }, [fetchOperations, fetchConfigurations, fetchFolders]);
 
   useEffect(() => {
     operationsRef.current = operations;
@@ -263,9 +298,20 @@ const MirrorOperations: React.FC = () => {
     }
   }, [logs, showLogs]);
 
+  useEffect(() => {
+    const hasRunning = operations.some((op) => op.status === 'running');
+    if (!hasRunning) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [operations]);
+
+  const getElapsedSeconds = (startedAt: string) => {
+    return Math.floor((now - new Date(startedAt).getTime()) / 1000);
+  };
+
   const startOperation = async () => {
     if (!selectedConfig) {
-      addDangerAlert('Please select a configuration file');
+      addDangerAlert('Please select an ImageSetConfiguration file');
       return;
     }
 
@@ -279,6 +325,7 @@ const MirrorOperations: React.FC = () => {
       addSuccessAlert('Operation started successfully!');
       setShowLogs(true);
       fetchOperations();
+      void fetchFolders();
       setMirrorDestinationSubdir('');
 
       if (response.data.status === 'running') {
@@ -330,12 +377,23 @@ const MirrorOperations: React.FC = () => {
   const stopOperation = async (operationId: string) => {
     try {
       await axios.post(`/api/operations/${operationId}/stop`);
-      addSuccessAlert('Operation stopped successfully!');
       fetchOperations();
     } catch (error) {
       console.error('Error stopping operation:', error);
       addDangerAlert('Failed to stop operation');
     }
+  };
+
+  const promptStopOperation = (operationId: string) => {
+    setStopOperationId(operationId);
+    setShowStopModal(true);
+  };
+
+  const confirmStopOperation = async () => {
+    if (!stopOperationId) return;
+    await stopOperation(stopOperationId);
+    setShowStopModal(false);
+    setStopOperationId(null);
   };
 
   const promptDeleteOperation = (operationId: string) => {
@@ -363,7 +421,7 @@ const MirrorOperations: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
+        return <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -384,9 +442,8 @@ const MirrorOperations: React.FC = () => {
     return `${secs}s`;
   };
 
-  const clearLogs = () => {
-    setLogs('');
-    setShowLogs(false);
+  const scrollToOperations = () => {
+    document.getElementById('operation-history-card')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const getMirrorFullPath = (mirrorDestination: string) => {
@@ -432,7 +489,7 @@ const MirrorOperations: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardBody>
-          Execute and monitor oc-mirror v2 operations.
+          Run mirror operations using saved configurations and track their progress.
         </CardBody>
       </Card>
 
@@ -440,12 +497,12 @@ const MirrorOperations: React.FC = () => {
         <CardHeader>
           <CardTitle>
             <Title headingLevel="h3">
-              <PlayIcon /> Start New Operation
+              Start New Operation
             </Title>
           </CardTitle>
         </CardHeader>
         <CardBody>
-          <FormGroup label="Configuration File" fieldId="config-select">
+          <FormGroup label="ImageSetConfiguration File" fieldId="config-select">
             <InputGroup>
               <InputGroupItem isFill>
                 <Select
@@ -462,12 +519,12 @@ const MirrorOperations: React.FC = () => {
                       ref={toggleRef}
                       onClick={() => setConfigSelectOpen(prev => !prev)}
                       isExpanded={configSelectOpen}
-                      aria-label="Select configuration file"
+                      aria-label="Select ImageSetConfiguration file"
                       style={{ width: '100%' }}
                     >
                       {selectedConfig
                         ? `${selectedConfig} (${availableConfigs.find(c => c.name === selectedConfig)?.size || ''})`
-                        : 'Select a configuration file...'}
+                        : 'Select an ImageSetConfiguration file...'}
                     </MenuToggle>
                   )}
                 >
@@ -506,18 +563,9 @@ const MirrorOperations: React.FC = () => {
                       gap: 'var(--pf-t--global--spacer--xs)',
                     }}
                   >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 'var(--pf-t--global--spacer--sm)',
-                      }}
-                    >
-                      <FolderIcon />
-                      <span>Mirror Destination Subdirectory</span>
-                    </span>
+                    <span>Mirror Destination Folder</span>
                     <Popover
-                      bodyContent="Mirror files are saved to data/mirrors/<subdirectory>. Leave empty for &quot;default&quot;. The subdirectory is created automatically with correct permissions."
+                      bodyContent="Mirror files are saved to data/mirrors/<folder>. Leave empty for &quot;default&quot;. The folder is created automatically with correct permissions."
                     >
                       <Button
                         variant="plain"
@@ -543,13 +591,85 @@ const MirrorOperations: React.FC = () => {
                 }
                 fieldId="mirror-subdir"
               >
-                <TextInput
+                <Select
                   id="mirror-subdir"
-                  value={mirrorDestinationSubdir}
-                  onChange={(_event, value) => setMirrorDestinationSubdir(value)}
-                  placeholder="default"
-                  style={{ width: '250px' }}
-                />
+                  isOpen={folderSelectOpen}
+                  selected={mirrorDestinationSubdir || undefined}
+                  onSelect={(_e, val) => {
+                    if (val === '__create__') return;
+                    setMirrorDestinationSubdir(val as string);
+                    setFolderSelectOpen(false);
+                  }}
+                  onOpenChange={(open) => {
+                    setFolderSelectOpen(open);
+                    if (!open) {
+                      setFolderCreateMode(false);
+                      setNewFolderName('');
+                    }
+                  }}
+                  toggle={(toggleRef) => (
+                    <MenuToggle
+                      ref={toggleRef}
+                      onClick={() => setFolderSelectOpen((prev) => !prev)}
+                      isExpanded={folderSelectOpen}
+                      style={{ width: '250px' }}
+                    >
+                      {mirrorDestinationSubdir || 'default'}
+                    </MenuToggle>
+                  )}
+                >
+                  {folderCreateMode ? (
+                    <div style={{ padding: 'var(--pf-t--global--spacer--sm)', display: 'flex', gap: 'var(--pf-t--global--spacer--xs)' }}>
+                      <TextInput
+                        aria-label="New folder name"
+                        placeholder="Enter folder name"
+                        value={newFolderName}
+                        onChange={(_e, v) => setNewFolderName(v)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newFolderName.trim()) {
+                            void confirmCreateFolder(newFolderName);
+                          }
+                          if (e.key === 'Escape') {
+                            setFolderCreateMode(false);
+                            setNewFolderName('');
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="plain"
+                        icon={<CheckIcon />}
+                        isDisabled={!newFolderName.trim()}
+                        onClick={() => void confirmCreateFolder(newFolderName)}
+                      />
+                      <Button
+                        variant="plain"
+                        icon={<TimesIcon />}
+                        onClick={() => {
+                          setFolderCreateMode(false);
+                          setNewFolderName('');
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <SelectList>
+                      {availableFolders.map((folder) => (
+                        <SelectOption key={folder} value={folder}>{folder}</SelectOption>
+                      ))}
+                      {availableFolders.length > 0 && <Divider />}
+                      <SelectOption
+                        value="__create__"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFolderCreateMode(true);
+                          setNewFolderName('');
+                        }}
+                      >
+                        <PlusCircleIcon className="pf-v6-u-mr-xs" /> Create new folder...
+                      </SelectOption>
+                    </SelectList>
+                  )}
+                </Select>
               </FormGroup>
             </FlexItem>
             <FlexItem>
@@ -563,79 +683,50 @@ const MirrorOperations: React.FC = () => {
               </Button>
             </FlexItem>
           </Flex>
-
-          {runningOperation && (
-            <Alert
-              variant="info"
-              isInline
-              title={
-                <Flex alignItems={{ default: 'alignItemsCenter' }}>
-                  <FlexItem>
-                    <SyncAltIcon /> Operation in progress: {runningOperation.name}
-                  </FlexItem>
-                  <FlexItem>
-                    <Button
-                      variant="danger"
-                      icon={<StopIcon />}
-                      onClick={() => stopOperation(runningOperation.id)}
-                      size="sm"
-                    >
-                      Stop Operation
-                    </Button>
-                  </FlexItem>
-                </Flex>
-              }
-              className="pf-v6-u-mt-md"
-            />
-          )}
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-lg">
+      <Card className="pf-v6-u-mt-lg" id="operation-history-card">
         <CardHeader>
-          <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
-              <CardTitle>
-                <Title headingLevel="h3">
-                  <ListIcon /> Operation History
-                </Title>
-              </CardTitle>
-            </FlexItem>
-            <FlexItem>
-              <Button
-                variant="secondary"
-                icon={showLogs ? <EyeSlashIcon /> : <EyeIcon />}
-                onClick={() => setShowLogs(!showLogs)}
-              >
-                {showLogs ? 'Hide Logs' : 'Show Logs'}
-              </Button>
-            </FlexItem>
-          </Flex>
+          <CardTitle>
+            <Title headingLevel="h3">
+              Operations
+            </Title>
+          </CardTitle>
         </CardHeader>
-        <CardBody>
+        <CardBody className="pf-v6-u-p-0">
           {operations.length === 0 ? (
             <EmptyState>
               <EmptyStateBody>No operations found.</EmptyStateBody>
             </EmptyState>
           ) : (
-            <Table aria-label="Operation history" variant="compact">
+            <Table aria-label="Operation history" variant="compact" borders={false}>
               <Thead>
                 <Tr>
                   <Th>Operation</Th>
+                  <Th>Config</Th>
                   <Th>Status</Th>
                   <Th>Started</Th>
                   <Th>Duration</Th>
-                  <Th>Actions</Th>
+                  <Th screenReaderText="Actions" />
                 </Tr>
               </Thead>
               <Tbody>
                 {operations.map((op) => (
                   <Tr key={op.id}>
                     <Td dataLabel="Operation">
-                      <div>
-                        <Content component={ContentVariants.p}><b>{op.name}</b></Content>
-                        <Content component={ContentVariants.small}>{op.configFile}</Content>
-                      </div>
+                      {op.name}
+                    </Td>
+                    <Td dataLabel="Config">
+                      <Button
+                        variant="link"
+                        isInline
+                        component="a"
+                        href={`/api/config/download/${encodeURIComponent(op.configFile)}`}
+                        download={op.configFile}
+                      >
+                        {op.configFile}
+                      </Button>
                     </Td>
                     <Td dataLabel="Status">
                       {getStatusLabel(op.status)}
@@ -644,69 +735,81 @@ const MirrorOperations: React.FC = () => {
                       {new Date(op.startedAt).toLocaleString()}
                     </Td>
                     <Td dataLabel="Duration">
-                      <OutlinedClockIcon /> {formatDuration(op.duration)}
+                      <OutlinedClockIcon /> {op.status === 'running'
+                        ? formatDuration(getElapsedSeconds(op.startedAt))
+                        : formatDuration(op.duration)}
                     </Td>
-                    <Td dataLabel="Actions">
-                      <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-                        {op.status === 'running' && (
-                          <FlexItem>
-                            <Button variant="danger" icon={<StopIcon />} size="sm" onClick={() => stopOperation(op.id)}>
-                              Stop
-                            </Button>
-                          </FlexItem>
+                    <Td isActionCell>
+                      <Dropdown
+                        isOpen={!!kebabOpen[op.id]}
+                        onOpenChange={(open) => setKebabOpen((prev) => ({ ...prev, [op.id]: open }))}
+                        toggle={(toggleRef) => (
+                          <MenuToggle
+                            ref={toggleRef}
+                            variant="plain"
+                            onClick={() => setKebabOpen((prev) => ({ ...prev, [op.id]: !prev[op.id] }))}
+                            isExpanded={!!kebabOpen[op.id]}
+                            icon={<EllipsisVIcon />}
+                            aria-label={`Actions for ${op.name}`}
+                          />
                         )}
-                        {op.status === 'success' && op.mirrorDestination && (
-                          <FlexItem>
-                            <Button
-                              variant="secondary"
-                              icon={<FolderIcon />}
-                              size="sm"
-                              onClick={() =>
-                                setShowMirrorLocation(prev => ({
-                                  ...prev,
-                                  [op.id]: !prev[op.id],
-                                }))
-                              }
-                            >
-                              {showMirrorLocation[op.id] ? 'Hide Location' : 'Location'}
-                            </Button>
-                          </FlexItem>
-                        )}
-                        <FlexItem>
-                          <Button
-                            variant="secondary"
+                        shouldFocusToggleOnSelect
+                        popperProps={{ position: 'right' }}
+                      >
+                        <DropdownList>
+                          <DropdownItem
+                            key={`${op.id}-logs`}
                             icon={<ListIcon />}
-                            size="sm"
                             onClick={() => {
-                              setSelectedConfig(op.configFile);
-                              fetchLogs(op.id);
+                              setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                              void fetchLogs(op.id);
                               setShowLogs(true);
+                              setTimeout(() => {
+                                document.getElementById('operation-logs-card')?.scrollIntoView({ behavior: 'smooth' });
+                              }, 100);
                             }}
                           >
-                            Logs
-                          </Button>
-                        </FlexItem>
-                        <FlexItem>
-                          <Button variant="secondary" isDanger icon={<TrashIcon />} size="sm" onClick={() => promptDeleteOperation(op.id)}>
-                            Delete
-                          </Button>
-                        </FlexItem>
-                      </Flex>
-                      {op.status === 'success' && op.mirrorDestination && showMirrorLocation[op.id] && (
-                        <div className="pf-v6-u-mt-md">
-                          <Alert variant="success" isInline isPlain title="Mirror Files Location">
-                            <code>{getMirrorFullPath(op.mirrorDestination)}</code>
-                            {' '}
-                            <Button
-                              variant="plain"
+                            View Logs
+                          </DropdownItem>
+                          {op.status === 'success' && op.mirrorDestination && (
+                            <DropdownItem
+                              key={`${op.id}-copy-location`}
                               icon={<CopyIcon />}
-                              onClick={() => copyMirrorPath(op.mirrorDestination!)}
-                              aria-label="Copy path"
-                              style={{ padding: 0, verticalAlign: 'middle' }}
-                            />
-                          </Alert>
-                        </div>
-                      )}
+                              onClick={() => {
+                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                                void copyMirrorPath(op.mirrorDestination!);
+                              }}
+                            >
+                              Copy Location
+                            </DropdownItem>
+                          )}
+                          <Divider key={`${op.id}-div`} component="li" />
+                          {op.status === 'running' && (
+                            <DropdownItem
+                              key={`${op.id}-stop`}
+                              icon={<StopIcon />}
+                              isDanger
+                              onClick={() => {
+                                setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                                promptStopOperation(op.id);
+                              }}
+                            >
+                              Stop
+                            </DropdownItem>
+                          )}
+                          <DropdownItem
+                            key={`${op.id}-delete`}
+                            icon={<TrashIcon />}
+                            isDanger
+                            onClick={() => {
+                              setKebabOpen((prev) => ({ ...prev, [op.id]: false }));
+                              promptDeleteOperation(op.id);
+                            }}
+                          >
+                            Delete
+                          </DropdownItem>
+                        </DropdownList>
+                      </Dropdown>
                     </Td>
                   </Tr>
                 ))}
@@ -717,19 +820,19 @@ const MirrorOperations: React.FC = () => {
       </Card>
 
       {showLogs && (
-        <Card className="pf-v6-u-mt-lg">
+        <Card className="pf-v6-u-mt-lg" id="operation-logs-card">
           <CardHeader>
             <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
               <FlexItem>
                 <CardTitle>
                   <Title headingLevel="h4">
-                    <ListIcon /> Operation Logs
+                    Operation Logs
                   </Title>
                 </CardTitle>
               </FlexItem>
               <FlexItem>
-                <Button variant="secondary" icon={<TrashIcon />} onClick={clearLogs}>
-                  Clear Logs
+                <Button variant="secondary" icon={<AngleUpIcon />} onClick={scrollToOperations}>
+                  Back to Top
                 </Button>
               </FlexItem>
             </Flex>
@@ -744,25 +847,6 @@ const MirrorOperations: React.FC = () => {
         </Card>
       )}
 
-      {runningOperation && (
-        <Alert variant="info" isInline title="Operation in progress" className="pf-v6-u-mt-md">
-          <DescriptionList isHorizontal isCompact>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Operation</DescriptionListTerm>
-              <DescriptionListDescription>{runningOperation.name}</DescriptionListDescription>
-            </DescriptionListGroup>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Started</DescriptionListTerm>
-              <DescriptionListDescription>{new Date(runningOperation.startedAt).toLocaleString()}</DescriptionListDescription>
-            </DescriptionListGroup>
-            <DescriptionListGroup>
-              <DescriptionListTerm>Duration</DescriptionListTerm>
-              <DescriptionListDescription>{formatDuration(runningOperation.duration)}</DescriptionListDescription>
-            </DescriptionListGroup>
-          </DescriptionList>
-        </Alert>
-      )}
-
       <Modal
         variant={ModalVariant.small}
         isOpen={showDeleteModal}
@@ -773,7 +857,7 @@ const MirrorOperations: React.FC = () => {
         }}
         aria-label="Delete confirmation"
       >
-        <ModalHeader title={isDeleteConfig ? 'Delete Configuration File' : 'Delete Operation Record'} />
+        <ModalHeader title={isDeleteConfig ? 'Delete ImageSetConfiguration File' : 'Delete Operation Record'} />
         <ModalBody>
           {isDeleteConfig ? (
             <>
@@ -804,6 +888,38 @@ const MirrorOperations: React.FC = () => {
               setShowDeleteModal(false);
               setDeleteFilename('');
               setDeleteOperationId(null);
+            }}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        variant={ModalVariant.small}
+        isOpen={showStopModal}
+        onClose={() => {
+          setShowStopModal(false);
+          setStopOperationId(null);
+        }}
+        aria-label="Stop confirmation"
+      >
+        <ModalHeader title="Stop Operation" />
+        <ModalBody>
+          <p>
+            Are you sure you want to stop the running operation <span style={{ fontWeight: 600 }}>&quot;{stopOperationId}&quot;</span>?
+          </p>
+          <Alert variant="custom" isInline isPlain customIcon={<InfoCircleIcon />} title="You can start a new operation with the same configuration." className="pf-v6-u-mt-md" />
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="danger" onClick={confirmStopOperation}>
+            Stop Operation
+          </Button>
+          <Button
+            variant="link"
+            onClick={() => {
+              setShowStopModal(false);
+              setStopOperationId(null);
             }}
           >
             Cancel

@@ -15,10 +15,10 @@ import {
   NavList,
   NavItem,
   Brand,
-  Label,
   Spinner,
   Title,
   Content,
+  Label,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -99,7 +99,7 @@ const AppLayout: React.FC = () => {
         <Toolbar style={{ width: '100%' }}>
           <ToolbarContent>
             <ToolbarItem>
-              <div className="pf-v6-u-pl-md pf-v6-u-ml-sm" style={{ borderLeft: '1px solid var(--pf-t--global--border--color--default)' }}>
+              <div>
                 <Title headingLevel="h1" size="2xl" style={{ lineHeight: 1.2, fontSize: '2rem' }}>Mirror-GUI Application</Title>
                 <Content component="p" style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: '1.25rem', lineHeight: 1.2 }}>
                   OpenShift Container Platform Mirroring Operations
@@ -107,10 +107,20 @@ const AppLayout: React.FC = () => {
               </div>
             </ToolbarItem>
             <ToolbarItem align={{ default: 'alignEnd' }}>
-              <ThemeToggle />
-            </ToolbarItem>
-            <ToolbarItem>
-              <Label color="blue" className="pf-v6-u-py-xs pf-v6-u-px-sm" style={{ fontSize: '0.875rem' }}>v1.0</Label>
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 'var(--pf-t--global--spacer--sm)' }}>
+                <ThemeToggle />
+                <Label
+                  color="blue"
+                  style={{
+                    fontSize: '0.875rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    borderRadius: 'var(--pf-t--global--border--radius--pill)',
+                  }}
+                >
+                  v1.0
+                </Label>
+              </div>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>

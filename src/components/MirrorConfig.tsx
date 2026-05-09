@@ -30,7 +30,6 @@ import {
   Tabs,
   TabTitleIcon,
   TabTitleText,
-  TextArea,
   TextInput,
   Title,
   DescriptionList,
@@ -1274,16 +1273,6 @@ const MirrorConfig: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleTextAreaChange = (value: string) => {
-    setUploadedContent(value);
-    if (value.trim()) {
-      parseYAMLContent(value);
-    } else {
-      setParsedUpload(null);
-      setUploadError('');
-    }
-  };
-
   const loadIntoEditor = () => {
     if (!parsedUpload) {
       setFieldError('yaml-upload', 'No valid configuration to load');
@@ -1368,8 +1357,8 @@ const MirrorConfig: React.FC = () => {
       }
     }, 0);
 
-    setActiveTab('platform');
-    addSuccessAlert('Configuration loaded into editor. Switch between tabs to modify.');
+    setActiveTab('preview');
+    addSuccessAlert('Configuration loaded. Review or edit YAML on the Preview tab.');
   };
 
   const yamlPreview = YAML.stringify(generateCleanConfig(), { indent: 2 });
@@ -1797,7 +1786,7 @@ const MirrorConfig: React.FC = () => {
                                       onAddRow={() => addChannelToPackage(opIndex, pkgIndex, '')}
                                       onRemoveRow={(_e, chIdx) => removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)}
                                       addButtonContent="Add channel"
-                                      addButtonProps={{ size: 'sm', className: 'pf-v6-u-ml-md' }}
+                                      addButtonProps={{ size: 'sm', style: { paddingInlineStart: 0 } }}
                                       rowGroupLabelPrefix="Channel"
                                       fieldBuilderIdPrefix={`catalog-${opIndex}-op-${pkgIndex}-ch`}
                                       aria-label={`Channels for ${pkg.name}`}
@@ -2171,21 +2160,9 @@ const MirrorConfig: React.FC = () => {
               )}
 
               {uploadedContent && (
-                <FormGroup
-                  label="YAML Content (editable)"
-                  fieldId="yaml-editor"
-                  className="pf-v6-u-mt-md"
-                >
-                  <TextArea
-                    id="yaml-editor"
-                    value={uploadedContent}
-                    onChange={(_e, val) => handleTextAreaChange(val)}
-                    rows={18}
-                    resizeOrientation="vertical"
-                    aria-label="YAML editor"
-                    style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace', fontSize: '13px' }}
-                  />
-                </FormGroup>
+                <div className="pf-v6-u-mt-md">
+                  <YamlHighlighter code={uploadedContent} id="yaml-upload-preview" />
+                </div>
               )}
 
               {validationErrors['yaml-upload'] && (

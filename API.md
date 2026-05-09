@@ -149,6 +149,43 @@ Get available system paths for mirror storage and other operations.
 }
 ```
 
+#### GET /api/mirror-folders
+Get list of existing subdirectories under the mirror base directory. Used by the Mirror Destination Folder typeahead to suggest existing folders.
+
+**Response:**
+```json
+{
+  "folders": ["default", "odf", "production"]
+}
+```
+
+- `folders`: Sorted array of directory names under `MIRROR_BASE_DIR`. Returns an empty array if the base directory does not exist yet.
+
+#### POST /api/mirror-folders
+Create a new subdirectory under the mirror base directory. The folder name must contain only letters, numbers, dashes, and underscores.
+
+**Request:**
+```json
+{
+  "name": "group-sync"
+}
+```
+
+**Response (201):**
+```json
+{
+  "created": "group-sync",
+  "path": "/app/data/mirrors/group-sync"
+}
+```
+
+**Error (400):**
+```json
+{
+  "error": "Use only letters, numbers, dashes, and underscores"
+}
+```
+
 ### Statistics and Dashboard
 
 #### GET /api/stats
@@ -206,6 +243,15 @@ Get list of saved configurations.
   ]
 }
 ```
+
+#### GET /api/config/download/:filename
+Download a saved ImageSetConfiguration YAML file from the configs directory. The filename must be a basename ending in `.yaml` or `.yml` (path traversal is rejected).
+
+**Response:** Raw file bytes with `Content-Disposition: attachment` and `Content-Type: application/x-yaml`.
+
+**Error (400):** Invalid filename (wrong extension or path).
+
+**Error (404):** File does not exist.
 
 #### POST /api/config/save
 Save a new configuration.
@@ -894,6 +940,17 @@ curl http://localhost:3000/api/health
 
 # Get system paths
 curl http://localhost:3000/api/system/paths
+
+# List existing mirror destination folders
+curl http://localhost:3000/api/mirror-folders
+
+# Create a new mirror destination folder
+curl -X POST http://localhost:3000/api/mirror-folders \
+  -H "Content-Type: application/json" \
+  -d '{"name": "group-sync"}'
+
+# Download a saved configuration YAML (URL-encode the filename if needed)
+curl -OJ "http://localhost:3000/api/config/download/my-config.yaml"
 
 # Start an operation with default mirror destination
 curl -X POST http://localhost:3000/api/operations/start \
