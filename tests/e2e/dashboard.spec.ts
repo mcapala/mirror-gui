@@ -17,10 +17,6 @@ test.describe('Dashboard', () => {
     await expect(page.getByText('Recent Operations').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('quick action buttons are present', async ({ page }) => {
-    await expect(page.getByText(/create configuration|view operations|view history/i).first()).toBeVisible();
-  });
-
   test('recent operations table has Config column header', async ({ page }) => {
     const table = page.locator('table[aria-label="Recent operations"]');
     const emptyState = page.getByText('No recent operations found.');

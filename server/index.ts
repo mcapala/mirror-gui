@@ -939,6 +939,28 @@ app.get('/api/mirror-folders', async (_req: Request, res: Response) => {
   }
 });
 
+app.post('/api/mirror-folders', async (req: Request, res: Response) => {
+  const { name } = req.body || {};
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Folder name is required' });
+  }
+  const trimmed = name.trim();
+  if (trimmed.includes('/') || trimmed.includes('..') || trimmed.includes('\\')) {
+    return res.status(400).json({ error: 'Folder name cannot contain path separators or traversal characters' });
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    return res.status(400).json({ error: 'Use only letters, numbers, dashes, and underscores' });
+  }
+  try {
+    const folderPath = path.join(MIRROR_BASE_DIR, trimmed);
+    await fsp.mkdir(folderPath, { recursive: true, mode: 0o775 });
+    res.json({ created: trimmed, path: folderPath });
+  } catch (error: any) {
+    console.error('Error creating mirror folder:', error);
+    res.status(500).json({ error: 'Failed to create folder', details: error.message });
+  }
+});
+
 app.get('/api/config/list', async (req: Request, res: Response) => {
   try {
     const files = await fsp.readdir(CONFIGS_DIR);
@@ -958,6 +980,26 @@ app.get('/api/config/list', async (req: Request, res: Response) => {
     res.json(configs);
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to list configurations' });
+  }
+});
+
+app.get('/api/config/download/:filename', async (req: Request, res: Response) => {
+  const basename = path.basename(req.params.filename || '');
+  if (!basename || !/\.(ya?ml)$/i.test(basename)) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+  const filepath = path.resolve(CONFIGS_DIR, basename);
+  const configsDirResolved = path.resolve(CONFIGS_DIR);
+  if (!filepath.startsWith(configsDirResolved + path.sep) && filepath !== configsDirResolved) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+  try {
+    await fsp.access(filepath);
+    res.setHeader('Content-Disposition', `attachment; filename="${basename}"`);
+    res.setHeader('Content-Type', 'application/x-yaml');
+    res.sendFile(filepath);
+  } catch {
+    res.status(404).json({ error: 'Configuration file not found' });
   }
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import {
   Card,
@@ -12,6 +12,7 @@ import {
   MenuToggle,
   InputGroup,
   InputGroupItem,
+  TextInput,
   Button,
   Label,
   Modal,
@@ -46,8 +47,10 @@ import {
   OutlinedClockIcon,
   EllipsisVIcon,
   AngleUpIcon,
+  PlusCircleIcon,
+  CheckIcon,
+  TimesIcon,
 } from '@patternfly/react-icons';
-import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
 
@@ -85,6 +88,9 @@ const MirrorOperations: React.FC = () => {
   const [deleteOperationId, setDeleteOperationId] = useState<string | null>(null);
   const [mirrorDestinationSubdir, setMirrorDestinationSubdir] = useState('');
   const [availableFolders, setAvailableFolders] = useState<string[]>([]);
+  const [folderSelectOpen, setFolderSelectOpen] = useState(false);
+  const [folderCreateMode, setFolderCreateMode] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   const [showStopModal, setShowStopModal] = useState(false);
   const [stopOperationId, setStopOperationId] = useState<string | null>(null);
   const [kebabOpen, setKebabOpen] = useState<Record<string, boolean>>({});
@@ -196,20 +202,22 @@ const MirrorOperations: React.FC = () => {
     }
   }, []);
 
-  const mirrorFolderSelectOptions = useMemo((): TypeaheadSelectOption[] => {
-    const current = mirrorDestinationSubdir.trim();
-    const names = new Set(availableFolders);
-    if (current) {
-      names.add(current);
+  const confirmCreateFolder = useCallback(async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await axios.post('/api/mirror-folders', { name: trimmed });
+      await fetchFolders();
+      setMirrorDestinationSubdir(trimmed);
+      addSuccessAlert(`Folder "${trimmed}" created`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      addDangerAlert(`Failed to create folder: ${err.response?.data?.error || err.message}`);
     }
-    return [...names]
-      .sort((a, b) => a.localeCompare(b))
-      .map((name) => ({
-        value: name,
-        content: name,
-        selected: name === current,
-      }));
-  }, [availableFolders, mirrorDestinationSubdir]);
+    setFolderCreateMode(false);
+    setNewFolderName('');
+    setFolderSelectOpen(false);
+  }, [fetchFolders, addSuccessAlert, addDangerAlert]);
 
   const fetchOperations = useCallback(async () => {
     try {
@@ -583,22 +591,85 @@ const MirrorOperations: React.FC = () => {
                 }
                 fieldId="mirror-subdir"
               >
-                <TypeaheadSelect
+                <Select
                   id="mirror-subdir"
-                  initialOptions={mirrorFolderSelectOptions}
-                  isCreatable
-                  createOptionMessage={(newValue) => `Create folder "${newValue}"`}
-                  noOptionsFoundMessage={(filter) => `No folders matching "${filter}"`}
-                  noOptionsAvailableMessage="No existing folders"
-                  placeholder="default"
-                  onSelect={(_e, value) => {
-                    if (value !== undefined && value !== null) {
-                      setMirrorDestinationSubdir(String(value));
+                  isOpen={folderSelectOpen}
+                  selected={mirrorDestinationSubdir || undefined}
+                  onSelect={(_e, val) => {
+                    if (val === '__create__') return;
+                    setMirrorDestinationSubdir(val as string);
+                    setFolderSelectOpen(false);
+                  }}
+                  onOpenChange={(open) => {
+                    setFolderSelectOpen(open);
+                    if (!open) {
+                      setFolderCreateMode(false);
+                      setNewFolderName('');
                     }
                   }}
-                  onClearSelection={() => setMirrorDestinationSubdir('')}
-                  toggleWidth="250px"
-                />
+                  toggle={(toggleRef) => (
+                    <MenuToggle
+                      ref={toggleRef}
+                      onClick={() => setFolderSelectOpen((prev) => !prev)}
+                      isExpanded={folderSelectOpen}
+                      style={{ width: '250px' }}
+                    >
+                      {mirrorDestinationSubdir || 'default'}
+                    </MenuToggle>
+                  )}
+                >
+                  {folderCreateMode ? (
+                    <div style={{ padding: 'var(--pf-t--global--spacer--sm)', display: 'flex', gap: 'var(--pf-t--global--spacer--xs)' }}>
+                      <TextInput
+                        aria-label="New folder name"
+                        placeholder="Enter folder name"
+                        value={newFolderName}
+                        onChange={(_e, v) => setNewFolderName(v)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newFolderName.trim()) {
+                            void confirmCreateFolder(newFolderName);
+                          }
+                          if (e.key === 'Escape') {
+                            setFolderCreateMode(false);
+                            setNewFolderName('');
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="plain"
+                        icon={<CheckIcon />}
+                        isDisabled={!newFolderName.trim()}
+                        onClick={() => void confirmCreateFolder(newFolderName)}
+                      />
+                      <Button
+                        variant="plain"
+                        icon={<TimesIcon />}
+                        onClick={() => {
+                          setFolderCreateMode(false);
+                          setNewFolderName('');
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <SelectList>
+                      {availableFolders.map((folder) => (
+                        <SelectOption key={folder} value={folder}>{folder}</SelectOption>
+                      ))}
+                      {availableFolders.length > 0 && <Divider />}
+                      <SelectOption
+                        value="__create__"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFolderCreateMode(true);
+                          setNewFolderName('');
+                        }}
+                      >
+                        <PlusCircleIcon className="pf-v6-u-mr-xs" /> Create new folder...
+                      </SelectOption>
+                    </SelectList>
+                  )}
+                </Select>
               </FormGroup>
             </FlexItem>
             <FlexItem>
@@ -647,7 +718,15 @@ const MirrorOperations: React.FC = () => {
                       {op.name}
                     </Td>
                     <Td dataLabel="Config">
-                      {op.configFile}
+                      <Button
+                        variant="link"
+                        isInline
+                        component="a"
+                        href={`/api/config/download/${encodeURIComponent(op.configFile)}`}
+                        download={op.configFile}
+                      >
+                        {op.configFile}
+                      </Button>
                     </Td>
                     <Td dataLabel="Status">
                       {getStatusLabel(op.status)}

@@ -24,7 +24,6 @@ import {
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
-  CogIcon,
   HistoryIcon,
   ListIcon,
   ServerIcon,
@@ -457,43 +456,6 @@ const Dashboard: React.FC = () => {
         </Card>
       </PageSection>
 
-      {/* Quick Actions */}
-      <PageSection>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Title headingLevel="h2">Quick Actions</Title>
-            </CardTitle>
-          </CardHeader>
-          <CardBody>
-            <Grid hasGutter>
-              <GridItem>
-                <Button variant="primary" icon={<CogIcon />} onClick={() => navigate('/config')}>
-                  Create New Configuration
-                </Button>
-              </GridItem>
-              <GridItem>
-                <Button
-                  variant="secondary"
-                  icon={<SyncAltIcon />}
-                  onClick={() => navigate('/operations')}
-                >
-                  View All Operations
-                </Button>
-              </GridItem>
-              <GridItem>
-                <Button
-                  variant="tertiary"
-                  icon={<HistoryIcon />}
-                  onClick={() => navigate('/history')}
-                >
-                  View History
-                </Button>
-              </GridItem>
-            </Grid>
-          </CardBody>
-        </Card>
-      </PageSection>
     </>
   );
 };

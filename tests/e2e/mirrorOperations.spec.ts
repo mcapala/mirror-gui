@@ -29,8 +29,8 @@ test.describe('Mirror Operations', () => {
     await expect(page.getByText('Mirror Destination Folder')).toBeVisible({ timeout: 10000 });
   });
 
-  test('Mirror Destination Folder typeahead renders with placeholder', async ({ page }) => {
-    await expect(page.getByPlaceholder('default')).toBeVisible({ timeout: 10000 });
+  test('Mirror Destination Folder shows default toggle text', async ({ page }) => {
+    await expect(page.getByText('default', { exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   test('Operations section title renders', async ({ page }) => {

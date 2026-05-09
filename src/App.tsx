@@ -18,6 +18,7 @@ import {
   Spinner,
   Title,
   Content,
+  Label,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -106,10 +107,20 @@ const AppLayout: React.FC = () => {
               </div>
             </ToolbarItem>
             <ToolbarItem align={{ default: 'alignEnd' }}>
-              <Content component="p" style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: '0.875rem' }}>v1.0</Content>
-            </ToolbarItem>
-            <ToolbarItem>
-              <ThemeToggle />
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 'var(--pf-t--global--spacer--sm)' }}>
+                <ThemeToggle />
+                <Label
+                  color="blue"
+                  style={{
+                    fontSize: '0.875rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    borderRadius: 'var(--pf-t--global--border--radius--pill)',
+                  }}
+                >
+                  v1.0
+                </Label>
+              </div>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
