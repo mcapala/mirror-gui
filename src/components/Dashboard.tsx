@@ -21,6 +21,7 @@ import {
   Alert,
   EmptyState,
   EmptyStateBody,
+  Timestamp,
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
@@ -245,91 +246,67 @@ const Dashboard: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardBody>
-            <Grid hasGutter>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          <SyncAltIcon className="pf-v6-u-mr-sm" />
-                          OC Mirror Version
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {systemStatus.ocMirrorVersion || 'Not available'}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          Environment Status
-                          <Popover
-                            position="right"
-                            headerContent="Environment Details"
-                            headerIcon={<InfoCircleIcon />}
-                            bodyContent={
-                              <DescriptionList isCompact>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Architecture</DescriptionListTerm>
-                                  <DescriptionListDescription>{systemInfo.systemArchitecture || 'Unknown'}</DescriptionListDescription>
-                                </DescriptionListGroup>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Disk Available</DescriptionListTerm>
-                                  <DescriptionListDescription>{formatBytes(systemInfo.availableDiskSpace)}</DescriptionListDescription>
-                                </DescriptionListGroup>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Disk Total</DescriptionListTerm>
-                                  <DescriptionListDescription>{formatBytes(systemInfo.totalDiskSpace)}</DescriptionListDescription>
-                                </DescriptionListGroup>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Warning threshold</DescriptionListTerm>
-                                  <DescriptionListDescription>30 GB</DescriptionListDescription>
-                                </DescriptionListGroup>
-                              </DescriptionList>
-                            }
-                          >
-                            <button type="button" aria-label="Environment details" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
-                              <InfoCircleIcon />
-                            </button>
-                          </Popover>
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Label status={getStatusLabelStatus(systemStatus.systemHealth)}>
-                            {getStatusText(systemStatus.systemHealth)}
-                          </Label>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          <KeyIcon className="pf-v6-u-mr-sm" />
-                          Pull Secret
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Label status={systemStatus.pullSecretDetected ? 'success' : 'warning'}>
-                            {systemStatus.pullSecretDetected ? 'Present' : 'Missing'}
-                          </Label>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-            </Grid>
+            <DescriptionList isCompact columnModifier={{ default: '3Col' }}>
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  <SyncAltIcon className="pf-v6-u-mr-sm" />
+                  OC Mirror Version
+                </DescriptionListTerm>
+                <DescriptionListDescription>
+                  {systemStatus.ocMirrorVersion || 'Not available'}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  Environment Status
+                  <Popover
+                    position="right"
+                    headerContent="Environment Details"
+                    headerIcon={<InfoCircleIcon />}
+                    bodyContent={
+                      <DescriptionList isCompact>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Architecture</DescriptionListTerm>
+                          <DescriptionListDescription>{systemInfo.systemArchitecture || 'Unknown'}</DescriptionListDescription>
+                        </DescriptionListGroup>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Disk Available</DescriptionListTerm>
+                          <DescriptionListDescription>{formatBytes(systemInfo.availableDiskSpace)}</DescriptionListDescription>
+                        </DescriptionListGroup>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Disk Total</DescriptionListTerm>
+                          <DescriptionListDescription>{formatBytes(systemInfo.totalDiskSpace)}</DescriptionListDescription>
+                        </DescriptionListGroup>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Warning threshold</DescriptionListTerm>
+                          <DescriptionListDescription>30 GB</DescriptionListDescription>
+                        </DescriptionListGroup>
+                      </DescriptionList>
+                    }
+                  >
+                    <button type="button" aria-label="Environment details" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
+                      <InfoCircleIcon />
+                    </button>
+                  </Popover>
+                </DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label status={getStatusLabelStatus(systemStatus.systemHealth)}>
+                    {getStatusText(systemStatus.systemHealth)}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  <KeyIcon className="pf-v6-u-mr-sm" />
+                  Pull Secret
+                </DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label status={systemStatus.pullSecretDetected ? 'success' : 'warning'}>
+                    {systemStatus.pullSecretDetected ? 'Present' : 'Missing'}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
           </CardBody>
         </Card>
       </PageSection>
@@ -436,14 +413,16 @@ const Dashboard: React.FC = () => {
                       </Td>
                       <Td dataLabel="Status">
                         {op.status === 'running' ? (
-                          <Label status="custom" icon={<SyncAltIcon />}>Running</Label>
+                          <Label status="custom" icon={<SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--inverse)' }} />}>Running</Label>
                         ) : (
                           <Label status={getOperationLabelStatus(op.status)}>
                             {getOperationStatusText(op.status)}
                           </Label>
                         )}
                       </Td>
-                      <Td dataLabel="Started">{new Date(op.startedAt).toLocaleString()}</Td>
+                      <Td dataLabel="Started">
+                        <Timestamp date={new Date(op.startedAt)} tooltip={{ variant: 'default' }} />
+                      </Td>
                       <Td dataLabel="Duration">
                         <OutlinedClockIcon /> {op.duration ? formatDuration(op.duration) : '-'}
                       </Td>

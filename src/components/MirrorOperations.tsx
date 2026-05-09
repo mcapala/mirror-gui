@@ -30,6 +30,7 @@ import {
   EmptyState,
   EmptyStateBody,
   Alert,
+  Timestamp,
   Tooltip,
   Dropdown,
   DropdownItem,
@@ -421,7 +422,7 @@ const MirrorOperations: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
+        return <Label status="custom" icon={<SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--inverse)' }} />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -732,7 +733,7 @@ const MirrorOperations: React.FC = () => {
                       {getStatusLabel(op.status)}
                     </Td>
                     <Td dataLabel="Started">
-                      {new Date(op.startedAt).toLocaleString()}
+                      <Timestamp date={new Date(op.startedAt)} tooltip={{ variant: 'default' }} />
                     </Td>
                     <Td dataLabel="Duration">
                       <OutlinedClockIcon /> {op.status === 'running'
@@ -909,8 +910,8 @@ const MirrorOperations: React.FC = () => {
           <p>
             Are you sure you want to stop the running operation <span style={{ fontWeight: 600 }}>&quot;{stopOperationId}&quot;</span>?
           </p>
-          <p className="pf-v6-u-mt-md" style={{ display: 'flex', alignItems: 'center', gap: 'var(--pf-t--global--spacer--xs)', color: 'var(--pf-t--global--text--color--subtle)' }}>
-            <InfoCircleIcon /> You can start a new operation with the same configuration.
+          <p className="pf-v6-u-mt-md" style={{ display: 'flex', alignItems: 'center', gap: 'var(--pf-t--global--spacer--xs)' }}>
+            <InfoCircleIcon style={{ flexShrink: 0 }} /> You can start a new operation with the same configuration.
           </p>
         </ModalBody>
         <ModalFooter>

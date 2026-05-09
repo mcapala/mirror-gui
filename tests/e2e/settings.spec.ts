@@ -24,6 +24,18 @@ test.describe('Settings', () => {
     await expect(saveBtn).toBeVisible({ timeout: 10000 });
   });
 
+  test('Cache tab shows Change Cache Location section with restart command generation', async ({ page }) => {
+    await page.getByText(/cache/i).first().click();
+    const toggle = page.getByText(/change cache location/i);
+    await expect(toggle).toBeVisible({ timeout: 10000 });
+    await toggle.click();
+    await expect(page.getByPlaceholder(/mnt\/fast-ssd/i)).toBeVisible();
+    await page.getByPlaceholder(/mnt\/fast-ssd/i).fill('/tmp/test-cache');
+    await page.getByRole('button', { name: /generate restart command/i }).click();
+    await expect(page.getByText(/CACHE_DIR.*mirror-gui\.sh.*--restart/)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/run the command above on the host/i)).toBeVisible();
+  });
+
   test.skip('Sync Catalogs tab shows sync button and clear button', async ({ page }) => {
     await page.getByText(/sync catalogs/i).first().click();
     await expect(page.getByRole('button', { name: /sync catalogs/i })).toBeVisible({ timeout: 10000 });

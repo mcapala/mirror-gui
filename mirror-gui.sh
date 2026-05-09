@@ -302,6 +302,8 @@ run_container() {
         local cache_dir_env="/app/data/cache"
         local cache_volume_mount=""
         if [ -n "$CACHE_DIR" ]; then
+            mkdir -p "$CACHE_DIR" 2>/dev/null || sudo mkdir -p "$CACHE_DIR" 2>/dev/null || true
+            chmod 777 "$CACHE_DIR" 2>/dev/null || sudo chmod 777 "$CACHE_DIR" 2>/dev/null || true
             cache_dir_env="$CACHE_DIR"
             cache_volume_mount="-v $CACHE_DIR:$CACHE_DIR:z"
         fi
@@ -382,10 +384,10 @@ show_status() {
     print_success "Application is running!"
     echo ""
     echo "🌐 Web Interface: http://localhost:$active_web_port"
-    echo "🔧 API Server: http://localhost:$active_web_port/api (proxied through web interface)"
+    echo "🔧 API Server: http://localhost:$active_web_port/api"
     echo ""
     echo "📁 Data Directory: $(pwd)/$DATA_DIR"
-    echo "📦 Mirror Storage: $(pwd)/$DATA_DIR/mirrors/default → /app/data/mirrors/default (persistent)"
+    echo "📦 Mirror Storage: $(pwd)/$DATA_DIR/mirrors/default"
     echo "📋 Container Name: $CONTAINER_NAME"
     echo "🔧 Container Engine: $CONTAINER_ENGINE"
     echo "🏗️  System Architecture: $ARCH_NAME"
@@ -430,7 +432,6 @@ main() {
         start)
             echo "=========================================="
             echo "  Mirror-GUI Application"
-            echo "  Application Starter"
             echo "=========================================="
             echo ""
             detect_architecture
@@ -464,7 +465,6 @@ main() {
         restart)
             echo "=========================================="
             echo "  Mirror-GUI Application"
-            echo "  Application Starter"
             echo "=========================================="
             echo ""
             detect_architecture

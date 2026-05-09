@@ -26,6 +26,7 @@ import {
   Title,
   EmptyState,
   EmptyStateBody,
+  Timestamp,
 } from '@patternfly/react-core';
 import {
   HistoryIcon,
@@ -277,14 +278,18 @@ const History: React.FC = () => {
             </DescriptionListGroup>
             <DescriptionListGroup>
               <DescriptionListTerm>Started</DescriptionListTerm>
-              <DescriptionListDescription>{new Date(selectedOperation.startedAt).toLocaleString()}</DescriptionListDescription>
+              <DescriptionListDescription>
+                <Timestamp date={new Date(selectedOperation.startedAt)} tooltip={{ variant: 'default' }} />
+              </DescriptionListDescription>
             </DescriptionListGroup>
             {selectedOperation.completedAt && (
               <DescriptionListGroup>
                 <DescriptionListTerm>
                   {selectedOperation.status === 'failed' ? 'Failed At' : selectedOperation.status === 'stopped' ? 'Stopped At' : 'Completed'}
                 </DescriptionListTerm>
-                <DescriptionListDescription>{new Date(selectedOperation.completedAt).toLocaleString()}</DescriptionListDescription>
+                <DescriptionListDescription>
+                  <Timestamp date={new Date(selectedOperation.completedAt)} tooltip={{ variant: 'default' }} />
+                </DescriptionListDescription>
               </DescriptionListGroup>
             )}
             <DescriptionListGroup>
@@ -541,7 +546,7 @@ const History: React.FC = () => {
                           {getStatusLabel(op.status)}
                         </Td>
                         <Td dataLabel="Started">
-                          {new Date(op.startedAt).toLocaleString()}
+                          <Timestamp date={new Date(op.startedAt)} tooltip={{ variant: 'default' }} />
                         </Td>
                         <Td dataLabel="Duration">
                           <OutlinedClockIcon /> {formatDuration(op.duration)}
