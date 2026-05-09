@@ -1602,12 +1602,29 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       
       const completedAt = new Date().toISOString();
       const duration = Math.floor((new Date(completedAt).getTime() - new Date(operation.startedAt).getTime()) / 1000);
-      
+
+      let errorMessage: string | null = null;
+      if (finalStatus === 'failed') {
+        const errorLine = logs.split('\n').find(
+          (line) => /\[error\]/i.test(line) || /\berror:/i.test(line)
+        );
+        if (errorLine) {
+          errorMessage = errorLine
+            .replace(/^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s*/, '')
+            .replace(/\x1b\[[0-9;]*m/g, '')
+            .replace(/^\s*\[ERROR\]\s*/i, '')
+            .replace(/^:\s*/, '')
+            .trim();
+        } else {
+          errorMessage = `Process exited with code ${code}`;
+        }
+      }
+
       await updateOperation(operationId, {
         status: finalStatus,
         completedAt,
         duration,
-        errorMessage: code !== 0 ? `Process exited with code ${code}` : (hasErrorInLogs ? 'Error detected in logs' : null),
+        errorMessage,
         logs: logs.split('\n')
       });
     });

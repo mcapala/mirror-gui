@@ -3,6 +3,9 @@ import axios from 'axios';
 import {
   Card,
   CardBody,
+  CardHeader,
+  CardTitle,
+  PageSection,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -21,8 +24,6 @@ import {
   Alert,
   Spinner,
   Title,
-  Content,
-  ContentVariants,
   EmptyState,
   EmptyStateBody,
 } from '@patternfly/react-core';
@@ -35,6 +36,7 @@ import {
   AngleUpIcon,
   OutlinedClockIcon,
   ListIcon,
+  SyncAltIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -79,7 +81,7 @@ const History: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/operations/history');
-      setOperations(response.data);
+      setOperations(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching history:', error);
       addDangerAlert('Failed to load operation history');
@@ -219,7 +221,7 @@ const History: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>;
+        return <Label status="custom" icon={<SyncAltIcon />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
@@ -257,115 +259,123 @@ const History: React.FC = () => {
       return null;
     }
 
+    const configName = selectedOperation.configFile;
+
     return (
-      <div className="pf-v6-u-pt-sm" style={{ minWidth: 0 }}>
-        <Title headingLevel="h4" className="pf-v6-u-mb-md">
-          <SearchIcon /> Operation Details
-        </Title>
-
-        <DescriptionList isCompact>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Name</DescriptionListTerm>
-            <DescriptionListDescription>{selectedOperation.name}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Status</DescriptionListTerm>
-            <DescriptionListDescription>{getStatusLabel(selectedOperation.status)}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Started</DescriptionListTerm>
-            <DescriptionListDescription>{new Date(selectedOperation.startedAt).toLocaleString()}</DescriptionListDescription>
-          </DescriptionListGroup>
-          {selectedOperation.completedAt && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Completed</DescriptionListTerm>
-              <DescriptionListDescription>{new Date(selectedOperation.completedAt).toLocaleString()}</DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-          <DescriptionListGroup>
-            <DescriptionListTerm>Duration</DescriptionListTerm>
-            <DescriptionListDescription>{formatDuration(selectedOperation.duration)}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Config File</DescriptionListTerm>
-            <DescriptionListDescription>{selectedOperation.configFile}</DescriptionListDescription>
-          </DescriptionListGroup>
-        </DescriptionList>
-
-        {selectedOperation.errorMessage && (
-          <Alert
-            variant="danger"
-            isInline
-            title="Error"
-            className="pf-v6-u-mt-md"
-          >
-            {selectedOperation.errorMessage}
-          </Alert>
-        )}
-
-        {operationDetails && (
-          <div className="pf-v6-u-mt-md">
-            <Title headingLevel="h4" className="pf-v6-u-mb-sm">
-              Operation Statistics
-            </Title>
-            <DescriptionList isCompact>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Images Mirrored</DescriptionListTerm>
-                <DescriptionListDescription>{operationDetails.imagesMirrored || 0}</DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Operators Mirrored</DescriptionListTerm>
-                <DescriptionListDescription>{operationDetails.operatorsMirrored || 0}</DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Total Size</DescriptionListTerm>
-                <DescriptionListDescription>{formatFileSize(operationDetails.totalSize)}</DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Platform Images</DescriptionListTerm>
-                <DescriptionListDescription>{operationDetails.platformImages || 0}</DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Additional Images</DescriptionListTerm>
-                <DescriptionListDescription>{operationDetails.additionalImages || 0}</DescriptionListDescription>
-              </DescriptionListGroup>
-              <DescriptionListGroup>
-                <DescriptionListTerm>Helm Charts</DescriptionListTerm>
-                <DescriptionListDescription>{operationDetails.helmCharts || 0}</DescriptionListDescription>
-              </DescriptionListGroup>
-            </DescriptionList>
-            <Alert
-              variant="info"
-              isInline
-              isPlain
-              title={`Configuration File: ${operationDetails.configFile || selectedOperation.configFile}`}
-              className="pf-v6-u-mt-md"
-            />
-          </div>
-        )}
-
-        <div className="pf-v6-u-mt-lg">
-          <Title headingLevel="h4" className="pf-v6-u-mb-sm">
-            <ListIcon /> Log Output
+      <Card isPlain isCompact className="pf-v6-u-mt-sm" style={{ minWidth: 0 }}>
+        <CardBody>
+          <Title headingLevel="h4" className="pf-v6-u-mb-md">
+            <SearchIcon className="pf-v6-u-mr-sm" /> Operation Details
           </Title>
-          <div ref={logRef} style={{ maxHeight: '320px', overflow: 'auto' }}>
-            <CodeBlock>
-              <CodeBlockCode>{liveLog || 'No log output available...'}</CodeBlockCode>
-            </CodeBlock>
+
+          <DescriptionList isCompact>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Name</DescriptionListTerm>
+              <DescriptionListDescription>{selectedOperation.name}</DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Status</DescriptionListTerm>
+              <DescriptionListDescription>{getStatusLabel(selectedOperation.status)}</DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Started</DescriptionListTerm>
+              <DescriptionListDescription>{new Date(selectedOperation.startedAt).toLocaleString()}</DescriptionListDescription>
+            </DescriptionListGroup>
+            {selectedOperation.completedAt && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  {selectedOperation.status === 'failed' ? 'Failed At' : selectedOperation.status === 'stopped' ? 'Stopped At' : 'Completed'}
+                </DescriptionListTerm>
+                <DescriptionListDescription>{new Date(selectedOperation.completedAt).toLocaleString()}</DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
+            <DescriptionListGroup>
+              <DescriptionListTerm>Duration</DescriptionListTerm>
+              <DescriptionListDescription>{formatDuration(selectedOperation.duration)}</DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Config File</DescriptionListTerm>
+              <DescriptionListDescription>
+                <Button
+                  variant="link"
+                  isInline
+                  component="a"
+                  href={`/api/config/download/${encodeURIComponent(configName)}`}
+                  download={configName}
+                >
+                  {configName}
+                </Button>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          </DescriptionList>
+
+          {selectedOperation.errorMessage && selectedOperation.status !== 'stopped' && (
+            <Alert
+              variant="danger"
+              isInline
+              title="Error"
+              className="pf-v6-u-mt-md"
+            >
+              {selectedOperation.errorMessage}
+            </Alert>
+          )}
+
+          {operationDetails && (
+            <div className="pf-v6-u-mt-md">
+              <Title headingLevel="h4" className="pf-v6-u-mb-sm">
+                Operation Statistics
+              </Title>
+              <DescriptionList isCompact>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Images Mirrored</DescriptionListTerm>
+                  <DescriptionListDescription>{operationDetails.imagesMirrored || 0}</DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Operators Mirrored</DescriptionListTerm>
+                  <DescriptionListDescription>{operationDetails.operatorsMirrored || 0}</DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Total Size</DescriptionListTerm>
+                  <DescriptionListDescription>{formatFileSize(operationDetails.totalSize)}</DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Platform Images</DescriptionListTerm>
+                  <DescriptionListDescription>{operationDetails.platformImages || 0}</DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Additional Images</DescriptionListTerm>
+                  <DescriptionListDescription>{operationDetails.additionalImages || 0}</DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Helm Charts</DescriptionListTerm>
+                  <DescriptionListDescription>{operationDetails.helmCharts || 0}</DescriptionListDescription>
+                </DescriptionListGroup>
+              </DescriptionList>
+            </div>
+          )}
+
+          <div className="pf-v6-u-mt-lg">
+            <Title headingLevel="h4" className="pf-v6-u-mb-sm">
+              <ListIcon className="pf-v6-u-mr-sm" /> Log Output
+            </Title>
+            <div ref={logRef} style={{ maxHeight: '320px', overflow: 'auto' }}>
+              <CodeBlock>
+                <CodeBlockCode>{liveLog || 'No log output available...'}</CodeBlockCode>
+              </CodeBlock>
+            </div>
           </div>
-        </div>
 
-        <div className="pf-v6-u-mt-md" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="secondary"
-            icon={<AngleUpIcon />}
-            onClick={() => scrollToSelectedOperation('smooth')}
-          >
-            Back to operation
-          </Button>
-        </div>
-
-      </div>
+          <div className="pf-v6-u-mt-md" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="secondary"
+              icon={<AngleUpIcon />}
+              onClick={() => scrollToSelectedOperation('smooth')}
+            >
+              Back to top
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
     );
   };
 
@@ -395,25 +405,40 @@ const History: React.FC = () => {
 
   if (loading) {
     return (
-      <EmptyState>
-        <Spinner size="xl" />
-        <EmptyStateBody>Loading history...</EmptyStateBody>
-      </EmptyState>
+      <PageSection>
+        <EmptyState>
+          <Spinner size="xl" />
+          <EmptyStateBody>Loading history...</EmptyStateBody>
+        </EmptyState>
+      </PageSection>
     );
   }
 
   return (
-    <div>
+    <PageSection>
       <Card>
+        <CardHeader>
+          <CardTitle>
+            <Title headingLevel="h2">
+              <HistoryIcon className="pf-v6-u-mr-sm" />
+              Operation History
+            </Title>
+          </CardTitle>
+        </CardHeader>
         <CardBody>
-          <Title headingLevel="h2">
-            <HistoryIcon /> Operation History
-          </Title>
           <p>View detailed history of all mirror operations.</p>
         </CardBody>
       </Card>
 
-      <Card className="pf-v6-u-mt-lg">
+      <Card className="pf-v6-u-mt-lg" style={{ minWidth: 0 }}>
+        <CardHeader>
+          <CardTitle>
+            <Title headingLevel="h3">
+              <ListIcon className="pf-v6-u-mr-sm" />
+              Operations
+            </Title>
+          </CardTitle>
+        </CardHeader>
         <CardBody>
           <Toolbar>
             <ToolbarContent>
@@ -454,23 +479,18 @@ const History: React.FC = () => {
             </ToolbarContent>
           </Toolbar>
         </CardBody>
-      </Card>
-
-      <Card className="pf-v6-u-mt-lg" style={{ minWidth: 0 }}>
-        <CardBody>
-          <Title headingLevel="h3" className="pf-v6-u-mb-md">
-            <ListIcon /> Operations List
-          </Title>
+        <CardBody className="pf-v6-u-p-0">
           {filteredOperations.length === 0 ? (
             <EmptyState>
               <SearchIcon />
               <EmptyStateBody>No operations found.</EmptyStateBody>
             </EmptyState>
           ) : (
-            <Table aria-label="Operations list">
+            <Table aria-label="Operations list" variant="compact" borders={false}>
               <Thead>
                 <Tr>
                   <Th>Operation</Th>
+                  <Th>Config</Th>
                   <Th>Status</Th>
                   <Th>Started</Th>
                   <Th>Duration</Th>
@@ -483,10 +503,7 @@ const History: React.FC = () => {
                   return (
                     <Fragment key={op.id}>
                       <Tr
-                        isSelectable
                         isClickable
-                        isRowSelected={isSelected}
-                        aria-expanded={isSelected}
                         onRowClick={() => (
                           isSelected
                             ? clearSelectedOperation()
@@ -495,34 +512,33 @@ const History: React.FC = () => {
                       >
                         <Td dataLabel="Operation">
                           <div
+                            ref={(element) => {
+                              operationRowRefs.current[op.id] = element;
+                            }}
                             style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 'var(--pf-t--global--spacer--sm)',
+                              scrollMarginTop: '1rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 'var(--pf-t--global--spacer--xs)',
                             }}
                           >
-                            <span
-                              aria-hidden="true"
-                              style={{
-                                color: 'var(--pf-t--global--text--color--subtle)',
-                                display: 'inline-flex',
-                                marginTop: 'var(--pf-t--global--spacer--xs)',
-                              }}
-                            >
+                            <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
                               {isSelected ? <AngleDownIcon /> : <AngleRightIcon />}
                             </span>
-                            <div>
-                              <div
-                                ref={(element) => {
-                                  operationRowRefs.current[op.id] = element;
-                                }}
-                                style={{ scrollMarginTop: '1rem' }}
-                              >
-                                <Content component={ContentVariants.p}><b>{op.name}</b></Content>
-                              </div>
-                              <Content component={ContentVariants.small}>{op.configFile}</Content>
-                            </div>
+                            {op.name}
                           </div>
+                        </Td>
+                        <Td dataLabel="Config">
+                          <Button
+                            variant="link"
+                            isInline
+                            component="a"
+                            href={`/api/config/download/${encodeURIComponent(op.configFile)}`}
+                            download={op.configFile}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {op.configFile}
+                          </Button>
                         </Td>
                         <Td dataLabel="Status">
                           {getStatusLabel(op.status)}
@@ -536,7 +552,7 @@ const History: React.FC = () => {
                       </Tr>
                       {isSelected && (
                         <Tr>
-                          <Td colSpan={4}>
+                          <Td colSpan={5}>
                             {renderOperationDetails()}
                           </Td>
                         </Tr>
@@ -549,8 +565,7 @@ const History: React.FC = () => {
           )}
         </CardBody>
       </Card>
-
-    </div>
+    </PageSection>
   );
 };
 
