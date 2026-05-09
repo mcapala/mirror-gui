@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import {
   Card,
@@ -12,7 +12,6 @@ import {
   MenuToggle,
   InputGroup,
   InputGroupItem,
-  TextInput,
   Button,
   Label,
   Modal,
@@ -48,6 +47,7 @@ import {
   EllipsisVIcon,
   AngleUpIcon,
 } from '@patternfly/react-icons';
+import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
 
@@ -84,6 +84,7 @@ const MirrorOperations: React.FC = () => {
   const [deleteFilename, setDeleteFilename] = useState('');
   const [deleteOperationId, setDeleteOperationId] = useState<string | null>(null);
   const [mirrorDestinationSubdir, setMirrorDestinationSubdir] = useState('');
+  const [availableFolders, setAvailableFolders] = useState<string[]>([]);
   const [showStopModal, setShowStopModal] = useState(false);
   const [stopOperationId, setStopOperationId] = useState<string | null>(null);
   const [kebabOpen, setKebabOpen] = useState<Record<string, boolean>>({});
@@ -185,6 +186,31 @@ const MirrorOperations: React.FC = () => {
     }
   }, []);
 
+  const fetchFolders = useCallback(async () => {
+    try {
+      const response = await axios.get<{ folders: string[] }>('/api/mirror-folders');
+      setAvailableFolders(response.data.folders ?? []);
+    } catch (error) {
+      console.error('Error fetching mirror folders:', error);
+      setAvailableFolders([]);
+    }
+  }, []);
+
+  const mirrorFolderSelectOptions = useMemo((): TypeaheadSelectOption[] => {
+    const current = mirrorDestinationSubdir.trim();
+    const names = new Set(availableFolders);
+    if (current) {
+      names.add(current);
+    }
+    return [...names]
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({
+        value: name,
+        content: name,
+        selected: name === current,
+      }));
+  }, [availableFolders, mirrorDestinationSubdir]);
+
   const fetchOperations = useCallback(async () => {
     try {
       const response = await axios.get('/api/operations');
@@ -230,10 +256,11 @@ const MirrorOperations: React.FC = () => {
   useEffect(() => {
     fetchOperations();
     fetchConfigurations();
+    void fetchFolders();
     axios.get('/api/system/info').then(res => setHostDataDir(res.data.hostDataDir || '')).catch(() => {});
     const interval = setInterval(fetchOperations, 5000);
     return () => clearInterval(interval);
-  }, [fetchOperations, fetchConfigurations]);
+  }, [fetchOperations, fetchConfigurations, fetchFolders]);
 
   useEffect(() => {
     operationsRef.current = operations;
@@ -290,6 +317,7 @@ const MirrorOperations: React.FC = () => {
       addSuccessAlert('Operation started successfully!');
       setShowLogs(true);
       fetchOperations();
+      void fetchFolders();
       setMirrorDestinationSubdir('');
 
       if (response.data.status === 'running') {
@@ -555,12 +583,21 @@ const MirrorOperations: React.FC = () => {
                 }
                 fieldId="mirror-subdir"
               >
-                <TextInput
+                <TypeaheadSelect
                   id="mirror-subdir"
-                  value={mirrorDestinationSubdir}
-                  onChange={(_event, value) => setMirrorDestinationSubdir(value)}
+                  initialOptions={mirrorFolderSelectOptions}
+                  isCreatable
+                  createOptionMessage={(newValue) => `Create folder "${newValue}"`}
+                  noOptionsFoundMessage={(filter) => `No folders matching "${filter}"`}
+                  noOptionsAvailableMessage="No existing folders"
                   placeholder="default"
-                  style={{ width: '250px' }}
+                  onSelect={(_e, value) => {
+                    if (value !== undefined && value !== null) {
+                      setMirrorDestinationSubdir(String(value));
+                    }
+                  }}
+                  onClearSelection={() => setMirrorDestinationSubdir('')}
+                  toggleWidth="250px"
                 />
               </FormGroup>
             </FlexItem>

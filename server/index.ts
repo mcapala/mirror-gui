@@ -926,6 +926,19 @@ app.get('/api/system/paths', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/mirror-folders', async (_req: Request, res: Response) => {
+  try {
+    const entries = await fsp.readdir(MIRROR_BASE_DIR, { withFileTypes: true });
+    const folders = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
+    res.json({ folders });
+  } catch {
+    res.json({ folders: [] });
+  }
+});
+
 app.get('/api/config/list', async (req: Request, res: Response) => {
   try {
     const files = await fsp.readdir(CONFIGS_DIR);
