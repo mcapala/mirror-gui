@@ -149,6 +149,18 @@ Get available system paths for mirror storage and other operations.
 }
 ```
 
+#### GET /api/mirror-folders
+Get list of existing subdirectories under the mirror base directory. Used by the Mirror Destination Folder typeahead to suggest existing folders.
+
+**Response:**
+```json
+{
+  "folders": ["default", "odf", "production"]
+}
+```
+
+- `folders`: Sorted array of directory names under `MIRROR_BASE_DIR`. Returns an empty array if the base directory does not exist yet.
+
 ### Statistics and Dashboard
 
 #### GET /api/stats
@@ -894,6 +906,9 @@ curl http://localhost:3000/api/health
 
 # Get system paths
 curl http://localhost:3000/api/system/paths
+
+# List existing mirror destination folders
+curl http://localhost:3000/api/mirror-folders
 
 # Start an operation with default mirror destination
 curl -X POST http://localhost:3000/api/operations/start \

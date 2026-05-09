@@ -29,6 +29,10 @@ test.describe('Mirror Operations', () => {
     await expect(page.getByText('Mirror Destination Folder')).toBeVisible({ timeout: 10000 });
   });
 
+  test('Mirror Destination Folder typeahead renders with placeholder', async ({ page }) => {
+    await expect(page.getByPlaceholder('default')).toBeVisible({ timeout: 10000 });
+  });
+
   test('Operations section title renders', async ({ page }) => {
     await expect(
       page.locator('#operation-history-card').getByRole('heading', { name: 'Operations', exact: true }),
