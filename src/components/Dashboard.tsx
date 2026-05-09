@@ -380,7 +380,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.runningOperations}
                     </Title>
-                    <Label color="blue" icon={<SyncAltIcon />}>
+                    <Label status="custom" icon={<SyncAltIcon />}>
                       Running
                     </Label>
                   </CardBody>
@@ -435,7 +435,7 @@ const Dashboard: React.FC = () => {
                       </Td>
                       <Td dataLabel="Status">
                         {op.status === 'running' ? (
-                          <Label color="blue" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>
+                          <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>
                         ) : (
                           <Label status={getOperationLabelStatus(op.status)}>
                             {getOperationStatusText(op.status)}

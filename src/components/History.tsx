@@ -219,7 +219,7 @@ const History: React.FC = () => {
       case 'success':
         return <Label status="success">Success</Label>;
       case 'running':
-        return <Label color="blue" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>;
+        return <Label status="custom" icon={<Spinner size="sm" style={{ color: 'inherit' }} />}>Running</Label>;
       case 'failed':
         return <Label status="danger">Failed</Label>;
       case 'stopped':
