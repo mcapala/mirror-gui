@@ -413,7 +413,7 @@ const Dashboard: React.FC = () => {
                       </Td>
                       <Td dataLabel="Status">
                         {op.status === 'running' ? (
-                          <Label status="custom" icon={<SyncAltIcon />}>Running</Label>
+                          <Label status="custom" icon={<SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--inverse)' }} />}>Running</Label>
                         ) : (
                           <Label status={getOperationLabelStatus(op.status)}>
                             {getOperationStatusText(op.status)}
