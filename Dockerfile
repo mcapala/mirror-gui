@@ -68,9 +68,23 @@ COPY --from=downloader /usr/local/bin/oc-mirror /usr/local/bin/oc-mirror
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        bash ca-certificates libgpgme11 && \
+        bash ca-certificates libgpgme11 \
+        python3 python3-yaml jq wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install oc CLI for runtime catalog sync (oc image extract)
+ARG TARGETARCH
+RUN set -eux; \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      OC_URL="https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/stable/openshift-client-linux.tar.gz"; \
+    else \
+      OC_URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz"; \
+    fi; \
+    wget -qO /tmp/oc.tar.gz "$OC_URL"; \
+    tar -xzf /tmp/oc.tar.gz -C /usr/local/bin oc; \
+    rm /tmp/oc.tar.gz; \
+    oc version --client
 
 RUN set -eux; \
     which oc-mirror; \
@@ -99,6 +113,9 @@ RUN npm config set fetch-timeout 300000 && \
 
 COPY --from=builder /app/dist ./dist
 COPY server ./server
+COPY scripts/catalog_metadata.py ./scripts/catalog_metadata.py
+COPY sync-catalogs.sh ./sync-catalogs.sh
+RUN chmod +x ./sync-catalogs.sh
 
 # Copy only generated catalog metadata required at runtime.
 COPY --from=builder /app/catalog-data-minimal ./catalog-data

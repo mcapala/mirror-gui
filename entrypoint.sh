@@ -2,7 +2,7 @@
 set -e
 
 APP_DATA="/app/data"
-DIRS="$APP_DATA/configs $APP_DATA/operations $APP_DATA/logs $APP_DATA/cache $APP_DATA/mirrors/default"
+DIRS="$APP_DATA/configs $APP_DATA/operations $APP_DATA/logs $APP_DATA/cache $APP_DATA/mirrors/default $APP_DATA/catalog-data"
 
 for d in $DIRS; do
     mkdir -p "$d"
@@ -10,6 +10,12 @@ done
 
 chown -R node:node "$APP_DATA"
 chmod -R 775 "$APP_DATA"
+
+AUTHFILE="${OC_MIRROR_AUTHFILE:-/app/pull-secret.json}"
+if [ -f "$AUTHFILE" ]; then
+    chown node:node "$AUTHFILE"
+    chmod 664 "$AUTHFILE"
+fi
 
 if su -s /bin/sh node -c "test -w $APP_DATA/configs"; then
     echo "[ENTRYPOINT] Permissions OK"

@@ -19,24 +19,18 @@ import {
   DescriptionListTerm,
   DescriptionListDescription,
   Alert,
-  Content,
-  ContentVariants,
   EmptyState,
   EmptyStateBody,
+  Timestamp,
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
-  CogIcon,
-  CheckCircleIcon,
-  TimesCircleIcon,
-  StopIcon,
-  InProgressIcon,
   HistoryIcon,
   ListIcon,
   ServerIcon,
   KeyIcon,
-  ClockIcon,
   InfoCircleIcon,
+  OutlinedClockIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -71,21 +65,21 @@ interface SystemInfo {
   cacheSizeBytes: number;
 }
 
-type LabelColor = 'green' | 'red' | 'blue' | 'orange' | 'grey';
+type LabelStatus = 'success' | 'warning' | 'danger' | 'info' | 'custom';
 
-const getStatusLabelColor = (status: string): LabelColor => {
+const getStatusLabelStatus = (status: string): LabelStatus => {
   switch (status) {
     case 'healthy':
-      return 'green';
+      return 'success';
     case 'degraded':
     case 'warning':
-      return 'orange';
+      return 'warning';
     case 'error':
-      return 'red';
+      return 'danger';
     case 'running':
-      return 'blue';
+      return 'custom';
     default:
-      return 'grey';
+      return 'custom';
   }
 };
 
@@ -106,18 +100,18 @@ const getStatusText = (status: string): string => {
   }
 };
 
-const getOperationLabelColor = (status: string): LabelColor => {
+const getOperationLabelStatus = (status: string): LabelStatus => {
   switch (status) {
     case 'success':
-      return 'green';
+      return 'success';
     case 'running':
-      return 'blue';
+      return 'custom';
     case 'failed':
-      return 'red';
+      return 'danger';
     case 'stopped':
-      return 'orange';
+      return 'warning';
     default:
-      return 'grey';
+      return 'custom';
   }
 };
 
@@ -136,19 +130,14 @@ const getOperationStatusText = (status: string): string => {
   }
 };
 
-const getOperationStatusIcon = (status: string) => {
-  switch (status) {
-    case 'success':
-      return <CheckCircleIcon />;
-    case 'running':
-      return <InProgressIcon />;
-    case 'failed':
-      return <TimesCircleIcon />;
-    case 'stopped':
-      return <StopIcon />;
-    default:
-      return null;
-  }
+const formatDuration = (seconds?: number) => {
+  if (!seconds) return '-';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
 };
 
 const Dashboard: React.FC = () => {
@@ -211,14 +200,14 @@ const Dashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const lastOperation = recentOperations.length > 0 ? recentOperations[0] : null;
+
 
   if (loading) {
     return (
       <PageSection>
-        <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <div className="pf-v6-u-text-align-center pf-v6-u-p-2xl">
           <Spinner aria-label="Loading dashboard" />
-          <Title headingLevel="h3" style={{ marginTop: '1rem' }}>
+          <Title headingLevel="h3" className="pf-v6-u-mt-md">
             Loading dashboard...
           </Title>
         </div>
@@ -251,97 +240,73 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>
               <Title headingLevel="h2">
-                <ServerIcon style={{ marginRight: '0.5rem' }} />
+                <ServerIcon className="pf-v6-u-mr-sm" />
                 Environment
               </Title>
             </CardTitle>
           </CardHeader>
           <CardBody>
-            <Grid hasGutter>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          <SyncAltIcon style={{ marginRight: '0.5rem' }} />
-                          OC Mirror Version
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {systemStatus.ocMirrorVersion || 'Not available'}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          Environment Status
-                          <Popover
-                            position="right"
-                            headerContent="Environment Details"
-                            headerIcon={<InfoCircleIcon />}
-                            bodyContent={
-                              <DescriptionList isCompact>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Architecture</DescriptionListTerm>
-                                  <DescriptionListDescription>{systemInfo.systemArchitecture || 'Unknown'}</DescriptionListDescription>
-                                </DescriptionListGroup>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Disk Available</DescriptionListTerm>
-                                  <DescriptionListDescription>{formatBytes(systemInfo.availableDiskSpace)}</DescriptionListDescription>
-                                </DescriptionListGroup>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Disk Total</DescriptionListTerm>
-                                  <DescriptionListDescription>{formatBytes(systemInfo.totalDiskSpace)}</DescriptionListDescription>
-                                </DescriptionListGroup>
-                                <DescriptionListGroup>
-                                  <DescriptionListTerm>Warning threshold</DescriptionListTerm>
-                                  <DescriptionListDescription>30 GB</DescriptionListDescription>
-                                </DescriptionListGroup>
-                              </DescriptionList>
-                            }
-                          >
-                            <button type="button" aria-label="Environment details" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '0.25rem', verticalAlign: 'middle' }}>
-                              <InfoCircleIcon />
-                            </button>
-                          </Popover>
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Label color={getStatusLabelColor(systemStatus.systemHealth)}>
-                            {getStatusText(systemStatus.systemHealth)}
-                          </Label>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-              <GridItem md={4}>
-                <Card isPlain>
-                  <CardBody>
-                    <DescriptionList>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>
-                          <KeyIcon style={{ marginRight: '0.5rem' }} />
-                          Pull Secret
-                        </DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Label color={systemStatus.pullSecretDetected ? 'green' : 'orange'}>
-                            {systemStatus.pullSecretDetected ? 'Present' : 'Missing'}
-                          </Label>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </GridItem>
-            </Grid>
+            <DescriptionList isCompact columnModifier={{ default: '3Col' }}>
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  <SyncAltIcon className="pf-v6-u-mr-sm" />
+                  OC Mirror Version
+                </DescriptionListTerm>
+                <DescriptionListDescription>
+                  {systemStatus.ocMirrorVersion || 'Not available'}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  Environment Status
+                  <Popover
+                    position="right"
+                    headerContent="Environment Details"
+                    headerIcon={<InfoCircleIcon />}
+                    bodyContent={
+                      <DescriptionList isCompact>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Architecture</DescriptionListTerm>
+                          <DescriptionListDescription>{systemInfo.systemArchitecture || 'Unknown'}</DescriptionListDescription>
+                        </DescriptionListGroup>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Disk Available</DescriptionListTerm>
+                          <DescriptionListDescription>{formatBytes(systemInfo.availableDiskSpace)}</DescriptionListDescription>
+                        </DescriptionListGroup>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Disk Total</DescriptionListTerm>
+                          <DescriptionListDescription>{formatBytes(systemInfo.totalDiskSpace)}</DescriptionListDescription>
+                        </DescriptionListGroup>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Warning threshold</DescriptionListTerm>
+                          <DescriptionListDescription>30 GB</DescriptionListDescription>
+                        </DescriptionListGroup>
+                      </DescriptionList>
+                    }
+                  >
+                    <button type="button" aria-label="Environment details" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
+                      <InfoCircleIcon />
+                    </button>
+                  </Popover>
+                </DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label status={getStatusLabelStatus(systemStatus.systemHealth)}>
+                    {getStatusText(systemStatus.systemHealth)}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>
+                  <KeyIcon className="pf-v6-u-mr-sm" />
+                  Pull Secret
+                </DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label status={systemStatus.pullSecretDetected ? 'success' : 'warning'}>
+                    {systemStatus.pullSecretDetected ? 'Present' : 'Missing'}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
           </CardBody>
         </Card>
       </PageSection>
@@ -352,7 +317,7 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>
               <Title headingLevel="h2">
-                <ListIcon style={{ marginRight: '0.5rem' }} />
+                <ListIcon className="pf-v6-u-mr-sm" />
                 Operation Statistics
               </Title>
             </CardTitle>
@@ -365,7 +330,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.totalOperations}
                     </Title>
-                    <Label color="blue">Total Operations</Label>
+                    <Label status="info">Total Operations</Label>
                   </CardBody>
                 </Card>
               </GridItem>
@@ -375,7 +340,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.successfulOperations}
                     </Title>
-                    <Label color="green" icon={<CheckCircleIcon />}>
+                    <Label status="success">
                       Successful
                     </Label>
                   </CardBody>
@@ -387,7 +352,7 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.failedOperations}
                     </Title>
-                    <Label color="red" icon={<TimesCircleIcon />}>
+                    <Label status="danger">
                       Failed
                     </Label>
                   </CardBody>
@@ -399,20 +364,13 @@ const Dashboard: React.FC = () => {
                     <Title headingLevel="h3" size="4xl">
                       {stats.runningOperations}
                     </Title>
-                    <Label color="blue" icon={<InProgressIcon />}>
+                    <Label status="custom" icon={<SyncAltIcon />}>
                       Running
                     </Label>
                   </CardBody>
                 </Card>
               </GridItem>
             </Grid>
-            {lastOperation && (
-              <div style={{ marginTop: '1rem' }}>
-                <Label color={getOperationLabelColor(lastOperation.status)} icon={<ClockIcon />}>
-                  Last Operation: {getOperationStatusText(lastOperation.status)}
-                </Label>
-              </div>
-            )}
           </CardBody>
         </Card>
       </PageSection>
@@ -423,21 +381,22 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>
               <Title headingLevel="h2">
-                <HistoryIcon style={{ marginRight: '0.5rem' }} />
+                <HistoryIcon className="pf-v6-u-mr-sm" />
                 Recent Operations
               </Title>
             </CardTitle>
           </CardHeader>
-          <CardBody>
+          <CardBody className="pf-v6-u-p-0">
             {recentOperations.length === 0 ? (
               <EmptyState>
                 <EmptyStateBody>No recent operations found.</EmptyStateBody>
               </EmptyState>
             ) : (
-              <Table aria-label="Recent operations">
+              <Table aria-label="Recent operations" variant="compact" borders={false}>
                 <Thead>
                   <Tr>
                     <Th>Operation</Th>
+                    <Th>Config</Th>
                     <Th>Status</Th>
                     <Th>Started</Th>
                     <Th>Duration</Th>
@@ -447,21 +406,26 @@ const Dashboard: React.FC = () => {
                   {recentOperations.map((op, index) => (
                     <Tr key={index}>
                       <Td dataLabel="Operation">
-                        <div>
-                          <Content component={ContentVariants.p}><b>{op.name}</b></Content>
-                          <Content component={ContentVariants.small}>{op.configFile}</Content>
-                        </div>
+                        {op.name}
+                      </Td>
+                      <Td dataLabel="Config">
+                        {op.configFile}
                       </Td>
                       <Td dataLabel="Status">
-                        <Label
-                          color={getOperationLabelColor(op.status)}
-                          icon={getOperationStatusIcon(op.status)}
-                        >
-                          {getOperationStatusText(op.status)}
-                        </Label>
+                        {op.status === 'running' ? (
+                          <Label status="custom" icon={<SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--inverse)' }} />}>Running</Label>
+                        ) : (
+                          <Label status={getOperationLabelStatus(op.status)}>
+                            {getOperationStatusText(op.status)}
+                          </Label>
+                        )}
                       </Td>
-                      <Td dataLabel="Started">{new Date(op.startedAt).toLocaleString()}</Td>
-                      <Td dataLabel="Duration">{op.duration ? `${op.duration}s` : '-'}</Td>
+                      <Td dataLabel="Started">
+                        <Timestamp date={new Date(op.startedAt)} tooltip={{ variant: 'default' }} />
+                      </Td>
+                      <Td dataLabel="Duration">
+                        <OutlinedClockIcon /> {op.duration ? formatDuration(op.duration) : '-'}
+                      </Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -471,43 +435,6 @@ const Dashboard: React.FC = () => {
         </Card>
       </PageSection>
 
-      {/* Quick Actions */}
-      <PageSection>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Title headingLevel="h2">Quick Actions</Title>
-            </CardTitle>
-          </CardHeader>
-          <CardBody>
-            <Grid hasGutter>
-              <GridItem>
-                <Button variant="primary" icon={<CogIcon />} onClick={() => navigate('/config')}>
-                  Create New Configuration
-                </Button>
-              </GridItem>
-              <GridItem>
-                <Button
-                  variant="secondary"
-                  icon={<SyncAltIcon />}
-                  onClick={() => navigate('/operations')}
-                >
-                  View All Operations
-                </Button>
-              </GridItem>
-              <GridItem>
-                <Button
-                  variant="tertiary"
-                  icon={<HistoryIcon />}
-                  onClick={() => navigate('/history')}
-                >
-                  View History
-                </Button>
-              </GridItem>
-            </Grid>
-          </CardBody>
-        </Card>
-      </PageSection>
     </>
   );
 };

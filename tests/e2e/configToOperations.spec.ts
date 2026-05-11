@@ -15,6 +15,10 @@ mirror:
 `;
 
 test.describe('Config to Operations workflow', () => {
+  test.afterAll(async ({ request }) => {
+    await request.delete(`/api/config/delete/${CONFIG_NAME}`).catch(() => {});
+  });
+
   test('create config via API, verify it appears in Mirror Operations', async ({
     page,
     request,
@@ -33,7 +37,7 @@ test.describe('Config to Operations workflow', () => {
       timeout: 15000,
     });
 
-    const configToggle = page.getByLabel('Select configuration file');
+    const configToggle = page.getByLabel('Select ImageSetConfiguration file');
     await expect(configToggle).toBeVisible({ timeout: 15000 });
     await configToggle.click();
     await page.getByRole('option', { name: new RegExp(CONFIG_NAME) }).click();

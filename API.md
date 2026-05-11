@@ -24,22 +24,10 @@ The default port is `3000`. All startup scripts (`./mirror-gui.sh`, `./container
 Currently, the API does not require authentication. All endpoints are accessible without credentials.
 
 ## Response Format
-All API responses are returned in JSON format with the following structure:
+API responses are returned in JSON format. Most endpoints return domain-specific JSON directly (e.g., `{ "status": "healthy" }`, `{ "registries": [...] }`). Some endpoints use a wrapper with `success`/`data` fields. Error responses typically include an `error` field:
 ```json
 {
-  "success": true,
-  "data": { ... },
-  "message": "Operation completed successfully"
-}
-```
-
-## Error Responses
-Error responses follow this format:
-```json
-{
-  "success": false,
-  "error": "Error description",
-  "code": "ERROR_CODE"
+  "error": "Error description"
 }
 ```
 
@@ -127,12 +115,9 @@ Get system status including oc-mirror version, overall health, and pull secret d
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "ocMirrorVersion": "2.0.0",
-    "systemHealth": "healthy",
-    "pullSecretDetected": true
-  }
+  "ocMirrorVersion": "2.0.0",
+  "systemHealth": "healthy",
+  "pullSecretDetected": true
 }
 ```
 
@@ -147,21 +132,57 @@ Get available system paths for mirror storage and other operations.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "commonPaths": [
-      {
-        "path": "/app/data",
-        "label": "Data Directory",
-        "description": "Persistent - mounted volume, contains configs, operations, logs, cache, and mirrors"
-      },
-      {
-        "path": "/app/data/mirrors",
-        "label": "Mirror Storage",
-        "description": "Persistent - base directory for all mirror archives"
-      }
-    ]
-  }
+  "paths": [
+    {
+      "path": "/app/data",
+      "label": "Data Directory",
+      "description": "Persistent - mounted volume, contains configs, operations, logs, cache, and mirrors",
+      "available": true
+    },
+    {
+      "path": "/app/data/mirrors",
+      "label": "Mirror Storage",
+      "description": "Persistent - base directory for all mirror archives",
+      "available": true
+    }
+  ]
+}
+```
+
+#### GET /api/mirror-folders
+Get list of existing subdirectories under the mirror base directory. Used by the Mirror Destination Folder typeahead to suggest existing folders.
+
+**Response:**
+```json
+{
+  "folders": ["default", "odf", "production"]
+}
+```
+
+- `folders`: Sorted array of directory names under `MIRROR_BASE_DIR`. Returns an empty array if the base directory does not exist yet.
+
+#### POST /api/mirror-folders
+Create a new subdirectory under the mirror base directory. The folder name must contain only letters, numbers, dashes, and underscores.
+
+**Request:**
+```json
+{
+  "name": "group-sync"
+}
+```
+
+**Response (201):**
+```json
+{
+  "created": "group-sync",
+  "path": "/app/data/mirrors/group-sync"
+}
+```
+
+**Error (400):**
+```json
+{
+  "error": "Use only letters, numbers, dashes, and underscores"
 }
 ```
 
@@ -222,6 +243,15 @@ Get list of saved configurations.
   ]
 }
 ```
+
+#### GET /api/config/download/:filename
+Download a saved ImageSetConfiguration YAML file from the configs directory. The filename must be a basename ending in `.yaml` or `.yml` (path traversal is rejected).
+
+**Response:** Raw file bytes with `Content-Disposition: attachment` and `Content-Type: application/x-yaml`.
+
+**Error (400):** Invalid filename (wrong extension or path).
+
+**Error (404):** File does not exist.
 
 #### POST /api/config/save
 Save a new configuration.
@@ -738,7 +768,7 @@ Remove the pull secret file.
 ### Registry Authentication
 
 #### GET /api/registries
-Get registries parsed from the pull secret with authentication info. Non-registry hosts (e.g. `cloud.openshift.com`) are filtered out.
+Get registries parsed from the pull secret with authentication info and cached verification status. Non-registry hosts (e.g. `cloud.openshift.com`) are filtered out.
 
 **Response:**
 ```json
@@ -747,14 +777,20 @@ Get registries parsed from the pull secret with authentication info. Non-registr
     {
       "registry": "registry.redhat.io",
       "username": "user",
-      "hasAuth": true
+      "hasAuth": true,
+      "status": "authenticated",
+      "error": null
     }
   ]
 }
 ```
 
+**Response Fields:**
+- `status`: Cached verification result -- `"not_verified"` (default), `"authenticated"`, or `"failed"`. Persists in-memory until the server process restarts.
+- `error`: Error details when `status` is `"failed"`, otherwise `null`/undefined.
+
 #### POST /api/registries/verify
-Verify authentication against a specific registry using Docker v2 auth flow.
+Verify authentication against a specific registry using Docker v2 auth flow. Results are cached in memory and reflected in subsequent `GET /api/registries` responses.
 
 **Request Body:**
 ```json
@@ -795,6 +831,62 @@ Delete all files in the cache directory.
 **Notes:**
 - The cache directory is set via the `OC_MIRROR_CACHE_DIR` environment variable (default: `/app/data/cache`)
 - To override, set `CACHE_DIR` when starting the app: `CACHE_DIR=/tmp/cache ./mirror-gui.sh`
+
+### Catalog Sync
+
+#### POST /api/catalogs/sync
+Trigger a full operator catalog sync from registry.redhat.io. Requires a pull secret. Runs `sync-catalogs.sh` in the background and streams progress to the sync status endpoint.
+
+**Response:**
+```json
+{
+  "status": "started",
+  "message": "Catalog sync started"
+}
+```
+
+**Response (no pull secret):**
+```json
+{
+  "error": "Pull secret not detected. Please configure a pull secret first."
+}
+```
+
+#### GET /api/catalogs/sync/status
+Get current catalog sync status, progress, logs, and diff.
+
+**Response:**
+```json
+{
+  "status": "running",
+  "syncStartTime": "2026-05-07T10:00:00.000Z",
+  "lastSyncTime": null,
+  "successCount": 5,
+  "failedCount": 0,
+  "totalCount": 18,
+  "completedCatalogs": 5,
+  "currentCatalog": "certified-operator-index:v4.18",
+  "logs": ["Extracting redhat-operator-index:v4.16 ...", "..."],
+  "diff": []
+}
+```
+
+**Response Fields:**
+- `syncStartTime`: ISO timestamp when the current/last sync started
+- `completedCatalogs`: Number of catalogs processed so far
+- `currentCatalog`: Catalog currently being processed (while running)
+- `diff`: Array of catalog change entries after sync completes, each with `catalog`, `newOperators`, `removedOperators`, and `updatedOperators` (with version details)
+
+#### DELETE /api/catalogs/sync/data
+Clear runtime-synced catalog data and fall back to built-in catalog data baked into the container image. Does not require an app restart.
+
+**Response:**
+```json
+{
+  "message": "Runtime catalog data cleared. Reverted to built-in catalog data.",
+  "operatorCount": 243
+}
+```
 
 ## Error Codes
 
@@ -848,6 +940,17 @@ curl http://localhost:3000/api/health
 
 # Get system paths
 curl http://localhost:3000/api/system/paths
+
+# List existing mirror destination folders
+curl http://localhost:3000/api/mirror-folders
+
+# Create a new mirror destination folder
+curl -X POST http://localhost:3000/api/mirror-folders \
+  -H "Content-Type: application/json" \
+  -d '{"name": "group-sync"}'
+
+# Download a saved configuration YAML (URL-encode the filename if needed)
+curl -OJ "http://localhost:3000/api/config/download/my-config.yaml"
 
 # Start an operation with default mirror destination
 curl -X POST http://localhost:3000/api/operations/start \

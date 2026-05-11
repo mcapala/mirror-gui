@@ -70,6 +70,7 @@ data/operations/*
 data/logs/*
 data/cache/*
 data/mirrors/*
+data/catalog-data/*
 !data/configs/.gitkeep
 !data/operations/.gitkeep
 !data/logs/.gitkeep

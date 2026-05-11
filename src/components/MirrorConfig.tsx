@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import YAML from 'yaml';
 import { useAlerts } from '../AlertContext';
@@ -11,14 +11,12 @@ import {
   Card,
   CardBody,
   CardHeader,
-  CardTitle,
   Checkbox,
+  CardTitle,
   FileUpload,
   Flex,
   FlexItem,
   FormGroup,
-  FormSelect,
-  FormSelectOption,
   Grid,
   GridItem,
   HelperText,
@@ -32,7 +30,6 @@ import {
   Tabs,
   TabTitleIcon,
   TabTitleText,
-  TextArea,
   TextInput,
   Title,
   DescriptionList,
@@ -43,9 +40,6 @@ import {
   SelectOption,
   SelectList,
   MenuToggle,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
   Tooltip,
   NumberInput,
 } from '@patternfly/react-core';
@@ -57,16 +51,17 @@ import {
   EyeIcon,
   UploadIcon,
   PlusCircleIcon,
-  TrashIcon,
+  MinusCircleIcon,
   CopyIcon,
   DownloadIcon,
   InfoCircleIcon,
   SaveIcon,
   ArrowRightIcon,
-  BundleIcon,
   PencilAltIcon,
   CheckIcon,
 } from '@patternfly/react-icons';
+import { FieldBuilder } from '@patternfly/react-component-groups';
+import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 
 interface PlatformChannel {
   name: string;
@@ -276,7 +271,7 @@ const getPlatformChannelValidationMessage = (channel: PlatformChannel): string =
 
 const getOperatorChannelValidationMessage = (
   channel: OperatorChannel,
-  _versions: string[],
+  _versions: string[], // eslint-disable-line @typescript-eslint/no-unused-vars
 ): string => {
   if (channel.minVersion && !isValidVersion(channel.minVersion)) {
     return 'Min version must be a valid version';
@@ -476,9 +471,6 @@ const MirrorConfig: React.FC = () => {
   const [catalogSelectOpen, setCatalogSelectOpen] = useState<Record<number, boolean>>({});
   const [opChannelSelectOpen, setOpChannelSelectOpen] = useState<Record<string, boolean>>({});
   const [opMinVersionSelectOpen, setOpMinVersionSelectOpen] = useState<Record<string, boolean>>({});
-  const [operatorSelectOpen, setOperatorSelectOpen] = useState<Record<string, boolean>>({});
-  const [operatorFilterText, setOperatorFilterText] = useState<Record<string, string>>({});
-  const operatorFilterInputRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [uploadFilename, setUploadFilename] = useState('');
   const [uploadedContent, setUploadedContent] = useState('');
@@ -1281,16 +1273,6 @@ const MirrorConfig: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleTextAreaChange = (value: string) => {
-    setUploadedContent(value);
-    if (value.trim()) {
-      parseYAMLContent(value);
-    } else {
-      setParsedUpload(null);
-      setUploadError('');
-    }
-  };
-
   const loadIntoEditor = () => {
     if (!parsedUpload) {
       setFieldError('yaml-upload', 'No valid configuration to load');
@@ -1375,8 +1357,8 @@ const MirrorConfig: React.FC = () => {
       }
     }, 0);
 
-    setActiveTab('platform');
-    addSuccessAlert('Configuration loaded into editor. Switch between tabs to modify.');
+    setActiveTab('preview');
+    addSuccessAlert('Configuration loaded. Review or edit YAML on the Preview tab.');
   };
 
   const yamlPreview = YAML.stringify(generateCleanConfig(), { indent: 2 });
@@ -1481,13 +1463,11 @@ const MirrorConfig: React.FC = () => {
         </CardBody>
       </Card>
 
-      <br />
-
-      <Card>
+      <Card className="pf-v6-u-mt-lg">
         <CardBody>
           {Object.entries(validationErrors).filter(([key]) => !key.includes('-warning') && !key.startsWith('yaml-')).length > 0 && (
-            <Alert variant="danger" isInline title="Configuration has errors" style={{ marginBottom: '1rem' }}>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+            <Alert variant="danger" isInline title="Configuration has errors" className="pf-v6-u-mb-md">
+              <ul style={{ margin: 0 }} className="pf-v6-u-pl-md">
                 {Object.entries(validationErrors).filter(([key]) => !key.includes('-warning') && !key.startsWith('yaml-')).map(([, msg], i) => (
                   <li key={i}>{msg}</li>
                 ))}
@@ -1508,16 +1488,16 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
               <div
+                className="pf-v6-u-mt-lg pf-v6-u-mb-sm"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.25rem',
+                  gap: 'var(--pf-t--global--spacer--xs)',
                 }}
               >
                 <Title headingLevel="h3" style={{ margin: 0 }}>
-                  <ServerIcon /> Platform Channels
+                  Platform Channels
                 </Title>
                 <InfoPopoverButton
                   ariaLabel="Platform channel version guidance"
@@ -1531,131 +1511,103 @@ const MirrorConfig: React.FC = () => {
                   }
                 />
               </div>
-              <p>Configure OpenShift Container Platform channels to mirror.</p>
+              <p className="pf-v6-u-mb-md">Configure OpenShift Container Platform channels to mirror.</p>
 
-              {config.mirror.platform.channels.map((channel, index) => (
-                <Card key={index} isCompact style={{ marginBottom: '1rem' }}>
-                  <CardHeader
-                    actions={{
-                      actions: (
-                        <Tooltip content="Remove channel">
-                          <Button
-                            variant="plain"
-                            icon={<TrashIcon />}
-                            onClick={() => removePlatformChannel(index)}
-                            aria-label="Remove channel"
-                          />
-                        </Tooltip>
-                      ),
-                    }}
-                  >
-                    <CardTitle>Channel {index + 1}</CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <Grid hasGutter>
-                      <GridItem span={3}>
-                        <FormGroup label="Channel Name" fieldId={`platform-ch-name-${index}`}>
-                          <Select
-                            id={`platform-ch-name-${index}`}
-                            isOpen={channelSelectOpen[index] || false}
-                            selected={channel.name}
-                            onSelect={(_e, val) => {
-                              updatePlatformChannel(index, 'name', val as string);
-                              setChannelSelectOpen(prev => ({ ...prev, [index]: false }));
-                            }}
-                            onOpenChange={(open) => setChannelSelectOpen(prev => ({ ...prev, [index]: open }))}
-                            toggle={(toggleRef) => (
-                              <MenuToggle
-                                ref={toggleRef}
-                                onClick={() => setChannelSelectOpen(prev => ({ ...prev, [index]: !prev[index] }))}
-                                isExpanded={channelSelectOpen[index] || false}
-                                style={{ width: '100%' }}
-                              >
-                                {channel.name || 'Select channel...'}
-                              </MenuToggle>
-                            )}
-                          >
-                            <SelectList>
-                              {OCP_VERSIONS.map(v => (
-                                <SelectOption key={v} value={`stable-${v}`}>
-                                  stable-{v}
-                                </SelectOption>
-                              ))}
-                            </SelectList>
-                          </Select>
-                        </FormGroup>
-                      </GridItem>
-                      <GridItem span={3}>
-                        <FormGroup
-                          label="Min Version (optional)"
-                          fieldId={`platform-ch-min-${index}`}
+              {config.mirror.platform.channels.length > 0 ? (
+              <FieldBuilder
+                firstColumnLabel="Channel Name"
+                secondColumnLabel="Version Range (optional)"
+                rowCount={config.mirror.platform.channels.length}
+                onAddRow={() => addPlatformChannel()}
+                onRemoveRow={(_e, index) => removePlatformChannel(index)}
+                addButtonContent="Add platform channel"
+                addButtonProps={{ style: { paddingInlineStart: 0 } }}
+                rowGroupLabelPrefix="Channel"
+                fieldBuilderIdPrefix="platform-channel"
+                aria-label="Platform channels"
+              >
+                {(_helpers, index) => {
+                  const channel = config.mirror.platform.channels[index];
+                  return [
+                    <Select
+                      key="channel"
+                      id={`platform-ch-name-${index}`}
+                      isOpen={channelSelectOpen[index] || false}
+                      selected={channel.name}
+                      onSelect={(_e, val) => {
+                        updatePlatformChannel(index, 'name', val as string);
+                        setChannelSelectOpen(prev => ({ ...prev, [index]: false }));
+                      }}
+                      onOpenChange={(open) => setChannelSelectOpen(prev => ({ ...prev, [index]: open }))}
+                      toggle={(toggleRef) => (
+                        <MenuToggle
+                          ref={toggleRef}
+                          onClick={() => setChannelSelectOpen(prev => ({ ...prev, [index]: !prev[index] }))}
+                          isExpanded={channelSelectOpen[index] || false}
+                          style={{ width: '100%' }}
                         >
+                          {channel.name || 'Select channel...'}
+                        </MenuToggle>
+                      )}
+                    >
+                      <SelectList>
+                        {OCP_VERSIONS.map(v => (
+                          <SelectOption key={v} value={`stable-${v}`}>
+                            stable-{v}
+                          </SelectOption>
+                        ))}
+                      </SelectList>
+                    </Select>,
+
+                    <div key="versions">
+                      <Split hasGutter>
+                        <SplitItem isFilled>
                           <TextInput
                             id={`platform-ch-min-${index}`}
                             value={channel.minVersion}
                             validated={validationErrors[`platform-${index}-minVersion`] ? 'error' : 'default'}
                             onChange={(_e, val) => { clearFieldError(`platform-${index}-minVersion`); updatePlatformChannel(index, 'minVersion', val); }}
                             onBlur={() => validatePlatformChannel(index, 'minVersion')}
+                            placeholder="Min version"
                           />
                           {validationErrors[`platform-${index}-minVersion`] && (
                             <HelperText>
                               <HelperTextItem variant="error">{validationErrors[`platform-${index}-minVersion`]}</HelperTextItem>
                             </HelperText>
                           )}
-                        </FormGroup>
-                      </GridItem>
-                      <GridItem span={3}>
-                        <FormGroup
-                          label="Max Version (optional)"
-                          fieldId={`platform-ch-max-${index}`}
-                        >
+                        </SplitItem>
+                        <SplitItem isFilled>
                           <TextInput
                             id={`platform-ch-max-${index}`}
                             value={channel.maxVersion}
                             validated={validationErrors[`platform-${index}-maxVersion`] ? 'error' : 'default'}
                             onChange={(_e, val) => { clearFieldError(`platform-${index}-maxVersion`); updatePlatformChannel(index, 'maxVersion', val); }}
                             onBlur={() => validatePlatformChannel(index, 'maxVersion')}
+                            placeholder="Max version"
                           />
                           {validationErrors[`platform-${index}-maxVersion`] && (
                             <HelperText>
                               <HelperTextItem variant="error">{validationErrors[`platform-${index}-maxVersion`]}</HelperTextItem>
                             </HelperText>
                           )}
-                        </FormGroup>
-                      </GridItem>
-                      <GridItem span={3}>
-                        <FormGroup
-                          label="Options"
-                          fieldId={`platform-ch-opts-${index}`}
-                        >
-                          <Checkbox
-                            id={`platform-ch-sp-${index}`}
-                            label="Shortest Path"
-                            isChecked={channel.shortestPath || false}
-                            onChange={(_e, checked) =>
-                              updatePlatformChannel(index, 'shortestPath', checked)
-                            }
-                          />
-                          <HelperText>
-                            <HelperTextItem>
-                              Find the most direct upgrade path between versions.
-                            </HelperTextItem>
-                          </HelperText>
-                        </FormGroup>
-                      </GridItem>
-                    </Grid>
-                  </CardBody>
-                </Card>
-              ))}
-
-              <Button
-                variant="primary"
-                icon={<PlusCircleIcon />}
-                onClick={addPlatformChannel}
-                style={{ marginTop: '1rem' }}
-              >
-                Add Platform Channel
-              </Button>
+                        </SplitItem>
+                      </Split>
+                      <Checkbox
+                        id={`platform-ch-sp-${index}`}
+                        label="Shortest path"
+                        isChecked={channel.shortestPath || false}
+                        onChange={(_e, checked) => updatePlatformChannel(index, 'shortestPath', checked)}
+                        className="pf-v6-u-mt-sm"
+                      />
+                    </div>,
+                  ];
+                }}
+              </FieldBuilder>
+              ) : (
+                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPlatformChannel()} style={{ paddingInlineStart: 0 }}>
+                  Add platform channel
+                </Button>
+              )}
             </Tab>
 
             <Tab
@@ -1667,32 +1619,21 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Title headingLevel="h3"><CogIcon /> Operators</Title>
-              <p>Configure operator catalogs and packages to mirror.</p>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Operators</Title>
+              <p className="pf-v6-u-mb-md">Configure operator catalogs and packages to mirror.</p>
 
               {loading && <Spinner size="lg" />}
 
               {config.mirror.operators.map((operator, opIndex) => (
-                <Card key={opIndex} isCompact style={{ marginBottom: '1rem' }}>
-                  <CardHeader
-                    actions={{
-                      actions: (
-                        <Tooltip content="Remove operator">
-                          <Button
-                            variant="plain"
-                            icon={<TrashIcon />}
-                            onClick={() => removeOperator(opIndex)}
-                            aria-label="Remove operator"
-                          />
-                        </Tooltip>
-                      ),
-                    }}
-                  >
-                    <CardTitle>Operator Catalog {opIndex + 1}</CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <FormGroup label="Catalog" fieldId={`op-catalog-${opIndex}`}>
+                <div
+                  key={opIndex}
+                  className="pf-v6-u-pb-md pf-v6-u-mb-md"
+                  style={{
+                    borderBottom: '1px solid var(--pf-t--global--border--color--default)',
+                  }}
+                >
+                  <Flex alignItems={{ default: 'alignItemsCenter' }}>
+                    <FlexItem grow={{ default: 'grow' }}>
                       <Select
                         id={`op-catalog-${opIndex}`}
                         isOpen={catalogSelectOpen[opIndex] || false}
@@ -1725,7 +1666,7 @@ const MirrorConfig: React.FC = () => {
                             ref={toggleRef}
                             onClick={() => setCatalogSelectOpen(prev => ({ ...prev, [opIndex]: !prev[opIndex] }))}
                             isExpanded={catalogSelectOpen[opIndex] || false}
-                            style={{ width: '100%' }}
+                            isFullWidth
                           >
                             {(() => {
                               const cat = operatorCatalogs.find(c => c.url === operator.catalog);
@@ -1737,174 +1678,78 @@ const MirrorConfig: React.FC = () => {
                       >
                         <SelectList>
                           {operatorCatalogs.map(cat => (
-                            <SelectOption
-                              key={cat.url}
-                              value={cat.url}
-                            >
+                            <SelectOption key={cat.url} value={cat.url}>
                               {`${cat.name} (OCP ${cat.url.split(':').pop()}) - ${cat.description}`}
                             </SelectOption>
                           ))}
                         </SelectList>
                       </Select>
-                    </FormGroup>
+                    </FlexItem>
+                    <FlexItem>
+                      <Button
+                        variant="plain"
+                        icon={<MinusCircleIcon />}
+                        onClick={() => removeOperator(opIndex)}
+                        aria-label={`Remove catalog ${opIndex + 1}`}
+                      />
+                    </FlexItem>
+                  </Flex>
 
-                    <br />
-                    <Title headingLevel="h5"><BundleIcon /> Operators</Title>
-
-                    {operator.packages.map((pkg, pkgIndex) => (
-                      <Card key={pkgIndex} isCompact isPlain style={{ marginBottom: '1rem' }}>
-                        <CardHeader
-                          actions={{
-                            actions: (
-                              <Tooltip content="Remove package">
-                                <Button
-                                  variant="plain"
-                                  icon={<TrashIcon />}
-                                  onClick={() => removePackageFromOperator(opIndex, pkgIndex)}
-                                  size="sm"
-                                  aria-label="Remove package"
-                                />
-                              </Tooltip>
-                            ),
-                          }}
-                        >
-                          <CardTitle>
-                            <Split hasGutter>
-                              <SplitItem>Operator {pkgIndex + 1}</SplitItem>
-                              {pkg.isDependency && pkg.autoAddedBy && (
-                                <SplitItem>
-                                  <Badge isRead>
-                                    Auto-added for {pkg.autoAddedBy}
-                                  </Badge>
-                                </SplitItem>
-                              )}
-                            </Split>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardBody>
-                          <FormGroup label="Operator Name" fieldId={`op-pkg-name-${opIndex}-${pkgIndex}`}>
-                            {(() => {
-                              const selectKey = `${opIndex}-${pkgIndex}`;
-                              const isOpen = operatorSelectOpen[selectKey] || false;
-                              const filterText = operatorFilterText[selectKey] || '';
-                              const sorted = (operator.availableOperators || []).slice().sort((a, b) => a.localeCompare(b));
-                              const filtered = filterText
-                                ? sorted.filter(n => n.toLowerCase().includes(filterText.toLowerCase()))
-                                : sorted;
-
-                              const onToggle = () => {
-                                setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: !prev[selectKey] }));
-                                if (!isOpen) {
-                                  setTimeout(() => operatorFilterInputRef.current[selectKey]?.focus(), 0);
-                                }
-                              };
-
-                              const onSelect = (_e: any, value: string | number | undefined) => {
+                  <div className="pf-v6-u-mt-sm">
+                    {operator.packages.length > 0 ? (
+                    <FieldBuilder
+                      firstColumnLabel="Operator"
+                      rowCount={operator.packages.length}
+                      onAddRow={() => addPackageToOperator(opIndex)}
+                      onRemoveRow={(_e, pkgIndex) => removePackageFromOperator(opIndex, pkgIndex)}
+                      addButtonContent="Add operator"
+                      addButtonProps={{ style: { paddingInlineStart: 0 } }}
+                      rowGroupLabelPrefix="Operator"
+                      fieldBuilderIdPrefix={`catalog-${opIndex}-operator`}
+                      aria-label={`Operators for catalog ${opIndex + 1}`}
+                    >
+                      {(_pkgHelpers, pkgIndex) => {
+                        const pkg = operator.packages[pkgIndex];
+                        const dOps = detailedOperators[operator.catalog];
+                        const info = dOps?.find(o => o.name === pkg.name);
+                        return (
+                          <div>
+                            {pkg.isDependency && pkg.autoAddedBy && (
+                              <Badge isRead className="pf-v6-u-mb-sm">Auto-added for {pkg.autoAddedBy}</Badge>
+                            )}
+                            <TypeaheadSelect
+                              id={`op-pkg-name-${opIndex}-${pkgIndex}`}
+                              initialOptions={(operator.availableOperators || [])
+                                .slice()
+                                .sort((a, b) => a.localeCompare(b))
+                                .map((name): TypeaheadSelectOption => ({
+                                  value: name,
+                                  content: name,
+                                  selected: name === pkg.name,
+                                }))}
+                              onSelect={(_e, value) => {
                                 if (value) {
                                   updateOperatorPackage(opIndex, pkgIndex, 'name', String(value));
                                 }
-                                setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: false }));
-                                setOperatorFilterText(prev => ({ ...prev, [selectKey]: '' }));
-                              };
+                              }}
+                              placeholder="Type to search operators..."
+                              noOptionsFoundMessage={(filter) => `No operators found for "${filter}"`}
+                              toggleProps={{ isFullWidth: true, className: 'hide-typeahead-clear' }}
+                            />
 
-                              const onFilterChange = (_e: any, value: string) => {
-                                setOperatorFilterText(prev => ({ ...prev, [selectKey]: value }));
-                                if (!isOpen) {
-                                  setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: true }));
-                                }
-                              };
-
-                              const onClear = () => {
-                                setOperatorFilterText(prev => ({ ...prev, [selectKey]: '' }));
-                                updateOperatorPackage(opIndex, pkgIndex, 'name', '');
-                                operatorFilterInputRef.current[selectKey]?.focus();
-                              };
-
-                              const toggle = (toggleRef: React.Ref<any>) => (
-                                <MenuToggle
-                                  ref={toggleRef}
-                                  variant="typeahead"
-                                  onClick={onToggle}
-                                  isExpanded={isOpen}
-                                  isFullWidth
-                                >
-                                  <TextInputGroup isPlain>
-                                    <TextInputGroupMain
-                                      value={isOpen ? filterText : (pkg.name || filterText)}
-                                      onChange={onFilterChange}
-                                      onClick={() => {
-                                        if (!isOpen) setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: true }));
-                                      }}
-                                      ref={(el: HTMLInputElement | null) => {
-                                        operatorFilterInputRef.current[selectKey] = el;
-                                      }}
-                                      placeholder="Type to search operators..."
-                                      autoComplete="off"
-                                    />
-                                    {(pkg.name || filterText) && (
-                                      <TextInputGroupUtilities>
-                                        <Button variant="plain" onClick={onClear} aria-label="Clear">
-                                          <TimesIcon />
-                                        </Button>
-                                      </TextInputGroupUtilities>
-                                    )}
-                                  </TextInputGroup>
-                                </MenuToggle>
-                              );
-
-                              return (
-                                <Select
-                                  id={`op-pkg-name-${opIndex}-${pkgIndex}`}
-                                  isOpen={isOpen}
-                                  selected={pkg.name || undefined}
-                                  onSelect={onSelect}
-                                  onOpenChange={(open) =>
-                                    setOperatorSelectOpen(prev => ({ ...prev, [selectKey]: open }))
-                                  }
-                                  toggle={toggle}
-                                  shouldFocusFirstItemOnOpen={false}
-                                >
-                                  <SelectList style={{ maxHeight: '300px', overflow: 'auto' }}>
-                                    {filtered.length > 0 ? (
-                                      filtered.map(name => (
-                                        <SelectOption key={name} value={name}>
-                                          {name}
-                                        </SelectOption>
-                                      ))
-                                    ) : (
-                                      <SelectOption isDisabled>No results found</SelectOption>
-                                    )}
-                                  </SelectList>
-                                </Select>
-                              );
-                            })()}
-                          </FormGroup>
-
-                          {pkg.name && (() => {
-                            const dOps = detailedOperators[operator.catalog];
-                            const info = dOps?.find(o => o.name === pkg.name);
-                            if (!info) return null;
-                            return (
-                              <Card isPlain isCompact style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                                <CardBody>
-                                  <Split hasGutter>
-                                    <SplitItem>
-                                      <span style={{ fontWeight: 600 }}>Default Channel:</span>
-                                    </SplitItem>
-                                    <SplitItem>
+                            {pkg.name && info && (
+                              <div className="pf-v6-u-mt-sm">
+                                <DescriptionList isCompact isHorizontal>
+                                  <DescriptionListGroup>
+                                    <DescriptionListTerm>Default Channel</DescriptionListTerm>
+                                    <DescriptionListDescription>
                                       <Label color="green">{info.defaultChannel}</Label>
-                                    </SplitItem>
-                                  </Split>
-                                  <br />
-                                  <span style={{ fontWeight: 600 }}>
-                                    All Available Channels ({info.allChannels?.length || 0}):
-                                  </span>
-                                  <HelperText>
-                                    <HelperTextItem>
-                                      Click on channels to add them to your selection
-                                    </HelperTextItem>
-                                  </HelperText>
-                                  <Flex style={{ marginTop: '0.5rem' }}>
+                                    </DescriptionListDescription>
+                                  </DescriptionListGroup>
+                                  <DescriptionListGroup>
+                                    <DescriptionListTerm>Available Channels ({info.allChannels?.length || 0})</DescriptionListTerm>
+                                    <DescriptionListDescription>
+                                      <Flex gap={{ default: 'gapSm' }}>
                                     {info.allChannels?.map((ch, idx) => {
                                       const isDefault = ch === info.defaultChannel;
                                       const isSelected = pkg.channels?.some(c => c.name === ch);
@@ -1927,137 +1772,122 @@ const MirrorConfig: React.FC = () => {
                                         </FlexItem>
                                       );
                                     })}
-                                  </Flex>
-                                </CardBody>
-                              </Card>
-                            );
-                          })()}
+                                      </Flex>
+                                    </DescriptionListDescription>
+                                  </DescriptionListGroup>
+                                </DescriptionList>
 
-                          <FormGroup
-                            label={`Channels for ${pkg.name || 'this operator'}`}
-                            fieldId={`op-pkg-channels-${opIndex}-${pkgIndex}`}
-                          >
-                            {pkg.channels?.map((channel, chIdx) => {
-                              const dOps = detailedOperators[operator.catalog];
-                              const info = dOps?.find(o => o.name === pkg.name);
-                              const versions = getChannelVersions(opIndex, pkgIndex, channel.name);
-                              const minVersionOptions = getSelectableVersions(
-                                versions,
-                              );
+                                {pkg.channels && pkg.channels.length > 0 && (
+                                  <div className="pf-v6-u-mt-sm">
+                                    <FieldBuilder
+                                      firstColumnLabel="Channel"
+                                      secondColumnLabel="Min Version"
+                                      rowCount={pkg.channels.length}
+                                      onAddRow={() => addChannelToPackage(opIndex, pkgIndex, '')}
+                                      onRemoveRow={(_e, chIdx) => removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)}
+                                      addButtonContent="Add channel"
+                                      addButtonProps={{ size: 'sm', style: { paddingInlineStart: 0 } }}
+                                      rowGroupLabelPrefix="Channel"
+                                      fieldBuilderIdPrefix={`catalog-${opIndex}-op-${pkgIndex}-ch`}
+                                      aria-label={`Channels for ${pkg.name}`}
+                                    >
+                                      {(_chHelpers, chIdx) => {
+                                        const channel = pkg.channels[chIdx];
+                                        const versions = getChannelVersions(opIndex, pkgIndex, channel.name);
+                                        const minVersionOptions = getSelectableVersions(versions);
 
-                              return (
-                                <Flex
-                                  key={chIdx}
-                                  alignItems={{ default: 'alignItemsFlexEnd' }}
-                                  style={{ marginBottom: '0.5rem' }}
-                                >
-                                  <FlexItem>
-                                    <FormGroup label="Channel" fieldId={`ch-sel-${opIndex}-${pkgIndex}-${chIdx}`}>
-                                      <Select
-                                        id={`ch-sel-${opIndex}-${pkgIndex}-${chIdx}`}
-                                        isOpen={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                        selected={channel.name}
-                                        onSelect={(_e, val) => {
-                                          setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: false }));
-                                          updateOperatorPackageChannel(opIndex, pkgIndex, chIdx, val as string);
-                                        }}
-                                        onOpenChange={(open) => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
-                                        toggle={(toggleRef) => (
-                                          <MenuToggle
-                                            ref={toggleRef}
-                                            onClick={() => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`${opIndex}-${pkgIndex}-${chIdx}`] }))}
-                                            isExpanded={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                            style={{ minWidth: '180px' }}
+                                        return [
+                                          <Select
+                                            key="channel"
+                                            id={`ch-sel-${opIndex}-${pkgIndex}-${chIdx}`}
+                                            isOpen={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                            selected={channel.name}
+                                            onSelect={(_e, val) => {
+                                              setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: false }));
+                                              updateOperatorPackageChannel(opIndex, pkgIndex, chIdx, val as string);
+                                            }}
+                                            onOpenChange={(open) => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
+                                            toggle={(toggleRef) => (
+                                              <MenuToggle
+                                                ref={toggleRef}
+                                                onClick={() => setOpChannelSelectOpen(prev => ({ ...prev, [`${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`${opIndex}-${pkgIndex}-${chIdx}`] }))}
+                                                isExpanded={opChannelSelectOpen[`${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                                isFullWidth
+                                              >
+                                                {channel.name
+                                                  ? (channel.name === info?.defaultChannel ? `${channel.name} (default)` : channel.name)
+                                                  : 'Select a channel...'}
+                                              </MenuToggle>
+                                            )}
                                           >
-                                            {channel.name
-                                              ? (channel.name === info?.defaultChannel ? `${channel.name} (default)` : channel.name)
-                                              : 'Select a channel...'}
-                                          </MenuToggle>
-                                        )}
-                                      >
-                                        <SelectList>
-                                          <SelectOption value="">Select a channel...</SelectOption>
-                                          {info?.allChannels?.map(ch => (
-                                            <SelectOption key={ch} value={ch}>
-                                              {ch === info.defaultChannel ? `${ch} (default)` : ch}
-                                            </SelectOption>
-                                          ))}
-                                        </SelectList>
-                                      </Select>
-                                    </FormGroup>
-                                  </FlexItem>
-                                  <FlexItem>
-                                    <FormGroup label="Min Version" fieldId={`ch-min-${opIndex}-${pkgIndex}-${chIdx}`}>
-                                      <Select
-                                        id={`ch-min-${opIndex}-${pkgIndex}-${chIdx}`}
-                                        isOpen={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                        selected={channel.minVersion || ''}
-                                        onSelect={(_e, val) => {
-                                          setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: false }));
-                                          clearFieldError(`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`);
-                                          updateOperatorPackageChannelVersion(opIndex, pkgIndex, chIdx, 'minVersion', val as string);
-                                        }}
-                                        onOpenChange={(open) => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
-                                        toggle={(toggleRef) => (
-                                          <MenuToggle
-                                            ref={toggleRef}
-                                            onClick={() => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`min-${opIndex}-${pkgIndex}-${chIdx}`] }))}
-                                            isExpanded={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
-                                            status={validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] ? 'danger' : undefined}
-                                            style={{ width: '160px' }}
-                                          >
-                                            {channel.minVersion || 'Select version...'}
-                                          </MenuToggle>
-                                        )}
-                                      >
-                                        <SelectList>
-                                          <SelectOption value="">Select version...</SelectOption>
-                                          {minVersionOptions.map(v => (
-                                            <SelectOption key={v} value={v}>{v}</SelectOption>
-                                          ))}
-                                        </SelectList>
-                                      </Select>
-                                      {validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] && (
-                                        <HelperText>
-                                          <HelperTextItem variant="error">{validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`]}</HelperTextItem>
-                                        </HelperText>
-                                      )}
-                                    </FormGroup>
-                                  </FlexItem>
-                                  <FlexItem alignSelf={{ default: 'alignSelfFlexStart' }} style={{ marginTop: '1.1rem' }}>
-                                    <Tooltip content="Remove channel filter">
-                                      <Button
-                                        variant="plain"
-                                        icon={<TrashIcon />}
-                                        onClick={() =>
-                                          removeOperatorPackageChannel(opIndex, pkgIndex, chIdx)
-                                        }
-                                        size="sm"
-                                        aria-label="Remove channel filter"
-                                      />
-                                    </Tooltip>
-                                  </FlexItem>
-                                </Flex>
-                              );
-                            })}
-                          </FormGroup>
-                        </CardBody>
-                      </Card>
-                    ))}
+                                            <SelectList>
+                                              <SelectOption value="">Select a channel...</SelectOption>
+                                              {info?.allChannels?.map(ch => (
+                                                <SelectOption key={ch} value={ch}>
+                                                  {ch === info.defaultChannel ? `${ch} (default)` : ch}
+                                                </SelectOption>
+                                              ))}
+                                            </SelectList>
+                                          </Select>,
 
-                    <Button
-                      variant="secondary"
-                      icon={<PlusCircleIcon />}
-                      onClick={() => addPackageToOperator(opIndex)}
-                    >
-                      Add Operator
-                    </Button>
-                  </CardBody>
-                </Card>
+                                          <div key="minversion">
+                                            <Select
+                                              id={`ch-min-${opIndex}-${pkgIndex}-${chIdx}`}
+                                              isOpen={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                              selected={channel.minVersion || ''}
+                                              onSelect={(_e, val) => {
+                                                setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: false }));
+                                                clearFieldError(`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`);
+                                                updateOperatorPackageChannelVersion(opIndex, pkgIndex, chIdx, 'minVersion', val as string);
+                                              }}
+                                              onOpenChange={(open) => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: open }))}
+                                              toggle={(toggleRef) => (
+                                                <MenuToggle
+                                                  ref={toggleRef}
+                                                  onClick={() => setOpMinVersionSelectOpen(prev => ({ ...prev, [`min-${opIndex}-${pkgIndex}-${chIdx}`]: !prev[`min-${opIndex}-${pkgIndex}-${chIdx}`] }))}
+                                                  isExpanded={opMinVersionSelectOpen[`min-${opIndex}-${pkgIndex}-${chIdx}`] || false}
+                                                  status={validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] ? 'danger' : undefined}
+                                                  isFullWidth
+                                                >
+                                                  {channel.minVersion || 'Select version...'}
+                                                </MenuToggle>
+                                              )}
+                                            >
+                                              <SelectList>
+                                                <SelectOption value="">Select version...</SelectOption>
+                                                {minVersionOptions.map(v => (
+                                                  <SelectOption key={v} value={v}>{v}</SelectOption>
+                                                ))}
+                                              </SelectList>
+                                            </Select>
+                                            {validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`] && (
+                                              <HelperText>
+                                                <HelperTextItem variant="error">{validationErrors[`operator-${opIndex}-pkg-${pkgIndex}-ch-${chIdx}-minVersion`]}</HelperTextItem>
+                                              </HelperText>
+                                            )}
+                                          </div>,
+                                        ];
+                                      }}
+                                    </FieldBuilder>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }}
+                    </FieldBuilder>
+                    ) : (
+                      <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addPackageToOperator(opIndex)} style={{ paddingInlineStart: 0 }}>
+                        Add operator
+                      </Button>
+                    )}
+                  </div>
+                </div>
               ))}
 
-              <Button variant="primary" icon={<PlusCircleIcon />} onClick={addOperator} style={{ marginTop: '1rem' }}>
-                Add Operator Catalog
+              <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addOperator()} style={{ paddingInlineStart: 0 }}>
+                Add operator catalog
               </Button>
             </Tab>
 
@@ -2070,30 +1900,25 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Title headingLevel="h3"><CubesIcon /> Additional Images</Title>
-              <p>Add additional container images to mirror.</p>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Additional Images</Title>
+              <p className="pf-v6-u-mb-md">Add additional container images to mirror.</p>
 
-              {config.mirror.additionalImages.map((image, index) => (
-                <Card key={index} isCompact style={{ marginBottom: '1rem' }}>
-                  <CardHeader
-                    actions={{
-                      actions: (
-                        <Tooltip content="Remove image">
-                          <Button
-                            variant="plain"
-                            icon={<TrashIcon />}
-                            onClick={() => removeAdditionalImage(index)}
-                            aria-label="Remove image"
-                          />
-                        </Tooltip>
-                      ),
-                    }}
-                  >
-                    <CardTitle>Image {index + 1}</CardTitle>
-                  </CardHeader>
-                  <CardBody>
-                    <FormGroup label="Image Name" fieldId={`img-name-${index}`}>
+              {config.mirror.additionalImages.length > 0 ? (
+              <FieldBuilder
+                firstColumnLabel="Image Name"
+                rowCount={config.mirror.additionalImages.length}
+                onAddRow={() => addAdditionalImage()}
+                onRemoveRow={(_e, index) => removeAdditionalImage(index)}
+                addButtonContent="Add image"
+                addButtonProps={{ style: { paddingInlineStart: 0 } }}
+                rowGroupLabelPrefix="Image"
+                fieldBuilderIdPrefix="additional-image"
+                aria-label="Additional images"
+              >
+                {(_helpers, index) => {
+                  const image = config.mirror.additionalImages[index];
+                  return (
+                    <div>
                       <TextInput
                         id={`img-name-${index}`}
                         value={image.name}
@@ -2106,16 +1931,17 @@ const MirrorConfig: React.FC = () => {
                         placeholder="registry.redhat.io/example/image:tag"
                       />
                       {validationErrors[`img-${index}-warning`] && (
-                        <Alert variant="warning" isInline title={validationErrors[`img-${index}-warning`]} style={{ marginTop: '0.5rem' }} />
+                        <Alert variant="warning" isInline title={validationErrors[`img-${index}-warning`]} className="pf-v6-u-mt-sm" />
                       )}
-                    </FormGroup>
-                  </CardBody>
-                </Card>
-              ))}
-
-              <Button variant="primary" icon={<PlusCircleIcon />} onClick={addAdditionalImage} style={{ marginTop: '1rem' }}>
-                Add Image
-              </Button>
+                    </div>
+                  );
+                }}
+              </FieldBuilder>
+              ) : (
+                <Button variant="link" icon={<PlusCircleIcon />} onClick={() => addAdditionalImage()} style={{ paddingInlineStart: 0 }}>
+                  Add image
+                </Button>
+              )}
             </Tab>
 
             <Tab
@@ -2127,11 +1953,10 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Split hasGutter>
+              <Split hasGutter className="pf-v6-u-mt-lg">
                 <SplitItem isFilled>
-                  <Title headingLevel="h3"><EyeIcon /> Configuration Preview</Title>
-                  <p>Preview and edit the generated YAML configuration.</p>
+                  <Title headingLevel="h3" className="pf-v6-u-mb-sm">ImageSetConfiguration Preview</Title>
+                  <p>Preview and edit the generated ImageSetConfiguration YAML.</p>
                 </SplitItem>
                 <SplitItem>
                   <Split hasGutter>
@@ -2161,7 +1986,8 @@ const MirrorConfig: React.FC = () => {
               <Card
                 isPlain
                 isCompact
-                style={{ marginTop: '1rem', marginBottom: '1.5rem', overflow: 'visible' }}
+                className="pf-v6-u-mt-md pf-v6-u-mb-lg"
+                style={{ overflow: 'visible' }}
               >
                 <CardBody style={{ padding: 0 }}>
                   <Grid hasGutter>
@@ -2172,7 +1998,7 @@ const MirrorConfig: React.FC = () => {
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.25rem',
+                              gap: 'var(--pf-t--global--spacer--xs)',
                             }}
                           >
                             <span>Archive Size</span>
@@ -2232,9 +2058,9 @@ const MirrorConfig: React.FC = () => {
                     onChange={setEditedYaml}
                   />
                   {validationErrors['yaml-preview'] && (
-                    <Alert variant="danger" isInline title={validationErrors['yaml-preview']} style={{ marginTop: '0.5rem' }} />
+                    <Alert variant="danger" isInline title={validationErrors['yaml-preview']} className="pf-v6-u-mt-sm" />
                   )}
-                  <Split hasGutter style={{ marginTop: '0.5rem' }}>
+                  <Split hasGutter className="pf-v6-u-mt-sm">
                     <SplitItem>
                       <Button variant="primary" onClick={() => { clearFieldError('yaml-preview'); applyPreviewEdits(); }}>
                         Apply Changes
@@ -2261,125 +2087,101 @@ const MirrorConfig: React.FC = () => {
                 </>
               }
             >
-              <br />
-              <Title headingLevel="h3"><UploadIcon /> Load YAML Configuration</Title>
+              <Title headingLevel="h3" className="pf-v6-u-mt-lg pf-v6-u-mb-sm">Load ImageSetConfiguration YAML</Title>
               <p>
                 Upload an existing ImageSetConfiguration YAML file, review and edit it, then
                 save it or load it into the form editor for further modification.
               </p>
 
-              <Card isPlain isCompact style={{ marginTop: '1rem' }}>
-                <CardBody>
-                  <FormGroup label="Upload YAML File" fieldId="yaml-file-upload">
-                    <FileUpload
-                      id="yaml-file-upload"
-                      type="text"
-                      value={uploadedContent}
-                      filename={uploadFilename}
-                      filenamePlaceholder="Drag and drop a .yaml file or click to browse"
-                      onFileInputChange={handleFileChange}
-                      onClearClick={() => resetUploadState()}
-                      isLoading={isUploadLoading}
-                      browseButtonText="Browse"
-                      clearButtonText="Clear"
-                      hideDefaultPreview
-                      dropzoneProps={{
-                        accept: { 'text/yaml': ['.yaml', '.yml'] },
-                      }}
-                    />
-                  </FormGroup>
+              <div className="pf-v6-u-mt-md">
+                <FileUpload
+                  id="yaml-file-upload"
+                  type="text"
+                  value={uploadedContent}
+                  filename={uploadFilename}
+                  filenamePlaceholder="Drag and drop a .yaml file or click to browse"
+                  onFileInputChange={handleFileChange}
+                  onClearClick={() => resetUploadState()}
+                  isLoading={isUploadLoading}
+                  browseButtonText="Browse"
+                  clearButtonText="Clear"
+                  hideDefaultPreview
+                  dropzoneProps={{
+                    accept: { 'text/yaml': ['.yaml', '.yml'] },
+                  }}
+                />
+              </div>
 
-                  {uploadError && (
-                    <Alert
-                      variant={AlertVariant.danger}
-                      isInline
-                      title={uploadError}
-                      style={{ marginTop: '1rem' }}
-                    />
-                  )}
+              {uploadError && (
+                <Alert
+                  variant={AlertVariant.danger}
+                  isInline
+                  title={uploadError}
+                  className="pf-v6-u-mt-md"
+                />
+              )}
 
-                  {parsedUpload && (
-                    <Alert
-                      variant={AlertVariant.success}
-                      isInline
-                      title="Valid ImageSetConfiguration detected"
-                      style={{ marginTop: '1rem' }}
-                    >
-                      <DescriptionList isHorizontal isCompact>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>Kind</DescriptionListTerm>
-                          <DescriptionListDescription>{parsedUpload.kind}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>API Version</DescriptionListTerm>
-                          <DescriptionListDescription>{parsedUpload.apiVersion}</DescriptionListDescription>
-                        </DescriptionListGroup>
-                        {parsedUpload.mirror?.platform?.channels && (
-                          <DescriptionListGroup>
-                            <DescriptionListTerm>Platform Channels</DescriptionListTerm>
-                            <DescriptionListDescription>{parsedUpload.mirror.platform.channels.length}</DescriptionListDescription>
-                          </DescriptionListGroup>
-                        )}
-                        {parsedUpload.mirror?.operators && (
-                          <DescriptionListGroup>
-                            <DescriptionListTerm>Operators</DescriptionListTerm>
-                            <DescriptionListDescription>{parsedUpload.mirror.operators.length}</DescriptionListDescription>
-                          </DescriptionListGroup>
-                        )}
-                        {parsedUpload.mirror?.additionalImages && (
-                          <DescriptionListGroup>
-                            <DescriptionListTerm>Additional Images</DescriptionListTerm>
-                            <DescriptionListDescription>{parsedUpload.mirror.additionalImages.length}</DescriptionListDescription>
-                          </DescriptionListGroup>
-                        )}
-                      </DescriptionList>
-                    </Alert>
-                  )}
+              {parsedUpload && (
+                <Alert
+                  variant={AlertVariant.success}
+                  isInline
+                  title="Valid ImageSetConfiguration detected"
+                  className="pf-v6-u-mt-md"
+                >
+                  <DescriptionList isHorizontal isCompact>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Kind</DescriptionListTerm>
+                      <DescriptionListDescription>{parsedUpload.kind}</DescriptionListDescription>
+                    </DescriptionListGroup>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>API Version</DescriptionListTerm>
+                      <DescriptionListDescription>{parsedUpload.apiVersion}</DescriptionListDescription>
+                    </DescriptionListGroup>
+                    {parsedUpload.mirror?.platform?.channels && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Platform Channels</DescriptionListTerm>
+                        <DescriptionListDescription>{parsedUpload.mirror.platform.channels.length}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                    {parsedUpload.mirror?.operators && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Operators</DescriptionListTerm>
+                        <DescriptionListDescription>{parsedUpload.mirror.operators.length}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                    {parsedUpload.mirror?.additionalImages && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Additional Images</DescriptionListTerm>
+                        <DescriptionListDescription>{parsedUpload.mirror.additionalImages.length}</DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                  </DescriptionList>
+                </Alert>
+              )}
 
-                  {uploadedContent && (
-                    <FormGroup
-                      label="YAML Content (editable)"
-                      fieldId="yaml-editor"
-                      style={{ marginTop: '1rem' }}
-                    >
-                      <TextArea
-                        id="yaml-editor"
-                        value={uploadedContent}
-                        onChange={(_e, val) => handleTextAreaChange(val)}
-                        rows={18}
-                        resizeOrientation="vertical"
-                        aria-label="YAML editor"
-                        style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace', fontSize: '13px' }}
-                      />
-                    </FormGroup>
-                  )}
+              {uploadedContent && (
+                <div className="pf-v6-u-mt-md">
+                  <YamlHighlighter code={uploadedContent} id="yaml-upload-preview" />
+                </div>
+              )}
 
-                  {validationErrors['yaml-upload'] && (
-                    <Alert variant="danger" isInline title={validationErrors['yaml-upload']} style={{ marginTop: '0.5rem' }} />
-                  )}
-                  <Split hasGutter style={{ marginTop: '1rem' }}>
-                    <SplitItem>
-                      <Button
-                        variant="primary"
-                        icon={<ArrowRightIcon />}
-                        onClick={() => { clearFieldError('yaml-upload'); loadIntoEditor(); }}
-                        isDisabled={!parsedUpload}
-                      >
-                        Load into Editor
-                      </Button>
-                    </SplitItem>
-                    <SplitItem>
-                      <Button variant="link" onClick={resetUploadState}>
-                        Clear
-                      </Button>
-                    </SplitItem>
-                  </Split>
-                </CardBody>
-              </Card>
+              {validationErrors['yaml-upload'] && (
+                <Alert variant="danger" isInline title={validationErrors['yaml-upload']} className="pf-v6-u-mt-sm" />
+              )}
+              <div className="pf-v6-u-mt-md">
+                <Button
+                  variant="primary"
+                  icon={<ArrowRightIcon />}
+                  onClick={() => { clearFieldError('yaml-upload'); loadIntoEditor(); }}
+                  isDisabled={!parsedUpload}
+                >
+                  Load into Editor
+                </Button>
+              </div>
             </Tab>
           </Tabs>
 
-          <div style={{ borderTop: '1px solid var(--pf-t--global--border--color--default)', paddingTop: '1rem', marginTop: '1rem' }}>
+          <div className="pf-v6-u-pt-md pf-v6-u-mt-md" style={{ borderTop: '1px solid var(--pf-t--global--border--color--default)' }}>
             <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
               <FlexItem>
                 {isEditingName ? (
