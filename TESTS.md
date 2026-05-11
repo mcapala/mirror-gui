@@ -79,8 +79,8 @@ Runs Playwright browser tests using headless Chromium (port 3001 in CI via dev s
 | `navigation.spec.ts`         | 12    | App loads, page title, sidebar nav items with correct routing, masthead title and version badge, sidebar toggle collapse/expand/persistence, dark theme class, logo image   |
 | `dashboard.spec.ts`          | 4     | Dashboard shows environment overview, operation stats cards, recent operations section, quick action buttons                    |
 | `mirrorConfig.spec.ts`       | 7     | Mirror Configuration page -- platform channels, operators (FieldBuilder + TypeaheadSelect), additional images, YAML preview, save/download, inline validation   |
-| `mirrorOperations.spec.ts`   | 4     | Mirror Operations page -- config file selector, start/run controls, operation table or main content area                       |
-| `history.spec.ts`            | 3     | History page -- title, filter controls, Export CSV button                                                                      |
+| `mirrorOperations.spec.ts`   | 8     | Mirror Operations page -- config file selector, start/run controls, operation table, filter dropdown with status options, select all checkbox, Delete All button |
+| `history.spec.ts`            | 6     | History page -- title, filter controls, Export CSV button, filter dropdown with status options, select all checkbox, Delete All button |
 | `settings.spec.ts`           | 5     | Settings page -- Pull Secret/Registry/Cache/Sync Catalogs tabs, key fields visible, sync and clear buttons                       |
 | `configToOperations.spec.ts` | 1     | End-to-end workflow -- saves a YAML config via API, navigates to operations page, confirms it appears                          |
 | `pullSecret.spec.ts`         | 6     | Pull secret -- Dashboard pull secret status, Environment Status label, popover, Pull Secret tab, URL tab navigation, status persistence   |
@@ -149,7 +149,7 @@ npm run audit:fetch-catalogs
 | Unit             | 3      | 46         |
 | Integration      | 10     | 56         |
 | Scripts          | 3      | 86         |
-| E2E (Playwright) | 8      | 42         |
-| **Total**        | **24** | **230**    |
+| E2E (Playwright) | 8      | 49         |
+| **Total**        | **24** | **237**    |
 
 

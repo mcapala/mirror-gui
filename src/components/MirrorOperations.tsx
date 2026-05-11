@@ -36,6 +36,10 @@ import {
   DropdownItem,
   DropdownList,
   Divider,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+  ToolbarGroup,
 } from '@patternfly/react-core';
 import {
   SyncAltIcon,
@@ -51,6 +55,8 @@ import {
   PlusCircleIcon,
   CheckIcon,
   TimesIcon,
+  TrashAltIcon,
+  SearchIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -97,6 +103,12 @@ const MirrorOperations: React.FC = () => {
   const [kebabOpen, setKebabOpen] = useState<Record<string, boolean>>({});
   const [hostDataDir, setHostDataDir] = useState('');
   const [now, setNow] = useState(Date.now());
+
+  const [opsFilter, setOpsFilter] = useState('all');
+  const [opsFilterOpen, setOpsFilterOpen] = useState(false);
+  const [checkedOpIds, setCheckedOpIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<'selected' | 'all' | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const operationsRef = useRef<Operation[]>([]);
   const notifiedOperationsRef = useRef(new Set<string>());
@@ -479,6 +491,71 @@ const MirrorOperations: React.FC = () => {
 
   const isDeleteConfig = deleteFilename && !deleteOperationId;
 
+  const filteredOps = operations.filter(op => {
+    if (opsFilter === 'all') return true;
+    return op.status === opsFilter;
+  });
+
+  const toggleOpChecked = (id: string) => {
+    setCheckedOpIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allFilteredOpsChecked = filteredOps.length > 0 && filteredOps.every(op => checkedOpIds.has(op.id));
+  const someFilteredOpsChecked = filteredOps.some(op => checkedOpIds.has(op.id));
+
+  const toggleSelectAllOps = () => {
+    if (allFilteredOpsChecked) {
+      setCheckedOpIds(prev => {
+        const next = new Set(prev);
+        for (const op of filteredOps) next.delete(op.id);
+        return next;
+      });
+    } else {
+      setCheckedOpIds(prev => {
+        const next = new Set(prev);
+        for (const op of filteredOps) next.add(op.id);
+        return next;
+      });
+    }
+  };
+
+  const bulkDeleteOperations = async (ids: string[]) => {
+    setBulkDeleting(true);
+    try {
+      await Promise.all(ids.map(id => axios.delete(`/api/operations/${id}`)));
+      setCheckedOpIds(prev => {
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
+      addSuccessAlert(`Deleted ${ids.length} operation${ids.length > 1 ? 's' : ''}`);
+      await fetchOperations();
+    } catch {
+      addDangerAlert('Failed to delete some operations');
+    } finally {
+      setBulkDeleting(false);
+      setBulkDeleteTarget(null);
+    }
+  };
+
+  const confirmBulkDelete = () => {
+    if (bulkDeleteTarget === 'selected') {
+      const ids = filteredOps.filter(op => checkedOpIds.has(op.id)).map(op => op.id);
+      void bulkDeleteOperations(ids);
+    } else if (bulkDeleteTarget === 'all') {
+      void bulkDeleteOperations(filteredOps.map(op => op.id));
+    }
+  };
+
+  const bulkDeleteCount = bulkDeleteTarget === 'all'
+    ? filteredOps.length
+    : filteredOps.filter(op => checkedOpIds.has(op.id)).length;
+
   return (
     <div>
       <Card>
@@ -695,15 +772,84 @@ const MirrorOperations: React.FC = () => {
             </Title>
           </CardTitle>
         </CardHeader>
+        <CardBody>
+          <Toolbar>
+            <ToolbarContent>
+              <ToolbarItem>
+                <Select
+                  isOpen={opsFilterOpen}
+                  selected={opsFilter}
+                  onSelect={(_e, val) => {
+                    setOpsFilter(val as string);
+                    setOpsFilterOpen(false);
+                  }}
+                  onOpenChange={(open) => setOpsFilterOpen(open)}
+                  toggle={(toggleRef) => (
+                    <MenuToggle
+                      ref={toggleRef}
+                      onClick={() => setOpsFilterOpen(prev => !prev)}
+                      isExpanded={opsFilterOpen}
+                      aria-label="Filter operations"
+                    >
+                      {{ all: 'All Operations', running: 'Running', success: 'Successful', failed: 'Failed', stopped: 'Stopped' }[opsFilter] || 'All Operations'}
+                    </MenuToggle>
+                  )}
+                >
+                  <SelectList>
+                    <SelectOption value="all">All Operations</SelectOption>
+                    <SelectOption value="running">Running</SelectOption>
+                    <SelectOption value="success">Successful</SelectOption>
+                    <SelectOption value="failed">Failed</SelectOption>
+                    <SelectOption value="stopped">Stopped</SelectOption>
+                  </SelectList>
+                </Select>
+              </ToolbarItem>
+              <ToolbarGroup align={{ default: 'alignEnd' }}>
+                {someFilteredOpsChecked && (
+                  <ToolbarItem>
+                    <Button
+                      variant="secondary"
+                      icon={<TrashAltIcon />}
+                      isDanger
+                      onClick={() => setBulkDeleteTarget('selected')}
+                    >
+                      Delete Selected ({filteredOps.filter(op => checkedOpIds.has(op.id)).length})
+                    </Button>
+                  </ToolbarItem>
+                )}
+                {filteredOps.length > 0 && (
+                  <ToolbarItem>
+                    <Button
+                      variant="secondary"
+                      icon={<TrashAltIcon />}
+                      isDanger
+                      onClick={() => setBulkDeleteTarget('all')}
+                    >
+                      Delete All
+                    </Button>
+                  </ToolbarItem>
+                )}
+              </ToolbarGroup>
+            </ToolbarContent>
+          </Toolbar>
+        </CardBody>
         <CardBody className="pf-v6-u-p-0">
-          {operations.length === 0 ? (
+          {filteredOps.length === 0 ? (
             <EmptyState>
+              <SearchIcon />
               <EmptyStateBody>No operations found.</EmptyStateBody>
             </EmptyState>
           ) : (
             <Table aria-label="Operation history" variant="compact" borders={false}>
               <Thead>
                 <Tr>
+                  <Th
+                    select={{
+                      onSelect: toggleSelectAllOps,
+                      isSelected: allFilteredOpsChecked,
+                    }}
+                    aria-label="Select all"
+                  />
                   <Th>Operation</Th>
                   <Th>Config</Th>
                   <Th>Status</Th>
@@ -713,8 +859,15 @@ const MirrorOperations: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-                {operations.map((op) => (
+                {filteredOps.map((op, rowIndex) => (
                   <Tr key={op.id}>
+                    <Td
+                      select={{
+                        rowIndex,
+                        onSelect: () => { toggleOpChecked(op.id); },
+                        isSelected: checkedOpIds.has(op.id),
+                      }}
+                    />
                     <Td dataLabel="Operation">
                       {op.name}
                     </Td>
@@ -891,6 +1044,37 @@ const MirrorOperations: React.FC = () => {
               setDeleteOperationId(null);
             }}
           >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        variant={ModalVariant.small}
+        isOpen={bulkDeleteTarget !== null}
+        onClose={() => setBulkDeleteTarget(null)}
+        aria-label="Confirm bulk deletion"
+      >
+        <ModalHeader title="Delete Operations" />
+        <ModalBody>
+          <p>
+            Are you sure you want to delete{' '}
+            <strong>
+              {bulkDeleteTarget === 'all' ? 'all' : bulkDeleteCount}
+            </strong>{' '}
+            operation{bulkDeleteCount !== 1 ? 's' : ''}? This action cannot be undone.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="danger"
+            onClick={confirmBulkDelete}
+            isDisabled={bulkDeleting}
+            isLoading={bulkDeleting}
+          >
+            Delete
+          </Button>
+          <Button variant="link" onClick={() => setBulkDeleteTarget(null)}>
             Cancel
           </Button>
         </ModalFooter>

@@ -164,6 +164,7 @@ async function detectPullSecret(): Promise<void> {
 }
 
 const runningProcesses = new Map<string, RunningProcess>();
+const stoppedOperations = new Set<string>();
 
 async function ensureDirectories(): Promise<void> {
   const dirs = [
@@ -1592,13 +1593,13 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
         } catch {}
       }
 
-      const hasErrorInLogs = logs.toLowerCase().includes('[error]') || logs.toLowerCase().includes('error:');
       let finalStatus: OperationRecord['status'] = 'success';
-      if (code !== 0 || hasErrorInLogs) finalStatus = 'failed';
-
-      const opFile = path.join(OPERATIONS_DIR, `${operationId}.json`);
-      const opData: OperationRecord = JSON.parse(await fsp.readFile(opFile, 'utf8'));
-      if (opData.status === 'stopped') finalStatus = 'stopped';
+      if (stoppedOperations.has(operationId)) {
+        finalStatus = 'stopped';
+        stoppedOperations.delete(operationId);
+      } else if (code !== 0 || logs.toLowerCase().includes('[error]') || logs.toLowerCase().includes('error:')) {
+        finalStatus = 'failed';
+      }
       
       const completedAt = new Date().toISOString();
       const duration = Math.floor((new Date(completedAt).getTime() - new Date(operation.startedAt).getTime()) / 1000);
@@ -1656,6 +1657,8 @@ app.post('/api/operations/:id/stop', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    stoppedOperations.add(id);
+
     const processInfo = runningProcesses.get(id);
     if (processInfo) {
       try {
@@ -1671,12 +1674,14 @@ app.post('/api/operations/:id/stop', async (req: Request, res: Response) => {
       } catch (killError: any) {
         console.error('Error killing process:', killError);
       }
+    } else {
+      stoppedOperations.delete(id);
+      await updateOperation(id, {
+        status: 'stopped',
+        completedAt: new Date().toISOString(),
+        errorMessage: null,
+      });
     }
-
-    await updateOperation(id, {
-      status: 'stopped',
-      completedAt: new Date().toISOString()
-    });
     
     res.json({ message: 'Operation stopped successfully' });
   } catch (error: any) {

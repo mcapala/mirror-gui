@@ -707,7 +707,7 @@ Stop a running operation.
 ```
 
 #### DELETE /api/operations/:id
-Delete an operation.
+Delete an operation record and its associated log file.
 
 **Parameters:**
 - `id`: Operation ID
@@ -715,11 +715,15 @@ Delete an operation.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "message": "Operation deleted successfully"
-  }
+  "message": "Operation deleted successfully"
 }
+```
+
+**Bulk delete:** The UI supports selecting multiple operations and deleting them in parallel by issuing concurrent `DELETE` requests. There is no dedicated bulk-delete endpoint; the frontend calls `DELETE /api/operations/:id` for each selected operation.
+
+**Example (single):**
+```bash
+curl -X DELETE http://localhost:3000/api/operations/abc123
 ```
 
 ### Pull Secret Management
