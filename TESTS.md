@@ -99,7 +99,7 @@ Runs [ShellCheck](https://www.shellcheck.net/) with `-S error` (error-level seve
 
 - `mirror-gui.sh`
 - `entrypoint.sh`
-- `container-run.sh`
+- `local-build.sh`
 - `sync-catalogs.sh`
 
 Scripts that are not present (e.g., gitignored) are skipped gracefully.

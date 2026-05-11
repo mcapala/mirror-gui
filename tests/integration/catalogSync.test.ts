@@ -23,6 +23,8 @@ describe('Catalog sync API', () => {
     expect(['idle', 'running', 'completed', 'failed']).toContain(res.body.status);
     expect(res.body).toHaveProperty('logs');
     expect(Array.isArray(res.body.logs)).toBe(true);
+    expect(res.body).toHaveProperty('hasRuntimeSyncData');
+    expect(typeof res.body.hasRuntimeSyncData).toBe('boolean');
   });
 
   it('DELETE /api/catalogs/sync/data succeeds when no runtime sync data exists', async () => {

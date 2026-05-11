@@ -93,6 +93,8 @@ interface CatalogSyncStatus {
   error: string | null;
   logs: string[];
   diff: CatalogSyncDiffEntry[];
+  /** True when runtime synced catalog data exists (same probe as clear sync). */
+  hasRuntimeSyncData?: boolean;
 }
 
 const SettingsPage: React.FC = () => {
@@ -123,6 +125,7 @@ const SettingsPage: React.FC = () => {
   const [catalogSyncStatus, setCatalogSyncStatus] = useState<CatalogSyncStatus>({
     status: 'idle', lastSyncTime: null, syncStartTime: null, successCount: 0, failedCount: 0,
     totalCount: 0, completedCatalogs: 0, currentCatalog: null, error: null, logs: [], diff: [],
+    hasRuntimeSyncData: false,
   });
   const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -674,7 +677,10 @@ const SettingsPage: React.FC = () => {
                     variant="secondary"
                     icon={<TrashAltIcon />}
                     onClick={clearSyncData}
-                    isDisabled={catalogSyncStatus.status === 'running'}
+                    isDisabled={
+                      catalogSyncStatus.status === 'running'
+                      || !(catalogSyncStatus.hasRuntimeSyncData ?? false)
+                    }
                     isDanger
                   >
                     Clear Sync Data

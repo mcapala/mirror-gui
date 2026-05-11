@@ -71,7 +71,7 @@ jobs:
 
       - name: Run shellcheck on scripts
         run: |
-          for script in mirror-gui.sh entrypoint.sh container-run.sh sync-catalogs.sh; do
+          for script in mirror-gui.sh entrypoint.sh local-build.sh sync-catalogs.sh; do
             if [ -f "$script" ]; then
               echo "Checking $script"
               shellcheck -S error "$script"

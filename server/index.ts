@@ -2193,7 +2193,16 @@ app.post('/api/catalogs/sync', async (_req: Request, res: Response) => {
   res.json({ message: 'Catalog sync started', status: catalogSyncState.status });
 });
 
-app.get('/api/catalogs/sync/status', (_req: Request, res: Response) => {
+app.get('/api/catalogs/sync/status', async (_req: Request, res: Response) => {
+  const runtimeIndex = path.join(RUNTIME_CATALOG_DIR, 'catalog-index.json');
+  let hasRuntimeSyncData = false;
+  try {
+    await fsp.access(runtimeIndex, fs.constants.R_OK);
+    hasRuntimeSyncData = true;
+  } catch {
+    /* same check as DELETE /api/catalogs/sync/data */
+  }
+
   res.json({
     status: catalogSyncState.status,
     lastSyncTime: catalogSyncState.lastSyncTime,
@@ -2206,6 +2215,7 @@ app.get('/api/catalogs/sync/status', (_req: Request, res: Response) => {
     error: catalogSyncState.error,
     logs: catalogSyncState.logs,
     diff: catalogSyncState.diff,
+    hasRuntimeSyncData,
   });
 });
 

@@ -18,7 +18,7 @@ The Mirror-GUI Application provides a RESTful API for managing OpenShift Contain
 http://localhost:<port>/api
 ```
 
-The default port is `3000`. All startup scripts (`./mirror-gui.sh`, `./container-run.sh`) automatically select another free port if `3000` is already occupied and print the actual URL.
+The default port is `3000`. All startup scripts (`./mirror-gui.sh`, `./local-build.sh`) automatically select another free port if `3000` is already occupied and print the actual URL.
 
 ## Authentication
 Currently, the API does not require authentication. All endpoints are accessible without credentials.
@@ -370,7 +370,7 @@ Get available operator catalogs.
 - `version` (optional): Filter by OCP version (4.16, 4.17, 4.18, 4.19, 4.20, 4.21)
 
 **Catalog Fetch Workflow:**
-- Catalog snapshots are produced by host-side sync workflows such as `./sync-catalogs.sh` or any `./container-run.sh` build path
+- Catalog snapshots are produced by host-side sync workflows such as `./sync-catalogs.sh` or any `./local-build.sh` build path
 - Each fetch run always performs a full pull of all supported catalogs; there is no freshness window or separate `--force` mode
 - The API serves the current local catalog snapshot available under `catalog-data/`
 
@@ -871,11 +871,13 @@ Get current catalog sync status, progress, logs, and diff.
   "completedCatalogs": 5,
   "currentCatalog": "certified-operator-index:v4.18",
   "logs": ["Extracting redhat-operator-index:v4.16 ...", "..."],
-  "diff": []
+  "diff": [],
+  "hasRuntimeSyncData": true
 }
 ```
 
 **Response Fields:**
+- `hasRuntimeSyncData`: `true` when runtime synced catalog data is present on disk (same probe as `DELETE /api/catalogs/sync/data`); use this to enable a “clear sync data” action in the UI
 - `syncStartTime`: ISO timestamp when the current/last sync started
 - `completedCatalogs`: Number of catalogs processed so far
 - `currentCatalog`: Catalog currently being processed (while running)
