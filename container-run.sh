@@ -175,13 +175,13 @@ create_directories() {
 fetch_catalogs() {
     print_status "Fetching operator catalogs (this may take several minutes)..."
 
-    if [ ! -f "fetch-catalogs-host.sh" ]; then
-        print_error "Catalog fetch script not found: ./fetch-catalogs-host.sh"
+    if [ ! -f "sync-catalogs.sh" ]; then
+        print_error "Catalog sync script not found: ./sync-catalogs.sh"
         exit 1
     fi
 
-    chmod +x fetch-catalogs-host.sh
-    if ./fetch-catalogs-host.sh; then
+    chmod +x sync-catalogs.sh
+    if ./sync-catalogs.sh; then
         print_success "Catalog fetch completed successfully"
     else
         print_error "Catalog fetch failed"

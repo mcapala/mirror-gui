@@ -17,6 +17,12 @@
       "versionRange": ">=1.5.2"
     }
   ],
+  "pg4k-pgd": [
+    {
+      "packageName": "cloud-native-postgresql",
+      "versionRange": ">=1.25.5 < 1.26.0 || >=1.28.0 <1.29.0"
+    }
+  ],
   "tenant-operator": [
     {
       "packageName": "hibernation-operator",
@@ -24,7 +30,7 @@
     },
     {
       "packageName": "mto-dependencies-operator",
-      "versionRange": ">=0.0.7"
+      "versionRange": ">=0.0.8"
     },
     {
       "packageName": "template-operator",

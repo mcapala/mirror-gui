@@ -24,4 +24,28 @@ describe('Settings API', () => {
       expect(res.body.message).toContain('success');
     });
   });
+
+  describe('POST /api/registries/verify', () => {
+    it('returns 400 when registry is missing', async () => {
+      const res = await request.post('/api/registries/verify').send({});
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/registry is required/i);
+    });
+
+    it('returns failed status when registry has no credentials in pull secret', async () => {
+      const dummy = JSON.stringify({
+        auths: { 'registry.example.com': { auth: 'dXNlcjpwYXNz' } },
+      });
+      await request.post('/api/pull-secret').send({ content: dummy });
+
+      const res = await request
+        .post('/api/registries/verify')
+        .send({ registry: 'no-such-registry.invalid.test' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.registry).toBe('no-such-registry.invalid.test');
+      expect(res.body.status).toBe('failed');
+      expect(res.body.error).toMatch(/no credentials found/i);
+    });
+  });
 });

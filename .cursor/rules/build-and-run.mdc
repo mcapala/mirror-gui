@@ -38,3 +38,17 @@ IMAGE_NAME=localhost/mirror-gui ./mirror-gui.sh --restart
 
 1. Rebuild the image: `podman build -t localhost/mirror-gui .`
 2. Restart: `IMAGE_NAME=localhost/mirror-gui ./mirror-gui.sh --restart`
+
+## E2E tests (Playwright)
+
+Before running Playwright tests, install the browsers first:
+
+```bash
+npx playwright install chromium
+```
+
+Then run the tests (requires the app running on port 3000):
+
+```bash
+npx playwright test
+```

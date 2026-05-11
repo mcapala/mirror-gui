@@ -7,7 +7,7 @@ import { promisify } from 'util';
 import YAML from 'yaml';
 import { v4 as uuidv4 } from 'uuid';
 import compression from 'compression';
-import multer from 'multer';
+
 import { fileURLToPath, pathToFileURL } from 'url';
 import { getChannelObjectsFromGeneratedOperator } from './catalogChannels.js';
 import { isPathAvailable } from './pathAvailability.js';
@@ -16,11 +16,7 @@ import {
   parseOcMirrorVersion,
   getCatalogNameFromUrl,
   getCatalogDescription,
-  compareVersionStrings,
-  sortVersions,
   getQueryStringValue,
-  extractChannelNames,
-  extractVersionInfo,
   getVersionsFromMetadata,
   normalizeChannels,
 } from './utils.js';
@@ -63,6 +59,8 @@ interface CatalogEntry {
   ocpVersion?: string;
   operators?: OperatorEntry[];
   operatorCount?: number;
+  digest?: string;
+  syncedAt?: string;
 }
 
 interface OperatorEntry {
@@ -96,6 +94,8 @@ interface PreFetchedCatalogData {
       catalog_type: string;
       ocp_version: string;
       catalog_url: string;
+      digest?: string;
+      synced_at?: string;
     }>;
   };
   operators: Record<string, OperatorEntry[]>;
@@ -156,7 +156,7 @@ async function detectPullSecret(): Promise<void> {
       console.log(`Pull secret detected at: ${AUTHFILE_PATH}`);
       return;
     }
-  } catch {}
+  } catch { /* no pull secret file */ }
 
   pullSecretPath = null;
   pullSecretDetected = false;
@@ -179,7 +179,7 @@ async function ensureDirectories(): Promise<void> {
   for (const dir of dirs) {
     try {
       await fsp.mkdir(dir, { recursive: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error creating directory ${dir}:`, error);
     }
   }
@@ -189,7 +189,7 @@ async function ensureDirectories(): Promise<void> {
 // mirror files persist across restarts, so we keep operation history
 async function clearOperationHistory(): Promise<void> {
   let hasPersistedMirrors = false;
-  
+
   try {
     const files = await fsp.readdir(DEFAULT_MIRROR_DIR);
     hasPersistedMirrors = files.length > 0;
@@ -208,12 +208,12 @@ async function clearOperationHistory(): Promise<void> {
           try {
             await fsp.unlink(path.join(OPERATIONS_DIR, file));
             clearedOps++;
-          } catch (error: any) {
+          } catch (error: unknown) {
             console.warn(`Failed to delete operation file ${file}:`, error);
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.warn('Error reading operations directory:', error);
       }
@@ -225,16 +225,16 @@ async function clearOperationHistory(): Promise<void> {
         try {
           await fsp.unlink(path.join(LOGS_DIR, file));
           clearedLogs++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.warn(`Failed to delete log file ${file}:`, error);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.warn('Error reading logs directory:', error);
       }
     }
-    
+
     if (clearedOps > 0 || clearedLogs > 0) {
       console.log(`Cleared ${clearedOps} operation files and ${clearedLogs} log files on startup (fresh start detected)`);
     }
@@ -247,22 +247,11 @@ ensureDirectories().then(() => {
   clearOperationHistory();
 });
 
-const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-    cb(null, CONFIGS_DIR);
-  },
-  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
-
-const upload = multer({ storage });
-
 async function getSystemInfo(): Promise<SystemInfo> {
   try {
     const [ocMirrorVersion, systemArch] = await Promise.all([
       execAsync('oc-mirror version').catch(() => ({ stdout: 'Not available', stderr: '' })),
-      execAsync('uname -m').catch(() => ({ stdout: 'Not available', stderr: '' }))
+      execAsync('uname -m').catch(() => ({ stdout: 'Not available', stderr: '' })),
     ]);
 
     const diskSpace = await execAsync(`df -k ${STORAGE_DIR}`).catch(() => ({ stdout: '', stderr: '' }));
@@ -275,7 +264,7 @@ async function getSystemInfo(): Promise<SystemInfo> {
     try {
       const duOutput = await execAsync(`du -sb ${CACHE_DIR}`).catch(() => ({ stdout: '0', stderr: '' }));
       cacheSizeBytes = parseInt(duOutput.stdout.split('\t')[0]) || 0;
-    } catch {}
+    } catch { /* du may fail */ }
 
     const hostDataDir = process.env.HOST_DATA_DIR || STORAGE_DIR;
     const containerDataDir = path.resolve(STORAGE_DIR);
@@ -293,7 +282,7 @@ async function getSystemInfo(): Promise<SystemInfo> {
       hostCacheDir,
       cacheSizeBytes,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting system info:', error);
     const hostDataDir = process.env.HOST_DATA_DIR || STORAGE_DIR;
     const containerDataDir = path.resolve(STORAGE_DIR);
@@ -327,7 +316,7 @@ async function getOperations(): Promise<OperationRecord[]> {
     }
 
     return operations.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error reading operations:', error);
     return [];
   }
@@ -341,14 +330,14 @@ async function saveOperation(operation: OperationRecord): Promise<void> {
 async function updateOperation(operationId: string, updates: Partial<OperationRecord>): Promise<OperationRecord> {
   const filename = `${operationId}.json`;
   const filepath = path.join(OPERATIONS_DIR, filename);
-  
+
   try {
     const content = await fsp.readFile(filepath, 'utf8');
     const operation: OperationRecord = JSON.parse(content);
     const updatedOperation = { ...operation, ...updates };
     await fsp.writeFile(filepath, JSON.stringify(updatedOperation, null, 2));
     return updatedOperation;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating operation:', error);
     throw error;
   }
@@ -357,11 +346,11 @@ async function updateOperation(operationId: string, updates: Partial<OperationRe
 async function getOperation(operationId: string): Promise<OperationRecord> {
   const filename = `${operationId}.json`;
   const filepath = path.join(OPERATIONS_DIR, filename);
-  
+
   try {
     const content = await fsp.readFile(filepath, 'utf8');
     return JSON.parse(content);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error reading operation:', error);
     throw error;
   }
@@ -369,7 +358,7 @@ async function getOperation(operationId: string): Promise<OperationRecord> {
 
 async function getSystemHealth(): Promise<string> {
   let ocMirrorOk = false;
-  try { await execAsync('oc-mirror version'); ocMirrorOk = true; } catch {}
+  try { await execAsync('oc-mirror version'); ocMirrorOk = true; } catch { /* not installed */ }
 
   let diskOk = false;
   try {
@@ -378,7 +367,7 @@ async function getSystemHealth(): Promise<string> {
     const diskInfo = lines[1] ? lines[1].split(/\s+/) : [];
     const availableSpace = diskInfo[3] ? parseInt(diskInfo[3]) * 1024 : 0;
     diskOk = availableSpace > 30_000_000_000;
-  } catch {}
+  } catch { /* df may fail */ }
 
   if (!ocMirrorOk) return 'error';
   if (!diskOk) return 'degraded';
@@ -410,11 +399,11 @@ async function loadPreFetchedCatalogData(): Promise<PreFetchedCatalogData | null
     const catalogDir = await resolveCatalogDataDir();
     const catalogIndexPath = path.join(catalogDir, 'catalog-index.json');
     const catalogIndex = JSON.parse(await fsp.readFile(catalogIndexPath, 'utf8'));
-    
+
     preFetchedCatalogData = {
       index: catalogIndex,
       operators: {},
-      channels: {}
+      channels: {},
     };
 
     let totalOperators = 0;
@@ -431,16 +420,16 @@ async function loadPreFetchedCatalogData(): Promise<PreFetchedCatalogData | null
           const channelKey = `${operator.name}:${catalog.catalog_type}:${catalog.ocp_version}`;
           preFetchedCatalogData!.channels[channelKey] = operator.channels || [];
         });
-        
+
         console.log(`Loaded ${operators.length} operators for ${key}`);
-      } catch (error: any) {
-        console.warn(`Could not load operators for ${catalog.catalog_type}:${catalog.ocp_version}:`, error.message);
+      } catch (error: unknown) {
+        console.warn(`Could not load operators for ${catalog.catalog_type}:${catalog.ocp_version}:`, (error as Error).message);
       }
     }
 
     console.log(`Pre-fetched catalog data loaded successfully with ${totalOperators} total operators`);
     return preFetchedCatalogData;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error loading pre-fetched catalog data:', error);
     return null;
   }
@@ -453,7 +442,7 @@ async function queryOperatorCatalog(catalogUrl: string): Promise<{ name: string 
       const catalogType = getCatalogNameFromUrl(catalogUrl);
       const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.21';
       const key = `${catalogType}:${catalogVersion}`;
-      
+
       if (catalogData.operators[key]) {
         console.log(`Using pre-fetched data for catalog: ${catalogUrl}`);
         return catalogData.operators[key].map(op => ({ name: op.name }));
@@ -462,7 +451,7 @@ async function queryOperatorCatalog(catalogUrl: string): Promise<{ name: string 
 
     console.error(`[ERROR] Catalog data not found for ${catalogUrl}. Catalog data should be pre-fetched during build.`);
     return [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error querying catalog ${catalogUrl}:`, error);
     return [];
   }
@@ -482,7 +471,7 @@ async function queryOperatorChannels(catalogUrl: string, operatorName: string): 
     const catalogData = await loadPreFetchedCatalogData();
     if (catalogData) {
       const key = `${operatorName}:${catalogType}:${catalogVersion}`;
-      
+
       if (catalogData.channels[key]) {
         console.log(`Using pre-fetched channels for ${operatorName} from ${catalogVersion} catalog`);
         return catalogData.channels[key];
@@ -491,7 +480,7 @@ async function queryOperatorChannels(catalogUrl: string, operatorName: string): 
 
     console.error(`[ERROR] Channel data not found for ${operatorName} in ${catalogUrl}. Catalog data should be pre-fetched during build.`);
     return [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error querying channels for ${operatorName} from ${catalogUrl}:`, error);
     return [];
   }
@@ -503,7 +492,7 @@ async function getActualChannelsFromCatalog(catalogType: string, catalogVersion:
     if (catalogData) {
       const key = `${catalogType}:${catalogVersion}`;
       const operators = catalogData.operators[key];
-      
+
       if (operators) {
         const operator = operators.find(op => op.name === operatorName);
         const channels = getChannelObjectsFromGeneratedOperator(operator);
@@ -515,8 +504,8 @@ async function getActualChannelsFromCatalog(catalogType: string, catalogVersion:
     }
 
     return null;
-  } catch (error: any) {
-    console.error(`Error reading generated catalog data for ${operatorName} in ${catalogType}:${catalogVersion}:`, error.message);
+  } catch (error: unknown) {
+    console.error(`Error reading generated catalog data for ${operatorName} in ${catalogType}:${catalogVersion}:`, (error as Error).message);
     return null;
   }
 }
@@ -548,7 +537,7 @@ async function loadDependenciesData(): Promise<Record<string, Record<string, Ope
     dependenciesDataCache = merged;
     console.log(`Loaded dependencies data from ${Object.keys(merged).length} per-catalog files`);
     return dependenciesDataCache;
-  } catch (error: any) {
+  } catch {
     console.log('Could not load dependencies data, dependency detection may be limited');
     return null;
   }
@@ -560,11 +549,11 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
     let dependencyPackageName: string | null = null;
 
     const dependenciesData = await loadDependenciesData();
-    
+
     if (dependenciesData) {
       const catalogKey = `${catalogType}:${catalogVersion}`;
       const catalogDeps = dependenciesData[catalogKey];
-      
+
       if (catalogDeps) {
         if (catalogDeps[operatorName]) {
           dependencies = [...catalogDeps[operatorName]];
@@ -580,7 +569,7 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
         dependencyPackageNames.push(
           `${operatorName}-dependencies`,
           `${operatorName}-dependency`,
-          `${operatorName}-deps`
+          `${operatorName}-deps`,
         );
 
         for (const depPackageName of dependencyPackageNames) {
@@ -600,7 +589,7 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
       if (catalogData) {
         const key = `${catalogType}:${catalogVersion}`;
         const operators = catalogData.operators[key];
-        
+
         if (operators) {
           const depPackageInfo = operators.find(op => op.name === dependencyPackageName);
           if (depPackageInfo) {
@@ -613,7 +602,7 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
                 catalog: depPackageInfo.catalog,
                 catalogUrl: depPackageInfo.catalogUrl,
                 defaultChannel: depPackageInfo.defaultChannel,
-                isDependencyPackage: true
+                isDependencyPackage: true,
               });
             }
           }
@@ -622,14 +611,14 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
   }
 
   const uniqueDependencies = dependencies.filter((dep, index, self) =>
-      index === self.findIndex(d => d.packageName === dep.packageName)
+      index === self.findIndex(d => d.packageName === dep.packageName),
   );
 
   const catalogData = await loadPreFetchedCatalogData();
     if (catalogData) {
       const key = `${catalogType}:${catalogVersion}`;
       const operators = catalogData.operators[key];
-      
+
       if (operators) {
         uniqueDependencies.forEach(dep => {
           const operatorInfo = operators.find(op => op.name === dep.packageName);
@@ -642,10 +631,10 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
         });
       }
     }
-    
+
     return uniqueDependencies;
-  } catch (error: any) {
-    console.error(`Error getting dependencies for ${operatorName} in ${catalogType}:${catalogVersion}:`, error.message);
+  } catch (error: unknown) {
+    console.error(`Error getting dependencies for ${operatorName} in ${catalogType}:${catalogVersion}:`, (error as Error).message);
     return [];
   }
 }
@@ -655,7 +644,7 @@ const operatorCache: OperatorCache = {
   operators: {},
   channels: {},
   lastUpdate: null,
-  cacheTimeout: 3600000
+  cacheTimeout: 3600000,
 };
 
 /**
@@ -664,11 +653,11 @@ const operatorCache: OperatorCache = {
  */
 export const __routeTestHooks = {
   failNextCatalogsGet: false,
-  failNextOperatorsGet: false
+  failNextOperatorsGet: false,
 };
 
 function isCacheValid(): boolean {
-  return operatorCache.lastUpdate !== null && 
+  return operatorCache.lastUpdate !== null &&
          (Date.now() - operatorCache.lastUpdate) < operatorCache.cacheTimeout;
 }
 
@@ -680,7 +669,7 @@ async function updateOperatorCache(): Promise<OperatorCache> {
   console.log('Updating operator cache...');
 
   const catalogData = await loadPreFetchedCatalogData();
-  
+
   if (catalogData && catalogData.index.catalogs.length > 0) {
     console.log('Using pre-fetched catalog data for cache update');
 
@@ -688,7 +677,9 @@ async function updateOperatorCache(): Promise<OperatorCache> {
       name: catalog.catalog_type,
       url: catalog.catalog_url,
       description: getCatalogDescription(catalog.catalog_type),
-      ocpVersion: catalog.ocp_version
+      ocpVersion: catalog.ocp_version,
+      digest: catalog.digest,
+      syncedAt: catalog.synced_at,
     }));
 
     const catalogResults: CatalogEntry[] = catalogs.map(catalog => {
@@ -696,7 +687,7 @@ async function updateOperatorCache(): Promise<OperatorCache> {
       const operators = catalogData.operators[key] || [];
       return {
         ...catalog,
-        operators: operators.map(op => ({ name: op.name }))
+        operators: operators.map(op => ({ name: op.name })),
       };
     });
 
@@ -712,7 +703,7 @@ async function updateOperatorCache(): Promise<OperatorCache> {
           operatorCache.operators[uniqueKey] = {
             ...operator,
             catalog: catalog.url,
-            ocpVersion: catalog.ocpVersion
+            ocpVersion: catalog.ocpVersion,
           };
         });
       }
@@ -723,30 +714,30 @@ async function updateOperatorCache(): Promise<OperatorCache> {
   }
 
   console.log('Using fallback static catalogs');
-  
+
   const catalogs: CatalogEntry[] = [
     {
       name: 'redhat-operator-index',
       url: 'registry.redhat.io/redhat/redhat-operator-index',
-      description: 'Red Hat certified operators'
+      description: 'Red Hat certified operators',
     },
     {
       name: 'certified-operator-index',
       url: 'registry.redhat.io/redhat/certified-operator-index',
-      description: 'Certified operators from partners'
+      description: 'Certified operators from partners',
     },
     {
       name: 'community-operator-index',
       url: 'registry.redhat.io/redhat/community-operator-index',
-      description: 'Community operators'
-    }
+      description: 'Community operators',
+    },
   ];
 
   const catalogPromises = catalogs.map(async (catalog) => {
     const operators = await queryOperatorCatalog(catalog.url);
     return {
       ...catalog,
-      operators: operators || []
+      operators: operators || [],
     };
   });
 
@@ -762,7 +753,7 @@ async function updateOperatorCache(): Promise<OperatorCache> {
       catalog.operators.forEach(operator => {
         operatorCache.operators[operator.name] = {
           ...operator,
-          catalog: catalog.url
+          catalog: catalog.url,
         };
       });
     }
@@ -779,10 +770,10 @@ app.get('/api/stats', async (req: Request, res: Response) => {
       totalOperations: operations.length,
       successfulOperations: operations.filter(op => op.status === 'success').length,
       failedOperations: operations.filter(op => op.status === 'failed').length,
-      runningOperations: operations.filter(op => op.status === 'running').length
+      runningOperations: operations.filter(op => op.status === 'running').length,
     };
     res.json(stats);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get statistics' });
   }
 });
@@ -792,7 +783,7 @@ app.get('/api/operations/recent', async (req: Request, res: Response) => {
     const operations = await getOperations();
     const recent = operations.slice(0, 10); // Get last 10 operations
     res.json(recent);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get recent operations' });
   }
 });
@@ -801,7 +792,7 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'mirror-gui'
+    service: 'mirror-gui',
   });
 });
 
@@ -814,7 +805,7 @@ app.get('/api/system/status', async (req: Request, res: Response) => {
       systemHealth,
       pullSecretDetected,
     });
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get system status' });
   }
 });
@@ -856,7 +847,7 @@ app.post('/api/pull-secret', async (req: Request, res: Response) => {
     pullSecretDetected = true;
     console.log(`Pull secret saved to: ${AUTHFILE_PATH}`);
     res.json({ message: 'Pull secret saved successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error saving pull secret:', error);
     res.status(500).json({ error: 'Failed to save pull secret' });
   }
@@ -875,7 +866,7 @@ app.delete('/api/pull-secret', async (_req: Request, res: Response) => {
     pullSecretDetected = false;
     console.log('Pull secret removed');
     res.json({ message: 'Pull secret removed successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error removing pull secret:', error);
     res.status(500).json({ error: 'Failed to remove pull secret' });
   }
@@ -884,30 +875,30 @@ app.delete('/api/pull-secret', async (_req: Request, res: Response) => {
 app.get('/api/system/paths', async (req: Request, res: Response) => {
   try {
     const commonPaths = [
-      { 
+      {
         path: DEFAULT_MIRROR_DIR,
-        label: 'Default (Persistent)', 
+        label: 'Default (Persistent)',
         description: 'Recommended - primary persistent mirror location',
-        available: false
+        available: false,
       },
-      { 
+      {
         path: MIRROR_BASE_DIR,
-        label: 'Data Mirrors Root', 
+        label: 'Data Mirrors Root',
         description: 'Persistent - create subdirectories as needed',
-        available: false
+        available: false,
       },
-      { 
+      {
         path: CUSTOM_MIRROR_DIR,
-        label: 'Custom Directory', 
+        label: 'Custom Directory',
         description: 'Persistent - custom subdirectory for this operation',
-        available: false
+        available: false,
       },
-      { 
+      {
         path: EPHEMERAL_MIRROR_DIR,
-        label: 'App Mirror (Ephemeral)', 
+        label: 'App Mirror (Ephemeral)',
         description: 'Ephemeral mirror path under the app root',
-        available: false
-      }
+        available: false,
+      },
     ];
 
     const availablePaths = [];
@@ -919,9 +910,9 @@ app.get('/api/system/paths', async (req: Request, res: Response) => {
       }
       availablePaths.push(pathInfo);
     }
-    
+
     res.json({ paths: availablePaths });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error listing paths:', error);
     res.status(500).json({ error: 'Failed to list available paths' });
   }
@@ -956,9 +947,9 @@ app.post('/api/mirror-folders', async (req: Request, res: Response) => {
     const folderPath = path.join(MIRROR_BASE_DIR, trimmed);
     await fsp.mkdir(folderPath, { recursive: true, mode: 0o775 });
     res.json({ created: trimmed, path: folderPath });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating mirror folder:', error);
-    res.status(500).json({ error: 'Failed to create folder', details: error.message });
+    res.status(500).json({ error: 'Failed to create folder', details: (error as Error).message });
   }
 });
 
@@ -973,13 +964,13 @@ app.get('/api/config/list', async (req: Request, res: Response) => {
         configs.push({
           name: file,
           size: `${(stats.size / 1024).toFixed(2)} KB`,
-          modified: stats.mtime
+          modified: stats.mtime,
         });
       }
     }
 
     res.json(configs);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to list configurations' });
   }
 });
@@ -1009,10 +1000,10 @@ app.post('/api/config/save', async (req: Request, res: Response) => {
     const { config, name } = req.body;
     const filename = name || `imageset-config-${Date.now()}.yaml`;
     const filepath = path.join(CONFIGS_DIR, filename);
-    
+
     await fsp.writeFile(filepath, config);
     res.json({ message: 'Configuration saved successfully', filename });
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to save configuration' });
   }
 });
@@ -1020,7 +1011,7 @@ app.post('/api/config/save', async (req: Request, res: Response) => {
 app.post('/api/config/upload', async (req: Request, res: Response) => {
   try {
     const { filename, content } = req.body;
-    
+
     if (!filename || !content) {
       return res.status(400).json({ error: 'Filename and content are required' });
     }
@@ -1039,25 +1030,24 @@ app.post('/api/config/upload', async (req: Request, res: Response) => {
       if (!parsed.mirror) {
         return res.status(400).json({ error: 'Invalid YAML: Missing mirror section' });
       }
-    } catch (yamlError: any) {
-      return res.status(400).json({ error: `Invalid YAML: ${yamlError.message}` });
+    } catch (yamlError: unknown) {
+      return res.status(400).json({ error: `Invalid YAML: ${(yamlError as Error).message}` });
     }
 
-    const finalFilename = filename.endsWith('.yaml') || filename.endsWith('.yml') 
-      ? filename 
+    const finalFilename = filename.endsWith('.yaml') || filename.endsWith('.yml')
+      ? filename
       : `${filename}.yaml`;
-    
+
     const filepath = path.join(CONFIGS_DIR, finalFilename);
 
     try {
       await fsp.access(filepath);
       return res.status(409).json({ error: 'Configuration file already exists' });
-    } catch (error: any) {
-    }
-    
+    } catch { /* file does not exist, proceed */ }
+
     await fsp.writeFile(filepath, content);
     res.json({ message: 'Configuration uploaded successfully', filename: finalFilename });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error uploading configuration:', error);
     res.status(500).json({ error: 'Failed to upload configuration' });
   }
@@ -1066,7 +1056,7 @@ app.post('/api/config/upload', async (req: Request, res: Response) => {
 app.delete('/api/config/delete/:filename', async (req: Request, res: Response) => {
   try {
     const { filename } = req.params;
-    
+
     if (!filename) {
       return res.status(400).json({ error: 'Filename is required' });
     }
@@ -1079,13 +1069,13 @@ app.delete('/api/config/delete/:filename', async (req: Request, res: Response) =
 
     try {
       await fsp.access(filepath);
-    } catch (error: any) {
+    } catch {
       return res.status(404).json({ error: 'Configuration file not found' });
     }
 
     await fsp.unlink(filepath);
     res.json({ message: 'Configuration deleted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting configuration:', error);
     res.status(500).json({ error: 'Failed to delete configuration' });
   }
@@ -1094,10 +1084,10 @@ app.delete('/api/config/delete/:filename', async (req: Request, res: Response) =
 app.get('/api/channels', async (req: Request, res: Response) => {
   try {
     const channels = [
-      'stable-4.16', 'stable-4.17', 'stable-4.18', 'stable-4.19', 'stable-4.20', 'stable-4.21'
+      'stable-4.16', 'stable-4.17', 'stable-4.18', 'stable-4.19', 'stable-4.20', 'stable-4.21',
     ];
     res.json(channels);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get channels' });
   }
 });
@@ -1113,10 +1103,12 @@ app.get('/api/catalogs', async (req: Request, res: Response) => {
       name: catalog.name,
       url: catalog.url,
       description: catalog.description,
-      operatorCount: catalog.operators ? catalog.operators.length : 0
+      operatorCount: catalog.operators ? catalog.operators.length : 0,
+      digest: catalog.digest || null,
+      syncedAt: catalog.syncedAt || null,
     }));
     res.json(catalogs);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching catalogs:', error);
     res.status(500).json({ error: 'Failed to get catalogs' });
   }
@@ -1136,7 +1128,7 @@ app.get('/api/operators', async (req: Request, res: Response) => {
         const catalogType = getCatalogNameFromUrl(catalog as string);
         const catalogVersion = (catalog as string).includes(':') ? (catalog as string).split(':')[1] : 'v4.21';
         const key = `${catalogType}:${catalogVersion}`;
-        
+
         const operators = catalogData.operators[key];
         if (operators) {
           if (detailed === 'true') {
@@ -1149,7 +1141,7 @@ app.get('/api/operators', async (req: Request, res: Response) => {
                 allChannels: normalizedChannels.map(ch => ch.name),
                 catalog: operator.catalog,
                 ocpVersion: operator.ocpVersion,
-                catalogUrl: operator.catalogUrl
+                catalogUrl: operator.catalogUrl,
               };
             });
             res.json(detailedOperators);
@@ -1175,7 +1167,7 @@ app.get('/api/operators', async (req: Request, res: Response) => {
             allChannels: normalizedChannels.map(ch => ch.name),
             catalog: operator.catalog,
             ocpVersion: operator.ocpVersion,
-            catalogUrl: operator.catalogUrl
+            catalogUrl: operator.catalogUrl,
           };
         });
         res.json(detailedOperators);
@@ -1187,7 +1179,7 @@ app.get('/api/operators', async (req: Request, res: Response) => {
       const uniqueOperators = [...new Set(Object.values(cache.operators).map(op => op.name))];
       res.json(uniqueOperators);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching operators:', error);
     res.status(500).json({ error: 'Failed to get operators' });
   }
@@ -1198,7 +1190,7 @@ app.post('/api/operators/refresh-cache', async (req: Request, res: Response) => 
     operatorCache.lastUpdate = null;
     await updateOperatorCache();
     res.json({ message: 'Operator cache refreshed successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error refreshing operator cache:', error);
     res.status(500).json({ error: 'Failed to refresh operator cache' });
   }
@@ -1216,7 +1208,7 @@ app.get('/api/operators/:operator/versions', async (req: Request, res: Response)
         const catalogType = getCatalogNameFromUrl(catalog);
         const catalogVersion = catalog.includes(':') ? catalog.split(':')[1] : 'v4.21';
         const key = `${catalogType}:${catalogVersion}`;
-        
+
         const operators = catalogData.operators[key];
         if (operators) {
           const operatorData = operators.find(op => op.name === operator);
@@ -1235,8 +1227,8 @@ app.get('/api/operators/:operator/versions', async (req: Request, res: Response)
     }
 
     res.status(404).json({ error: 'Operator not found' });
-    
-  } catch (error: any) {
+
+  } catch (error: unknown) {
     console.error(`Error getting versions for ${req.params.operator}:`, error);
     res.status(500).json({ error: 'Failed to get operator versions' });
   }
@@ -1253,7 +1245,7 @@ app.get('/api/operator-channels/:operator', async (req: Request, res: Response) 
         const catalogType = getCatalogNameFromUrl(catalogUrl);
         const catalogVersion = catalogUrl.includes(':') ? catalogUrl.split(':')[1] : 'v4.21';
         const key = `${catalogType}:${catalogVersion}`;
-        
+
         const operators = catalogData.operators[key];
         if (operators) {
           const operatorData = operators.find(op => op.name === operator);
@@ -1266,7 +1258,7 @@ app.get('/api/operator-channels/:operator', async (req: Request, res: Response) 
               allChannels: normalizedChannels.map(ch => ch.name),
               catalog: operatorData.catalog,
               ocpVersion: operatorData.ocpVersion,
-              catalogUrl: operatorData.catalogUrl
+              catalogUrl: operatorData.catalogUrl,
             });
           }
         }
@@ -1282,7 +1274,7 @@ app.get('/api/operator-channels/:operator', async (req: Request, res: Response) 
               allChannels: normalizedChannels.map(ch => ch.name),
               catalog: operatorData.catalog,
               ocpVersion: operatorData.ocpVersion,
-              catalogUrl: operatorData.catalogUrl
+              catalogUrl: operatorData.catalogUrl,
             });
           }
         }
@@ -1304,21 +1296,21 @@ app.get('/api/operator-channels/:operator', async (req: Request, res: Response) 
 
     const cache = await updateOperatorCache();
     const operatorInfo = Object.values(cache.operators).find(op => op.name === operator);
-    
+
     if (!operatorInfo) {
       return res.status(404).json({ error: 'Operator not found' });
     }
 
     const channels = await queryOperatorChannels(operatorInfo.catalog!, operator);
-    
+
     if (channels && Array.isArray(channels) && channels.length > 0) {
       operatorCache.channels[operator] = channels;
       const normalizedChannels = normalizeChannels(channels, operator);
       return res.json(normalizedChannels);
     }
-    
+
     res.status(404).json({ error: 'No channels found for this operator' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error fetching channels for ${req.params.operator}:`, error);
     res.status(500).json({ error: 'Failed to get operator channels' });
   }
@@ -1327,20 +1319,20 @@ app.get('/api/operator-channels/:operator', async (req: Request, res: Response) 
 app.get('/api/operators/channels', async (req: Request, res: Response) => {
   try {
     const { catalogUrl, operatorName } = req.query;
-    
+
     if (!catalogUrl || !operatorName) {
       return res.status(400).json({ error: 'catalogUrl and operatorName query parameters are required' });
     }
-    
+
     const channels = await queryOperatorChannels(catalogUrl as string, operatorName as string);
     if (channels && Array.isArray(channels) && channels.length > 0) {
       const normalizedChannels = normalizeChannels(channels, operatorName as string);
       return res.json(normalizedChannels);
     }
-    
+
     res.status(404).json({ error: 'No channels found for this operator' });
-  } catch (error: any) {
-    console.error(`Error fetching channels:`, error);
+  } catch (error: unknown) {
+    console.error('Error fetching channels:', error);
     res.status(500).json({ error: 'Failed to get operator channels' });
   }
 });
@@ -1349,7 +1341,7 @@ app.get('/api/operators/:operator/dependencies', async (req: Request, res: Respo
   try {
     const { operator } = req.params;
     const { catalogUrl } = req.query;
-    
+
     let dependencies: OperatorDependency[] = [];
     let catalogType: string | null = null;
     let catalogVersion: string | null = null;
@@ -1357,7 +1349,7 @@ app.get('/api/operators/:operator/dependencies', async (req: Request, res: Respo
     if (catalogUrl) {
       catalogType = getCatalogNameFromUrl(catalogUrl as string);
       catalogVersion = (catalogUrl as string).includes(':') ? (catalogUrl as string).split(':')[1] : 'v4.21';
-      
+
       dependencies = await getOperatorDependencies(catalogType, catalogVersion, operator);
     } else {
       const catalogData = await loadPreFetchedCatalogData();
@@ -1366,9 +1358,9 @@ app.get('/api/operators/:operator/dependencies', async (req: Request, res: Respo
           const deps = await getOperatorDependencies(
             catalog.catalog_type,
             catalog.ocp_version,
-            operator
+            operator,
           );
-          
+
           if (deps.length > 0) {
             dependencies = deps;
             catalogType = catalog.catalog_type;
@@ -1378,23 +1370,23 @@ app.get('/api/operators/:operator/dependencies', async (req: Request, res: Respo
         }
       }
     }
-    
+
     if (dependencies.length === 0) {
-      return res.json({ 
+      return res.json({
         operator,
         dependencies: [],
-        message: 'No dependencies found for this operator'
+        message: 'No dependencies found for this operator',
       });
     }
-    
+
     res.json({
       operator,
       catalogType,
       catalogVersion,
       dependencies,
-      count: dependencies.length
+      count: dependencies.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error getting dependencies for ${req.params.operator}:`, error);
     res.status(500).json({ error: 'Failed to get operator dependencies' });
   }
@@ -1404,7 +1396,7 @@ app.get('/api/operations', async (req: Request, res: Response) => {
   try {
     const operations = await getOperations();
     res.json(operations);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get operations' });
   }
 });
@@ -1413,7 +1405,7 @@ app.get('/api/operations/history', async (req: Request, res: Response) => {
   try {
     const operations = await getOperations();
     res.json(operations);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get operation history' });
   }
 });
@@ -1426,37 +1418,37 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
 
     try {
       await fsp.access(configPath);
-    } catch (error: any) {
+    } catch {
       return res.status(404).json({ error: 'Configuration file not found' });
     }
 
     const cacheDir = CACHE_DIR;
     const baseMirrorPath = MIRROR_BASE_DIR;
     let subdirName = 'default';
-    
+
     if (mirrorDestinationSubdir && mirrorDestinationSubdir.trim()) {
       const subdirInput = mirrorDestinationSubdir.trim();
 
       if (subdirInput.includes('/') || subdirInput.includes('..') || subdirInput.includes('\\')) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Subdirectory name cannot contain path separators or traversal characters',
           provided: subdirInput,
-          help: 'Use a simple name like "odf" or "production" (no slashes or special characters)'
+          help: 'Use a simple name like "odf" or "production" (no slashes or special characters)',
         });
       }
-      
+
       if (!subdirInput || subdirInput.length === 0) {
         return res.status(400).json({ error: 'Subdirectory name cannot be empty' });
       }
 
       if (!/^[a-zA-Z0-9_-]+$/.test(subdirInput)) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Subdirectory name contains invalid characters',
           provided: subdirInput,
-          help: 'Use only letters, numbers, dashes (-), and underscores (_)'
+          help: 'Use only letters, numbers, dashes (-), and underscores (_)',
         });
       }
-      
+
       subdirName = subdirInput;
     }
 
@@ -1468,22 +1460,22 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       try {
         await fsp.writeFile(testFile, 'test', { flag: 'w' });
         await fsp.unlink(testFile);
-      } catch (writeError: any) {
+      } catch (writeError: unknown) {
         console.error(`Cannot write to base mirror directory ${baseMirrorPath}:`, writeError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'Base mirror directory is not writable',
           path: baseMirrorPath,
-          details: writeError.message,
-          code: writeError.code
+          details: (writeError as Error).message,
+          code: (writeError as NodeJS.ErrnoException).code,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error accessing base mirror directory ${baseMirrorPath}:`, error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Cannot access base mirror directory',
         path: baseMirrorPath,
-        details: error.message,
-        code: error.code
+        details: (error as Error).message,
+        code: (error as NodeJS.ErrnoException).code,
       });
     }
 
@@ -1503,25 +1495,25 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       try {
         await fsp.writeFile(testFile, 'test', { flag: 'w' });
         await fsp.unlink(testFile);
-      } catch (writeError: any) {
+      } catch (writeError: unknown) {
         console.error(`Cannot write to mirror directory ${mirrorPath}:`, writeError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'Mirror destination directory exists but is not writable',
           path: mirrorPath,
           subdirectory: subdirName,
-          details: writeError.message,
-          code: writeError.code,
-          help: 'The directory exists but the container cannot write to it. Check permissions on the host.'
+          details: (writeError as Error).message,
+          code: (writeError as NodeJS.ErrnoException).code,
+          help: 'The directory exists but the container cannot write to it. Check permissions on the host.',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error creating/accessing mirror directory ${mirrorPath}:`, error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Cannot create or access mirror destination directory',
         path: mirrorPath,
         subdirectory: subdirName,
-        details: error.message,
-        code: error.code
+        details: (error as Error).message,
+        code: (error as NodeJS.ErrnoException).code,
       });
     }
 
@@ -1532,16 +1524,16 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       mirrorDestination: mirrorPath,
       status: 'running',
       startedAt: new Date().toISOString(),
-      logs: []
+      logs: [],
     };
 
     try {
       await saveOperation(operation);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error saving operation ${operationId}:`, error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to create operation record',
-        details: error.message
+        details: (error as Error).message,
       });
     }
 
@@ -1557,31 +1549,31 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       '--src-tls-verify=false',
       '--cache-dir', cacheDir,
       '--authfile', AUTHFILE_PATH,
-      mirrorUrl
+      mirrorUrl,
     ], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: APP_ROOT_DIR
+      cwd: APP_ROOT_DIR,
     });
 
     runningProcesses.set(operationId, {
       pid: child.pid,
-      child: child
+      child: child,
     });
 
     child.stdout!.pipe(logStream);
     child.stderr!.pipe(logStream);
-    
+
     let stdout = '';
     let stderr = '';
-    
+
     child.stdout!.on('data', (data: Buffer) => {
       stdout += data.toString();
     });
-    
+
     child.stderr!.on('data', (data: Buffer) => {
       stderr += data.toString();
     });
-    
+
     child.on('close', async (code: number | null) => {
       runningProcesses.delete(operationId);
       logStream.end();
@@ -1590,7 +1582,7 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       if (!logs) {
         try {
           logs = await fsp.readFile(logFile, 'utf8');
-        } catch {}
+        } catch { /* log file may not exist yet */ }
       }
 
       let finalStatus: OperationRecord['status'] = 'success';
@@ -1600,18 +1592,19 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
       } else if (code !== 0 || logs.toLowerCase().includes('[error]') || logs.toLowerCase().includes('error:')) {
         finalStatus = 'failed';
       }
-      
+
       const completedAt = new Date().toISOString();
       const duration = Math.floor((new Date(completedAt).getTime() - new Date(operation.startedAt).getTime()) / 1000);
 
       let errorMessage: string | null = null;
       if (finalStatus === 'failed') {
         const errorLine = logs.split('\n').find(
-          (line) => /\[error\]/i.test(line) || /\berror:/i.test(line)
+          (line) => /\[error\]/i.test(line) || /\berror:/i.test(line),
         );
         if (errorLine) {
           errorMessage = errorLine
             .replace(/^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s*/, '')
+            // eslint-disable-next-line no-control-regex
             .replace(/\x1b\[[0-9;]*m/g, '')
             .replace(/^\s*\[ERROR\]\s*/i, '')
             .replace(/^:\s*/, '')
@@ -1626,28 +1619,28 @@ app.post('/api/operations/start', async (req: Request, res: Response) => {
         completedAt,
         duration,
         errorMessage,
-        logs: logs.split('\n')
+        logs: logs.split('\n'),
       });
     });
 
     child.on('error', async (error: Error) => {
       runningProcesses.delete(operationId);
       logStream.end();
-      
+
       const completedAt = new Date().toISOString();
       const duration = Math.floor((new Date(completedAt).getTime() - new Date(operation.startedAt).getTime()) / 1000);
-      
+
       await updateOperation(operationId, {
         status: 'failed',
         completedAt,
         duration,
-        errorMessage: error.message,
-        logs: [error.message]
+        errorMessage: (error as Error).message,
+        logs: [(error as Error).message],
       });
     });
 
     res.json({ message: 'Operation started successfully', operationId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error starting operation:', error);
     res.status(500).json({ error: 'Failed to start operation' });
   }
@@ -1671,7 +1664,7 @@ app.post('/api/operations/:id/stop', async (req: Request, res: Response) => {
         }, 5000);
 
         runningProcesses.delete(id);
-      } catch (killError: any) {
+      } catch (killError: unknown) {
         console.error('Error killing process:', killError);
       }
     } else {
@@ -1682,9 +1675,9 @@ app.post('/api/operations/:id/stop', async (req: Request, res: Response) => {
         errorMessage: null,
       });
     }
-    
+
     res.json({ message: 'Operation stopped successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error stopping operation:', error);
     res.status(500).json({ error: 'Failed to stop operation' });
   }
@@ -1695,14 +1688,13 @@ app.delete('/api/operations/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const filename = `${id}.json`;
     const filepath = path.join(OPERATIONS_DIR, filename);
-    
+
     try {
       await fsp.unlink(filepath);
-    } catch (error: any) {
-    }
-    
+    } catch { /* file may already be deleted */ }
+
     res.json({ message: 'Operation deleted successfully' });
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to delete operation' });
   }
 });
@@ -1716,14 +1708,14 @@ app.get('/api/operations/:id/logs', async (req: Request, res: Response) => {
     const logFile = path.join(LOGS_DIR, `${id}.log`);
     try {
       logs = await fsp.readFile(logFile, 'utf8');
-    } catch (e: any) {
+    } catch {
       if (operation.logs && operation.logs.length > 0) {
         logs = operation.logs.join('\n');
       }
     }
-    
+
     res.json({ logs });
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get operation logs' });
   }
 });
@@ -1734,7 +1726,7 @@ app.get('/api/operations/:id/details', async (req: Request, res: Response) => {
     let operation: OperationRecord;
     try {
       operation = await getOperation(id);
-    } catch (e: any) {
+    } catch (e: unknown) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
         return res.status(404).json({ error: 'Operation not found' });
       }
@@ -1752,8 +1744,8 @@ app.get('/api/operations/:id/details', async (req: Request, res: Response) => {
       manifestFiles: [
         'imageContentSourcePolicy.yaml',
         'catalogSource.yaml',
-        'mapping.txt'
-      ]
+        'mapping.txt',
+      ],
     };
 
     if (operation.logs && Array.isArray(operation.logs)) {
@@ -1814,9 +1806,9 @@ app.get('/api/operations/:id/details', async (req: Request, res: Response) => {
         details.helmCharts = 0;
       }
     }
-    
+
     res.json(details);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting operation details:', error);
     res.status(500).json({ error: 'Failed to get operation details' });
   }
@@ -1861,14 +1853,14 @@ app.get('/api/operations/:id/logstream', (req: Request, res: Response) => {
         try {
           const operation = await getOperation(id);
           status = operation?.status || status;
-        } catch {}
+        } catch { /* operation may not exist */ }
 
         res.write(`event: done\ndata: ${JSON.stringify({ id, status })}\n\n`);
         finished = true;
         clearInterval(interval);
         res.end();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.error('Error streaming logs:', error);
       }
@@ -1901,13 +1893,13 @@ app.get('/api/registries', async (_req: Request, res: Response) => {
 
     const registries = Object.entries(auths)
       .filter(([registry]) => !nonRegistryHosts.includes(registry))
-      .map(([registry, authData]: [string, any]) => {
+      .map(([registry, authData]: [string, Record<string, string>]) => {
       let username = '';
       if (authData.auth) {
         try {
           const decoded = Buffer.from(authData.auth, 'base64').toString('utf8');
           username = decoded.split(':')[0] || '';
-        } catch {}
+        } catch { /* invalid base64 */ }
       }
       const cached = registryVerificationCache[registry];
       return {
@@ -1920,7 +1912,7 @@ app.get('/api/registries', async (_req: Request, res: Response) => {
     });
 
     res.json({ registries });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error reading registries from pull secret:', error);
     res.status(500).json({ error: 'Failed to read registries' });
   }
@@ -1985,11 +1977,12 @@ app.post('/api/registries/verify', async (req: Request, res: Response) => {
     }
 
     sendResult({ registry, status: 'failed', error: `HTTP ${response.status}` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error verifying registry ${req.body?.registry}:`, error);
     const reg = req.body?.registry;
-    if (reg) registryVerificationCache[reg] = { status: 'failed', error: error.message || 'Connection failed' };
-    res.json({ registry: reg, status: 'failed', error: error.message || 'Connection failed' });
+    const errMsg = (error as Error).message || 'Connection failed';
+    if (reg) registryVerificationCache[reg] = { status: 'failed', error: errMsg };
+    res.json({ registry: reg, status: 'failed', error: errMsg });
   }
 });
 
@@ -2001,7 +1994,7 @@ app.post('/api/cache/cleanup', async (_req: Request, res: Response) => {
       await fsp.rm(entryPath, { recursive: true, force: true });
     }
     res.json({ message: 'Cache cleaned up successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error cleaning up cache:', error);
     res.status(500).json({ error: 'Failed to cleanup cache' });
   }
@@ -2251,7 +2244,7 @@ app.delete('/api/catalogs/sync/data', async (_req: Request, res: Response) => {
 
     console.log('Runtime catalog data cleared. Will fall back to built-in data on next load.');
     res.json({ message: 'Synced catalog data cleared. Falling back to built-in catalog data.' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error clearing synced catalog data:', error);
     res.status(500).json({ error: 'Failed to clear synced catalog data' });
   }
@@ -2261,30 +2254,15 @@ app.get('/api/system/info', async (req: Request, res: Response) => {
   try {
     const systemInfo = await getSystemInfo();
     res.json(systemInfo);
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to get system info' });
   }
 });
 
-async function countFiles(dirPath: string): Promise<number> {
-  let count = 0;
-  const files = await fsp.readdir(dirPath, { withFileTypes: true });
-  
-  for (const file of files) {
-    const fullPath = path.join(dirPath, file.name);
-    if (file.isDirectory()) {
-      count += await countFiles(fullPath);
-    } else {
-      count++;
-    }
-  }
-  return count;
-}
-
 function configureProductionFrontend(): void {
   app.use(express.static(DIST_DIR, {
     maxAge: '1d',
-    etag: true
+    etag: true,
   }));
 
   app.get('*', (req: Request, res: Response) => {
@@ -2298,8 +2276,8 @@ async function configureDevelopmentFrontend(): Promise<void> {
     appType: 'custom',
     cacheDir: DEV_CACHE_DIR,
     server: {
-      middlewareMode: true
-    }
+      middlewareMode: true,
+    },
   });
 
   app.use(vite.middlewares);
@@ -2344,7 +2322,8 @@ async function startServer(): Promise<void> {
     await configureDevelopmentFrontend();
   }
 
-  app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+
+  app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Server error:', error);
     res.status(500).json({ error: 'Internal server error' });
   });

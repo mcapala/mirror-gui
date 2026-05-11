@@ -12,7 +12,6 @@ const SCRIPTS = [
   'entrypoint.sh',
   'container-run.sh',
   'cron-build.sh',
-  'fetch-catalogs-host.sh',
   'build-for-quay/build-for-quay.sh',
 ];
 

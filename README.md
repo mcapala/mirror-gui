@@ -67,7 +67,7 @@ chmod +x container-run.sh
 ./container-run.sh --run-only
 ```
 
-Every build path runs `fetch-catalogs-host.sh` to pull the latest Red Hat, Certified, and Community operator catalogs (OCP 4.16-4.21) before building the image. Use `--run-only` to skip fetching and building when you already have a local image.
+Every build path runs `sync-catalogs.sh` to pull the latest Red Hat, Certified, and Community operator catalogs (OCP 4.16-4.21) before building the image. Use `--run-only` to skip fetching and building when you already have a local image.
 
 Manage with: `./container-run.sh --stop`, `./container-run.sh --logs`, `./container-run.sh --status`.
 
@@ -172,7 +172,3 @@ Full RESTful API documentation is available in [API.md](API.md).
 ## License
 
 Apache License 2.0 -- see [LICENSE](LICENSE) for details.
-
-## Related Tools
-
-For getting your first OpenShift cluster up in a disconnected environment, see the [ABA project](https://github.com/sjbylo/aba/).

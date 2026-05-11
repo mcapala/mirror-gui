@@ -17,109 +17,145 @@
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.16",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.16",
-      "operator_count": 165
+      "operator_count": 166,
+      "digest": "sha256:144d90a24caff278c0b734d69761477fd4824afbef1d0f83987a80feab1a7b7e",
+      "synced_at": "2026-05-11T20:27:46Z"
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.16",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.16",
-      "operator_count": 243
+      "operator_count": 246,
+      "digest": "sha256:afbdcf8f666533ca02a4f55269423d9c386ba63d32cbfba17766896b7f151f34",
+      "synced_at": "2026-05-11T20:25:54Z"
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.16",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.16",
-      "operator_count": 282
+      "operator_count": 283,
+      "digest": "sha256:8f0684cb7f1d7ec9d025f1a27f8655b776a9e01aeb7b85aac77f1b2039f3f053",
+      "synced_at": "2026-05-11T20:26:16Z"
     },
     {
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.17",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.17",
-      "operator_count": 142
+      "operator_count": 143,
+      "digest": "sha256:6656a4f24a9bf544b4f916c316d4d003f049c90b4d705bd7737c5560c42ff259",
+      "synced_at": "2026-05-11T20:26:16Z"
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.17",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.17",
-      "operator_count": 245
+      "operator_count": 247,
+      "digest": "sha256:e06648d3b4cfe27a2197b8add740b7d3a0ea7d645f14e49c667f6334b4d16b1f",
+      "synced_at": "2026-05-11T20:26:45Z"
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.17",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.17",
-      "operator_count": 285
+      "operator_count": 286,
+      "digest": "sha256:f152244d986efdd41673e5e2aa5af409e33f67ad2ebffb072ed0f6568502bbf9",
+      "synced_at": "2026-05-11T20:26:38Z"
     },
     {
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.18",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.18",
-      "operator_count": 151
+      "operator_count": 152,
+      "digest": "sha256:2c63de32cfb8ebdaa95f90b4b7a613677fe81554d1e4347ed96ce2576bca7ccf",
+      "synced_at": "2026-05-11T20:27:32Z"
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.18",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.18",
-      "operator_count": 246
+      "operator_count": 249,
+      "digest": "sha256:c29c0b6ac4af6bf99dbb159b7dd21471995dfe8b5cae8318834ad38e51e6a37e",
+      "synced_at": "2026-05-11T20:27:29Z"
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.18",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.18",
-      "operator_count": 292
+      "operator_count": 293,
+      "digest": "sha256:ba8479ac1171f94e489af37b8e1e08b13f9c4be62f1b2a27178be553c65a8852",
+      "synced_at": "2026-05-11T20:26:53Z"
     },
     {
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.19",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.19",
-      "operator_count": 146
+      "operator_count": 147,
+      "digest": "sha256:909efe2d7af063128ea9b36b6f62ae0982b36c99855b06a749094e67c5b197fa",
+      "synced_at": "2026-05-11T20:27:22Z"
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.19",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.19",
-      "operator_count": 177
+      "operator_count": 180,
+      "digest": "sha256:59ff3f7dde9beab5454de48f9999c8bfb0fb046ac62ce29f96202c7e76922c79",
+      "synced_at": "2026-05-11T20:27:28Z"
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.19",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.19",
-      "operator_count": 288
+      "operator_count": 290,
+      "digest": "sha256:386a9b9309db165434c24a9e065be9baddb281cff967a4aca1fad6dbaf316eb6",
+      "synced_at": "2026-05-11T20:27:22Z"
     },
     {
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.20",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.20",
-      "operator_count": 151
+      "operator_count": 152,
+      "digest": "sha256:3683d6796fc2fb476a86ef1de952a75bdc0e2aab8951f1b43436bf753c0dae5c",
+      "synced_at": "2026-05-11T20:28:11Z"
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.20",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.20",
-      "operator_count": 172
+      "operator_count": 175,
+      "digest": "sha256:d4c6f731bc2ae23b4b3fe09905bdcf5f79d755815bd78927bc040d610a7d66cd",
+      "synced_at": "2026-05-11T20:28:25Z"
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.20",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.20",
-      "operator_count": 288
+      "operator_count": 290,
+      "digest": "sha256:5485cc8c74f83f341bda8429022f57488adc0586bf57856d446338a8ac30b798",
+      "synced_at": "2026-05-11T20:28:25Z"
     },
     {
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.21",
-      "operator_count": 145
+      "operator_count": 146,
+      "digest": "sha256:5c200e54674fd08a34b359717124b45621f0496641c7926a23425a1de993d0d0",
+      "synced_at": "2026-05-11T20:28:16Z"
     },
     {
       "catalog_type": "certified-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.21",
-      "operator_count": 143
+      "operator_count": 148,
+      "digest": "sha256:a5838008056c725277641eaf2190b01980129fab2b32e99cd893d46ae380a99d",
+      "synced_at": "2026-05-11T20:27:58Z"
     },
     {
       "catalog_type": "community-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.21",
-      "operator_count": 276
+      "operator_count": 278,
+      "digest": "sha256:45584af8ed12c9fe1b0e833fb19f916056f7330ee155ad81a92208f7a470acf9",
+      "synced_at": "2026-05-11T20:28:34Z"
     }
   ]
 }

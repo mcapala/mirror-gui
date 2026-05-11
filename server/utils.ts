@@ -14,7 +14,7 @@ export interface OperatorEntryForUtils {
 }
 
 export function parseOcMirrorVersion(raw: string): string {
-  const match = raw.match(/GitVersion:\"(\d+\.\d+\.\d+)/);
+  const match = raw.match(/GitVersion:"(\d+\.\d+\.\d+)/);
   if (match) {
     return match[1];
   }
@@ -71,7 +71,7 @@ export function compareVersionStrings(a: string, b: string): number {
 
 export function sortVersions(versions: string[]): string[] {
   return Array.from(
-    new Set(versions.filter((version) => version && version.trim()))
+    new Set(versions.filter((version) => version && version.trim())),
   ).sort(compareVersionStrings);
 }
 
@@ -89,7 +89,7 @@ export function getQueryStringValue(value: unknown): string | undefined {
 }
 
 export function extractChannelNames(
-  channels: (string | { name: string })[] | undefined
+  channels: (string | { name: string })[] | undefined,
 ): string[] {
   if (!channels || !Array.isArray(channels)) {
     return [];
@@ -130,7 +130,7 @@ export function extractChannelNames(
 
 export function extractVersionInfo(
   channelNames: string[],
-  operatorName: string | null
+  operatorName: string | null,
 ): { genericChannels: string[]; versions: string[] } {
   const versions = new Set<string>();
   const genericChannels: string[] = [];
@@ -141,8 +141,8 @@ export function extractVersionInfo(
     if (operatorName && channel.includes(`${operatorName}.`)) {
       const versionWithV = channel.match(
         new RegExp(
-          `${operatorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.v(.+)`
-        )
+          `${operatorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.v(.+)`,
+        ),
       );
       if (versionWithV) {
         versions.add(versionWithV[1]);
@@ -151,8 +151,8 @@ export function extractVersionInfo(
 
       const versionWithoutV = channel.match(
         new RegExp(
-          `${operatorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(.+)`
-        )
+          `${operatorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(.+)`,
+        ),
       );
       if (versionWithoutV) {
         versions.add(versionWithoutV[1]);
@@ -167,8 +167,8 @@ export function extractVersionInfo(
       if (operatorBase !== operatorName && channel.includes(`${operatorBase}.`)) {
         const versionWithV = channel.match(
           new RegExp(
-            `${operatorBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.v(.+)`
-          )
+            `${operatorBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.v(.+)`,
+          ),
         );
         if (versionWithV) {
           versions.add(versionWithV[1]);
@@ -177,8 +177,8 @@ export function extractVersionInfo(
 
         const versionWithoutV = channel.match(
           new RegExp(
-            `${operatorBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(.+)`
-          )
+            `${operatorBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(.+)`,
+          ),
         );
         if (versionWithoutV) {
           versions.add(versionWithoutV[1]);
@@ -194,7 +194,7 @@ export function extractVersionInfo(
     }
 
     const genericVersionWithoutV = channel.match(
-      /^[^.]+\.(\d+\.\d+\.\d+.*)/
+      /^[^.]+\.(\d+\.\d+\.\d+.*)/,
     );
     if (genericVersionWithoutV) {
       versions.add(genericVersionWithoutV[1]);
@@ -218,7 +218,7 @@ export function extractVersionInfo(
 
 export function getVersionsFromMetadata(
   operatorData: OperatorEntryForUtils,
-  channelName?: string
+  channelName?: string,
 ): string[] {
   if (
     channelName &&
@@ -230,7 +230,7 @@ export function getVersionsFromMetadata(
 
   if (!channelName) {
     const allChannelVersions = Object.values(
-      operatorData.channelVersions || {}
+      operatorData.channelVersions || {},
     ).flat();
     if (
       allChannelVersions.length > 0 ||
@@ -252,7 +252,7 @@ export function getVersionsFromMetadata(
 export function normalizeChannels(
   channels: (string | { name: string })[] | undefined,
   operatorName: string | null = null,
-  operatorData?: OperatorEntryForUtils
+  operatorData?: OperatorEntryForUtils,
 ): ChannelObject[] {
   let channelNames = extractChannelNames(channels);
 
@@ -281,7 +281,7 @@ export function normalizeChannels(
 
   const { genericChannels, versions } = extractVersionInfo(
     channelNames,
-    operatorName
+    operatorName,
   );
   const channelObjects: ChannelObject[] = genericChannels.map((channel) => ({
     name: channel,

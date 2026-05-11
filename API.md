@@ -370,39 +370,39 @@ Get available operator catalogs.
 - `version` (optional): Filter by OCP version (4.16, 4.17, 4.18, 4.19, 4.20, 4.21)
 
 **Catalog Fetch Workflow:**
-- Catalog snapshots are produced by host-side fetch workflows such as `./fetch-catalogs-host.sh` or any `./container-run.sh` build path
+- Catalog snapshots are produced by host-side sync workflows such as `./sync-catalogs.sh` or any `./container-run.sh` build path
 - Each fetch run always performs a full pull of all supported catalogs; there is no freshness window or separate `--force` mode
 - The API serves the current local catalog snapshot available under `catalog-data/`
 
 **Response:**
 ```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "redhat-operator-index",
-      "url": "registry.redhat.io/redhat/redhat-operator-index",
-      "description": "Red Hat certified operators",
-      "ocpVersion": "4.21",
-      "type": "redhat"
-    },
-    {
-      "name": "certified-operator-index",
-      "url": "registry.redhat.io/redhat/certified-operator-index",
-      "description": "Certified operators",
-      "ocpVersion": "4.21",
-      "type": "certified"
-    },
-    {
-      "name": "community-operator-index",
-      "url": "registry.redhat.io/redhat/community-operator-index",
-      "description": "Community operators",
-      "ocpVersion": "4.21",
-      "type": "community"
-    }
-  ]
-}
+[
+  {
+    "name": "redhat-operator-index",
+    "url": "registry.redhat.io/redhat/redhat-operator-index:v4.21",
+    "description": "Red Hat certified operators",
+    "operatorCount": 175,
+    "digest": "sha256:a1b2c3d4e5f6...",
+    "syncedAt": "2026-05-11T19:30:00Z"
+  },
+  {
+    "name": "certified-operator-index",
+    "url": "registry.redhat.io/redhat/certified-operator-index:v4.21",
+    "description": "Certified operators",
+    "operatorCount": 120,
+    "digest": null,
+    "syncedAt": null
+  }
+]
 ```
+
+**Response Fields:**
+- `name`: Catalog type identifier (e.g., `redhat-operator-index`)
+- `url`: Full registry URL including OCP version tag
+- `description`: Human-readable catalog description
+- `operatorCount`: Number of operators available in this catalog
+- `digest`: SHA-256 image digest of the catalog (e.g., `sha256:a1b2...`), or `null` if not yet synced. Populated when catalogs are synced via `POST /api/catalogs/sync` or during image build.
+- `syncedAt`: ISO 8601 timestamp of when the digest was captured, or `null` if not yet synced.
 
 **Supported OCP Versions:**
 - 4.16
