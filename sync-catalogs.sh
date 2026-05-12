@@ -45,6 +45,16 @@ resolve_registry_config_flag() {
 
 REGISTRY_CONFIG_FLAG=$(resolve_registry_config_flag)
 
+resolve_image_digest() {
+    local image_url=$1
+    local digest
+    # shellcheck disable=SC2086
+    digest=$(oc image info $REGISTRY_CONFIG_FLAG \
+        --filter-by-os=linux/amd64 -o json "$image_url" 2>/dev/null \
+        | jq -r '.digest // empty')
+    echo "${digest:-unknown}"
+}
+
 extract_catalog_data() {
     local catalog_type=$1
     local ocp_version=$2
@@ -66,6 +76,9 @@ extract_catalog_data() {
             $REGISTRY_CONFIG_FLAG \
             --path /configs/:"${output_dir}/configs" \
             "$catalog_url" 2>/dev/null; then
+            local digest
+            digest=$(resolve_image_digest "$catalog_url")
+            echo "$digest" > "${output_dir}/.digest"
             return 0
         else
             rm -rf "${output_dir}/configs" 2>/dev/null
@@ -103,12 +116,22 @@ process_catalog_data() {
     local operator_count
     operator_count=$(jq '. | length' "$operators_file" 2>/dev/null || echo "0")
 
+    local digest="unknown"
+    if [ -f "${catalog_dir}/.digest" ]; then
+        digest=$(cat "${catalog_dir}/.digest")
+        rm -f "${catalog_dir}/.digest"
+    fi
+    local synced_at
+    synced_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
     cat > "${catalog_dir}/catalog-info.json" << EOF
 {
   "catalog_type": "${catalog_type}",
   "ocp_version": "v${ocp_version}",
   "catalog_url": "registry.redhat.io/redhat/${catalog_type}:v${ocp_version}",
-  "operator_count": ${operator_count}
+  "operator_count": ${operator_count},
+  "digest": "${digest}",
+  "synced_at": "${synced_at}"
 }
 EOF
 }
@@ -142,7 +165,7 @@ main() {
         done
     done
 
-    export -f extract_catalog_data process_catalog_data
+    export -f extract_catalog_data process_catalog_data resolve_image_digest
     export CATALOG_DATA_DIR REGISTRY_CONFIG_FLAG SCRIPT_DIR
 
     local job_pids=()

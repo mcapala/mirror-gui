@@ -10,9 +10,8 @@ const SCRIPTS = [
   'mirror-gui.sh',
   'clean-stale-ports.sh',
   'entrypoint.sh',
-  'container-run.sh',
+  'local-build.sh',
   'cron-build.sh',
-  'fetch-catalogs-host.sh',
   'build-for-quay/build-for-quay.sh',
 ];
 

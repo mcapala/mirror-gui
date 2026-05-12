@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import YAML from 'yaml';
 import { useAlerts } from '../AlertContext';
@@ -42,6 +42,7 @@ import {
   MenuToggle,
   Tooltip,
   NumberInput,
+  Switch,
 } from '@patternfly/react-core';
 import { TimesIcon } from '@patternfly/react-icons';
 import {
@@ -109,6 +110,8 @@ interface CatalogInfo {
   name: string;
   url: string;
   description: string;
+  digest?: string | null;
+  syncedAt?: string | null;
 }
 
 interface DetailedOperator {
@@ -477,6 +480,43 @@ const MirrorConfig: React.FC = () => {
   const [parsedUpload, setParsedUpload] = useState<Record<string, any> | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [isUploadLoading, setIsUploadLoading] = useState(false);
+
+  const [useDigestRef, setUseDigestRef] = useState(false);
+
+  const catalogDigestMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const cat of availableCatalogs) {
+      if (cat.digest && cat.digest !== 'unknown') {
+        map[cat.url] = cat.digest;
+      }
+    }
+    return map;
+  }, [availableCatalogs]);
+
+  const hasAnyDigest = Object.keys(catalogDigestMap).length > 0;
+
+  const digestValidationResults = useMemo(() => {
+    if (!parsedUpload?.mirror?.operators) return [];
+    const results: { catalog: string; name: string; ocp: string; status: 'match' | 'mismatch' | 'unknown'; syncedDigest?: string; configDigest?: string }[] = [];
+    for (const op of parsedUpload.mirror.operators) {
+      const catalogRef: string = op.catalog || '';
+      if (!catalogRef.includes('@sha256:')) continue;
+      const [baseUrl, configDigest] = catalogRef.split('@');
+      const namePart = baseUrl.split('/').pop() || '';
+      const matchingCatalog = availableCatalogs.find(c =>
+        c.url.includes(namePart),
+      );
+      const ocp = matchingCatalog?.url.split(':').pop() || 'unknown';
+      if (!matchingCatalog || !matchingCatalog.digest || matchingCatalog.digest === 'unknown') {
+        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'unknown' });
+      } else if (matchingCatalog.digest === configDigest) {
+        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'match', syncedDigest: matchingCatalog.digest, configDigest });
+      } else {
+        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'mismatch', syncedDigest: matchingCatalog.digest, configDigest });
+      }
+    }
+    return results;
+  }, [parsedUpload, availableCatalogs]);
 
   const operatorCatalogs: CatalogInfo[] =
     availableCatalogs.length > 0 ? availableCatalogs : FALLBACK_CATALOGS;
@@ -1076,8 +1116,13 @@ const MirrorConfig: React.FC = () => {
     }
 
     if (config.mirror.operators?.length > 0) {
-      clean.mirror.operators = config.mirror.operators.map(operator => ({
-        catalog: operator.catalog,
+      clean.mirror.operators = config.mirror.operators.map(operator => {
+        const catalogRef = operator.catalog;
+        const resolvedCatalog = useDigestRef && catalogDigestMap[catalogRef]
+          ? catalogRef.replace(/:v[\d.]+$/, `@${catalogDigestMap[catalogRef]}`)
+          : catalogRef;
+        return {
+        catalog: resolvedCatalog,
         packages: operator.packages.map(pkg => ({
           name: pkg.name,
           channels: pkg.channels.map(ch => {
@@ -1086,7 +1131,8 @@ const MirrorConfig: React.FC = () => {
             return c;
           }),
         })),
-      }));
+      };
+      });
     }
 
     if (config.mirror.additionalImages?.length > 0) {
@@ -1094,7 +1140,7 @@ const MirrorConfig: React.FC = () => {
     }
 
     return clean;
-  }, [config]);
+  }, [config, useDigestRef, catalogDigestMap]);
 
   const validateConfiguration = (currentConfig: ImageSetConfig = config): string[] => {
     const errors: string[] = [];
@@ -1459,7 +1505,7 @@ const MirrorConfig: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardBody>
-          Configure and manage ImageSetConfiguration files for oc-mirror v2 operations.
+          Configure and manage ImageSetConfiguration files for mirror operations.
         </CardBody>
       </Card>
 
@@ -2045,6 +2091,29 @@ const MirrorConfig: React.FC = () => {
                         />
                       </FormGroup>
                     </GridItem>
+                    <GridItem span={4}>
+                      <FormGroup label="Catalog References" fieldId="use-digest-ref-toggle">
+                        {hasAnyDigest ? (
+                          <Switch
+                            id="use-digest-ref-toggle"
+                            label="Use digest references"
+                            isChecked={useDigestRef}
+                            onChange={(_e, checked) => setUseDigestRef(checked)}
+                            aria-label="Toggle digest references"
+                          />
+                        ) : (
+                          <Tooltip content="Run Sync Catalogs in Settings to fetch digests">
+                            <Switch
+                              id="use-digest-ref-toggle"
+                              label="Use digest references"
+                              isChecked={false}
+                              isDisabled
+                              aria-label="Toggle digest references"
+                            />
+                          </Tooltip>
+                        )}
+                      </FormGroup>
+                    </GridItem>
                   </Grid>
                 </CardBody>
               </Card>
@@ -2157,6 +2226,27 @@ const MirrorConfig: React.FC = () => {
                     )}
                   </DescriptionList>
                 </Alert>
+              )}
+
+              {digestValidationResults.length > 0 && (
+                <div className="pf-v6-u-mt-md">
+                  {digestValidationResults.map((result, i) => (
+                    <Alert
+                      key={i}
+                      variant={result.status === 'match' ? 'success' : result.status === 'mismatch' ? 'warning' : 'info'}
+                      isInline
+                      isPlain
+                      title={
+                        result.status === 'match'
+                          ? `${result.name} ${result.ocp} \u2014 digest matches current catalog`
+                          : result.status === 'mismatch'
+                            ? `${result.name} ${result.ocp} \u2014 digest does not match current catalog (synced: ${result.syncedDigest?.slice(0, 19)}..., config: ${result.configDigest?.slice(0, 19)}...)`
+                            : `${result.name} ${result.ocp} \u2014 no digest available, run Sync Catalogs to verify`
+                      }
+                      className="pf-v6-u-mt-xs"
+                    />
+                  ))}
+                </div>
               )}
 
               {uploadedContent && (

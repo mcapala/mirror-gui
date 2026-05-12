@@ -119,9 +119,27 @@ describe('committed catalog metadata integrity', () => {
           const info = (await readJson(infoPath)) as {
             catalog_type: string;
             ocp_version: string;
+            digest?: string;
+            synced_at?: string;
           };
           expect(info.catalog_type).toBe(catalogType);
           expect(info.ocp_version).toBe(versionTag);
+        });
+
+        it('catalog-info.json has valid digest and synced_at when present', async () => {
+          const infoPath = path.join(catalogDir, 'catalog-info.json');
+          const info = (await readJson(infoPath)) as {
+            digest?: string;
+            synced_at?: string;
+          };
+          if (info.digest !== undefined) {
+            expect(typeof info.digest).toBe('string');
+            expect(info.digest.length).toBeGreaterThan(0);
+          }
+          if (info.synced_at !== undefined) {
+            expect(typeof info.synced_at).toBe('string');
+            expect(new Date(info.synced_at).toISOString()).toBeTruthy();
+          }
         });
       });
     }
