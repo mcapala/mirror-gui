@@ -503,16 +503,25 @@ const MirrorConfig: React.FC = () => {
       if (!catalogRef.includes('@sha256:')) continue;
       const [baseUrl, configDigest] = catalogRef.split('@');
       const namePart = baseUrl.split('/').pop() || '';
-      const matchingCatalog = availableCatalogs.find(c =>
+      const matchingCatalogs = availableCatalogs.filter(c =>
         c.url.includes(namePart),
       );
-      const ocp = matchingCatalog?.url.split(':').pop() || 'unknown';
-      if (!matchingCatalog || !matchingCatalog.digest || matchingCatalog.digest === 'unknown') {
-        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'unknown' });
-      } else if (matchingCatalog.digest === configDigest) {
-        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'match', syncedDigest: matchingCatalog.digest, configDigest });
+      if (matchingCatalogs.length === 0) {
+        results.push({ catalog: catalogRef, name: namePart, ocp: 'unknown', status: 'unknown', configDigest });
+        continue;
+      }
+      const exactMatch = matchingCatalogs.find(c => c.digest === configDigest);
+      if (exactMatch) {
+        const ocp = exactMatch.url.split(':').pop() || 'unknown';
+        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'match', syncedDigest: exactMatch.digest, configDigest });
       } else {
-        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'mismatch', syncedDigest: matchingCatalog.digest, configDigest });
+        const withDigest = matchingCatalogs.filter(c => c.digest && c.digest !== 'unknown');
+        if (withDigest.length === 0) {
+          results.push({ catalog: catalogRef, name: namePart, ocp: 'unknown', status: 'unknown', configDigest });
+        } else {
+          const versions = withDigest.map(c => c.url.split(':').pop() || '?').join(', ');
+          results.push({ catalog: catalogRef, name: namePart, ocp: versions, status: 'mismatch', syncedDigest: `none of ${withDigest.length} versions matched`, configDigest });
+        }
       }
     }
     return results;
@@ -2240,8 +2249,8 @@ const MirrorConfig: React.FC = () => {
                         result.status === 'match'
                           ? `${result.name} ${result.ocp} \u2014 digest matches current catalog`
                           : result.status === 'mismatch'
-                            ? `${result.name} ${result.ocp} \u2014 digest does not match current catalog (synced: ${result.syncedDigest?.slice(0, 19)}..., config: ${result.configDigest?.slice(0, 19)}...)`
-                            : `${result.name} ${result.ocp} \u2014 no digest available, run Sync Catalogs to verify`
+                            ? `${result.name} \u2014 digest does not match any synced version (checked: ${result.ocp}; config: ${result.configDigest?.slice(0, 19)}...)`
+                            : `${result.name} \u2014 no digest available, run Sync Catalogs to verify`
                       }
                       className="pf-v6-u-mt-xs"
                     />
