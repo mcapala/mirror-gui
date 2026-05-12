@@ -67,6 +67,14 @@ def unique_strings(values: list[str]) -> list[str]:
     return sorted({value for value in values if value})
 
 
+def _parse_suffix_number(suffix: str) -> tuple[int, str]:
+    """Extract a leading integer from a version suffix for numeric comparison."""
+    match = re.match(r"^(\d+)(.*)", suffix)
+    if match:
+        return int(match.group(1)), match.group(2)
+    return 0, suffix
+
+
 def compare_versions(left: str, right: str) -> int:
     def base_version(value: str) -> str:
         match = re.match(r"^(\d+\.\d+\.\d+)", value)
@@ -85,9 +93,25 @@ def compare_versions(left: str, right: str) -> int:
         if left_part != right_part:
             return -1 if left_part < right_part else 1
 
-    if left < right:
+    left_suffix = left[len(left_base):]
+    right_suffix = right[len(right_base):]
+    if left_suffix == right_suffix:
+        return 0
+
+    if not left_suffix and right_suffix:
         return -1
-    if left > right:
+    if left_suffix and not right_suffix:
+        return 1
+
+    left_suffix = left_suffix.lstrip("-")
+    right_suffix = right_suffix.lstrip("-")
+    left_num, left_rest = _parse_suffix_number(left_suffix)
+    right_num, right_rest = _parse_suffix_number(right_suffix)
+    if left_num != right_num:
+        return -1 if left_num < right_num else 1
+    if left_rest < right_rest:
+        return -1
+    if left_rest > right_rest:
         return 1
     return 0
 

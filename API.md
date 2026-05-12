@@ -877,7 +877,7 @@ Get current catalog sync status, progress, logs, and diff.
 ```
 
 **Response Fields:**
-- `hasRuntimeSyncData`: `true` when runtime synced catalog data is present on disk (same probe as `DELETE /api/catalogs/sync/data`); use this to enable a “clear sync data” action in the UI
+- `hasRuntimeSyncData`: `true` when runtime-synced catalog data is present on disk (same probe as `DELETE /api/catalogs/sync/data`); use this to enable a “clear sync data” action in the UI
 - `syncStartTime`: ISO timestamp when the current/last sync started
 - `completedCatalogs`: Number of catalogs processed so far
 - `currentCatalog`: Catalog currently being processed (while running)

@@ -67,6 +67,7 @@ Server API tests using Supertest against the Express server. Each suite starts a
 | ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `auditFetchCatalogs.test.ts`   | 2     | Tests `scripts/audit-fetch-catalogs.mjs` logic using synthetic fixtures -- detects version metadata mismatches and JSON parse errors                                                                                                                   |
 | `catalogDataIntegrity.test.ts` | 94    | Validates all committed catalog metadata: `catalog-index.json` has all 6 OCP versions and 3 catalog types, all 18 catalogs have valid `operators.json` (with required fields and minimum operator counts), `dependencies.json`, `catalog-info.json`, and optional `digest`/`synced_at` fields |
+| `catalogMetadata.test.ts`      | 8     | Tests `catalog_metadata.py` version comparison, sorting, and range functions -- verifies numeric suffix ordering (e.g., `2.9.3-7` < `2.9.3-17`)                                                                                                       |
 | `shellcheck.test.ts`           | 7     | Runs ShellCheck on shell scripts when available; skips gracefully otherwise                                                                                                                                                                            |
 
 
@@ -150,8 +151,8 @@ npm run audit:fetch-catalogs
 | ---------------- | ------ | ---------- |
 | Unit             | 3      | 46         |
 | Integration      | 13     | 71         |
-| Scripts          | 3      | 104        |
+| Scripts          | 4      | 112        |
 | E2E (Playwright) | 8      | 51         |
-| **Total**        | **27** | **271**    |
+| **Total**        | **28** | **279**    |
 
 
