@@ -3,6 +3,6 @@
   "ocp_version": "v4.17",
   "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.17",
   "operator_count": 247,
-  "digest": "sha256:e06648d3b4cfe27a2197b8add740b7d3a0ea7d645f14e49c667f6334b4d16b1f",
-  "synced_at": "2026-05-11T20:26:45Z"
+  "digest": "sha256:58548a4208cfb7648f1d94a0e4d8dbeb347c0e4e1e5eb06954783bb5d154f022",
+  "synced_at": "2026-05-12T19:53:21Z"
 }

@@ -194,7 +194,8 @@
         "7.12.6-opr-1+0.1773761472.p",
         "7.12.6-opr-1+0.1773829919.p",
         "7.12.6-opr-1+0.1773844407.p",
-        "7.12.7-opr-1"
+        "7.12.7-opr-1",
+        "7.12.7-opr-1+0.1778542416.p"
       ]
     },
     "channelVersionRanges": {
@@ -208,7 +209,7 @@
       },
       "7.12.x": {
         "minVersion": "7.12.0-opr-1",
-        "maxVersion": "7.12.7-opr-1"
+        "maxVersion": "7.12.7-opr-1+0.1778542416.p"
       }
     },
     "availableVersions": [
@@ -292,10 +293,11 @@
       "7.12.6-opr-1+0.1773761472.p",
       "7.12.6-opr-1+0.1773829919.p",
       "7.12.6-opr-1+0.1773844407.p",
-      "7.12.7-opr-1"
+      "7.12.7-opr-1",
+      "7.12.7-opr-1+0.1778542416.p"
     ],
     "minVersion": "7.10.0-opr-1",
-    "maxVersion": "7.12.7-opr-1",
+    "maxVersion": "7.12.7-opr-1+0.1778542416.p",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -580,8 +582,8 @@
         "2.8.0-0+0.1738265624.p",
         "2.9.1-0",
         "2.9.1-1",
-        "3.0.0-13",
         "3.0.0-9",
+        "3.0.0-13",
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-3",
@@ -605,16 +607,16 @@
         "2.8.0-0+0.1738265624.p",
         "2.9.1-0",
         "2.9.1-1",
-        "3.0.0-13",
         "3.0.0-9",
+        "3.0.0-13",
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-7",
-        "3.1.0-11",
-        "3.1.0-14",
         "3.1.0-6",
-        "3.1.0-7"
+        "3.1.0-7",
+        "3.1.0-11",
+        "3.1.0-14"
       ],
       "amq-streams-3.2.x": [
         "2.5.0-0",
@@ -634,16 +636,16 @@
         "2.8.0-0+0.1738265624.p",
         "2.9.1-0",
         "2.9.1-1",
-        "3.0.0-13",
         "3.0.0-9",
+        "3.0.0-13",
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-7",
-        "3.1.0-11",
-        "3.1.0-14",
         "3.1.0-6",
         "3.1.0-7",
+        "3.1.0-11",
+        "3.1.0-14",
         "3.2.0-8"
       ],
       "amq-streams-3.x": [
@@ -664,16 +666,16 @@
         "2.8.0-0+0.1738265624.p",
         "2.9.1-0",
         "2.9.1-1",
-        "3.0.0-13",
         "3.0.0-9",
+        "3.0.0-13",
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-7",
-        "3.1.0-11",
-        "3.1.0-14",
         "3.1.0-6",
         "3.1.0-7",
+        "3.1.0-11",
+        "3.1.0-14",
         "3.2.0-8"
       ],
       "amq-streams-lts": [
@@ -713,16 +715,16 @@
         "2.8.0-0+0.1738265624.p",
         "2.9.1-0",
         "2.9.1-1",
-        "3.0.0-13",
         "3.0.0-9",
+        "3.0.0-13",
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-7",
-        "3.1.0-11",
-        "3.1.0-14",
         "3.1.0-6",
         "3.1.0-7",
+        "3.1.0-11",
+        "3.1.0-14",
         "3.2.0-8"
       ]
     },
@@ -769,7 +771,7 @@
       },
       "amq-streams-3.1.x": {
         "minVersion": "2.5.0-0",
-        "maxVersion": "3.1.0-7"
+        "maxVersion": "3.1.0-14"
       },
       "amq-streams-3.2.x": {
         "minVersion": "2.5.0-0",
@@ -849,16 +851,16 @@
       "2.9.3-6",
       "2.9.3-7",
       "2.9.3-8",
-      "3.0.0-13",
       "3.0.0-9",
+      "3.0.0-13",
       "3.0.1-1",
       "3.0.1-2",
       "3.0.1-3",
       "3.0.1-7",
-      "3.1.0-11",
-      "3.1.0-14",
       "3.1.0-6",
       "3.1.0-7",
+      "3.1.0-11",
+      "3.1.0-14",
       "3.2.0-8"
     ],
     "minVersion": "2.2.0-5",
@@ -891,8 +893,8 @@
         "2.9.0-8",
         "2.9.1-2",
         "2.9.1-5",
-        "3.0.0-10",
         "3.0.0-7",
+        "3.0.0-10",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-5"
@@ -913,15 +915,15 @@
         "2.9.1-7",
         "2.9.2-1",
         "2.9.2-2",
+        "2.9.3-2",
+        "2.9.3-5",
+        "2.9.3-6",
+        "2.9.3-7",
         "2.9.3-10",
         "2.9.3-12",
         "2.9.3-14",
         "2.9.3-16",
-        "2.9.3-17",
-        "2.9.3-2",
-        "2.9.3-5",
-        "2.9.3-6",
-        "2.9.3-7"
+        "2.9.3-17"
       ],
       "amq-streams-2.x": [
         "2.8.0-13",
@@ -935,15 +937,15 @@
         "2.9.1-7",
         "2.9.2-1",
         "2.9.2-2",
+        "2.9.3-2",
+        "2.9.3-5",
+        "2.9.3-6",
+        "2.9.3-7",
         "2.9.3-10",
         "2.9.3-12",
         "2.9.3-14",
         "2.9.3-16",
-        "2.9.3-17",
-        "2.9.3-2",
-        "2.9.3-5",
-        "2.9.3-6",
-        "2.9.3-7"
+        "2.9.3-17"
       ],
       "amq-streams-3.0.x": [
         "2.8.0-13",
@@ -954,8 +956,8 @@
         "2.9.0-8",
         "2.9.1-2",
         "2.9.1-5",
-        "3.0.0-10",
         "3.0.0-7",
+        "3.0.0-10",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-5"
@@ -969,15 +971,15 @@
         "2.9.0-8",
         "2.9.1-2",
         "2.9.1-5",
-        "3.0.0-10",
         "3.0.0-7",
+        "3.0.0-10",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-5",
-        "3.1.0-10",
         "3.1.0-4",
         "3.1.0-5",
-        "3.1.0-8"
+        "3.1.0-8",
+        "3.1.0-10"
       ],
       "amq-streams-3.2.x": [
         "2.8.0-13",
@@ -988,15 +990,15 @@
         "2.9.0-8",
         "2.9.1-2",
         "2.9.1-5",
-        "3.0.0-10",
         "3.0.0-7",
+        "3.0.0-10",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-5",
-        "3.1.0-10",
         "3.1.0-4",
         "3.1.0-5",
         "3.1.0-8",
+        "3.1.0-10",
         "3.2.0-4"
       ],
       "amq-streams-3.x": [
@@ -1008,15 +1010,15 @@
         "2.9.0-8",
         "2.9.1-2",
         "2.9.1-5",
-        "3.0.0-10",
         "3.0.0-7",
+        "3.0.0-10",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-5",
-        "3.1.0-10",
         "3.1.0-4",
         "3.1.0-5",
         "3.1.0-8",
+        "3.1.0-10",
         "3.2.0-4"
       ],
       "stable": [
@@ -1028,15 +1030,15 @@
         "2.9.0-8",
         "2.9.1-2",
         "2.9.1-5",
-        "3.0.0-10",
         "3.0.0-7",
+        "3.0.0-10",
         "3.0.1-2",
         "3.0.1-3",
         "3.0.1-5",
-        "3.1.0-10",
         "3.1.0-4",
         "3.1.0-5",
         "3.1.0-8",
+        "3.1.0-10",
         "3.2.0-4"
       ]
     },
@@ -1051,11 +1053,11 @@
       },
       "amq-streams-2.9.x": {
         "minVersion": "2.8.0-13",
-        "maxVersion": "2.9.3-7"
+        "maxVersion": "2.9.3-17"
       },
       "amq-streams-2.x": {
         "minVersion": "2.8.0-13",
-        "maxVersion": "2.9.3-7"
+        "maxVersion": "2.9.3-17"
       },
       "amq-streams-3.0.x": {
         "minVersion": "2.8.0-13",
@@ -1063,7 +1065,7 @@
       },
       "amq-streams-3.1.x": {
         "minVersion": "2.8.0-13",
-        "maxVersion": "3.1.0-8"
+        "maxVersion": "3.1.0-10"
       },
       "amq-streams-3.2.x": {
         "minVersion": "2.8.0-13",
@@ -1090,24 +1092,24 @@
       "2.9.1-7",
       "2.9.2-1",
       "2.9.2-2",
+      "2.9.3-2",
+      "2.9.3-5",
+      "2.9.3-6",
+      "2.9.3-7",
       "2.9.3-10",
       "2.9.3-12",
       "2.9.3-14",
       "2.9.3-16",
       "2.9.3-17",
-      "2.9.3-2",
-      "2.9.3-5",
-      "2.9.3-6",
-      "2.9.3-7",
-      "3.0.0-10",
       "3.0.0-7",
+      "3.0.0-10",
       "3.0.1-2",
       "3.0.1-3",
       "3.0.1-5",
-      "3.1.0-10",
       "3.1.0-4",
       "3.1.0-5",
       "3.1.0-8",
+      "3.1.0-10",
       "3.2.0-4"
     ],
     "minVersion": "2.8.0-13",
@@ -1148,10 +1150,10 @@
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-4",
-        "3.1.0-12",
-        "3.1.0-15",
         "3.1.0-6",
-        "3.1.0-7"
+        "3.1.0-7",
+        "3.1.0-12",
+        "3.1.0-15"
       ],
       "amq-streams-3.2.x": [
         "3.0.0-5",
@@ -1159,10 +1161,10 @@
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-4",
-        "3.1.0-12",
-        "3.1.0-15",
         "3.1.0-6",
         "3.1.0-7",
+        "3.1.0-12",
+        "3.1.0-15",
         "3.2.0-2"
       ],
       "amq-streams-3.x": [
@@ -1171,10 +1173,10 @@
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-4",
-        "3.1.0-12",
-        "3.1.0-15",
         "3.1.0-6",
         "3.1.0-7",
+        "3.1.0-12",
+        "3.1.0-15",
         "3.2.0-2"
       ],
       "stable": [
@@ -1183,10 +1185,10 @@
         "3.0.1-1",
         "3.0.1-2",
         "3.0.1-4",
-        "3.1.0-12",
-        "3.1.0-15",
         "3.1.0-6",
         "3.1.0-7",
+        "3.1.0-12",
+        "3.1.0-15",
         "3.2.0-2"
       ]
     },
@@ -1201,7 +1203,7 @@
       },
       "amq-streams-3.1.x": {
         "minVersion": "3.0.0-5",
-        "maxVersion": "3.1.0-7"
+        "maxVersion": "3.1.0-15"
       },
       "amq-streams-3.2.x": {
         "minVersion": "3.0.0-5",
@@ -1222,10 +1224,10 @@
       "3.0.1-1",
       "3.0.1-2",
       "3.0.1-4",
-      "3.1.0-12",
-      "3.1.0-15",
       "3.1.0-6",
       "3.1.0-7",
+      "3.1.0-12",
+      "3.1.0-15",
       "3.2.0-2"
     ],
     "minVersion": "3.0.0-5",
@@ -2170,6 +2172,14 @@
         "7.13.4-3",
         "7.13.4-4",
         "7.13.5-1",
+        "7.13.5-2",
+        "7.13.5-3",
+        "7.13.5-4",
+        "7.13.5-5",
+        "7.13.5-6",
+        "7.13.5-7",
+        "7.13.5-8",
+        "7.13.5-9",
         "7.13.5-10",
         "7.13.5-11",
         "7.13.5-12",
@@ -2180,23 +2190,15 @@
         "7.13.5-17",
         "7.13.5-18",
         "7.13.5-19",
-        "7.13.5-2",
         "7.13.5-20",
         "7.13.5-21",
-        "7.13.5-22",
-        "7.13.5-3",
-        "7.13.5-4",
-        "7.13.5-5",
-        "7.13.5-6",
-        "7.13.5-7",
-        "7.13.5-8",
-        "7.13.5-9"
+        "7.13.5-22"
       ]
     },
     "channelVersionRanges": {
       "stable": {
         "minVersion": "1.2.0",
-        "maxVersion": "7.13.5-9"
+        "maxVersion": "7.13.5-22"
       }
     },
     "availableVersions": [
@@ -2241,6 +2243,14 @@
       "7.13.4-3",
       "7.13.4-4",
       "7.13.5-1",
+      "7.13.5-2",
+      "7.13.5-3",
+      "7.13.5-4",
+      "7.13.5-5",
+      "7.13.5-6",
+      "7.13.5-7",
+      "7.13.5-8",
+      "7.13.5-9",
       "7.13.5-10",
       "7.13.5-11",
       "7.13.5-12",
@@ -2251,20 +2261,12 @@
       "7.13.5-17",
       "7.13.5-18",
       "7.13.5-19",
-      "7.13.5-2",
       "7.13.5-20",
       "7.13.5-21",
-      "7.13.5-22",
-      "7.13.5-3",
-      "7.13.5-4",
-      "7.13.5-5",
-      "7.13.5-6",
-      "7.13.5-7",
-      "7.13.5-8",
-      "7.13.5-9"
+      "7.13.5-22"
     ],
     "minVersion": "1.2.0",
-    "maxVersion": "7.13.5-9",
+    "maxVersion": "7.13.5-22",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -2293,7 +2295,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -2303,7 +2306,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -2320,10 +2323,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -2452,7 +2456,8 @@
         "6.4.4"
       ],
       "stable-6.5": [
-        "6.5.0"
+        "6.5.0",
+        "6.5.1"
       ]
     },
     "channelVersionRanges": {
@@ -2462,7 +2467,7 @@
       },
       "stable-6.5": {
         "minVersion": "6.5.0",
-        "maxVersion": "6.5.0"
+        "maxVersion": "6.5.1"
       }
     },
     "availableVersions": [
@@ -2471,10 +2476,11 @@
       "6.4.2",
       "6.4.3",
       "6.4.4",
-      "6.5.0"
+      "6.5.0",
+      "6.5.1"
     ],
     "minVersion": "6.4.0",
-    "maxVersion": "6.5.0",
+    "maxVersion": "6.5.1",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -3385,7 +3391,8 @@
         "8.5.13",
         "8.5.14",
         "8.6.0",
-        "8.6.1"
+        "8.6.1",
+        "8.6.2"
       ]
     },
     "channelVersionRanges": {
@@ -3403,7 +3410,7 @@
       },
       "stable": {
         "minVersion": "8.2.4",
-        "maxVersion": "8.6.1"
+        "maxVersion": "8.6.2"
       }
     },
     "availableVersions": [
@@ -3454,10 +3461,11 @@
       "8.5.13",
       "8.5.14",
       "8.6.0",
-      "8.6.1"
+      "8.6.1",
+      "8.6.2"
     ],
     "minVersion": "8.2.4",
-    "maxVersion": "8.6.1",
+    "maxVersion": "8.6.2",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -5299,7 +5307,8 @@
         "6.4.4"
       ],
       "stable-6.5": [
-        "6.5.0"
+        "6.5.0",
+        "6.5.1"
       ]
     },
     "channelVersionRanges": {
@@ -5309,7 +5318,7 @@
       },
       "stable-6.5": {
         "minVersion": "6.5.0",
-        "maxVersion": "6.5.0"
+        "maxVersion": "6.5.1"
       }
     },
     "availableVersions": [
@@ -5318,10 +5327,11 @@
       "6.4.2",
       "6.4.3",
       "6.4.4",
-      "6.5.0"
+      "6.5.0",
+      "6.5.1"
     ],
     "minVersion": "6.4.0",
-    "maxVersion": "6.5.0",
+    "maxVersion": "6.5.1",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -5413,7 +5423,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -5423,7 +5434,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -5440,10 +5451,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -5765,7 +5777,8 @@
         "2.11.2",
         "2.11.3",
         "2.11.4",
-        "2.11.5"
+        "2.11.5",
+        "2.11.6"
       ]
     },
     "channelVersionRanges": {
@@ -5775,7 +5788,7 @@
       },
       "release-v2.11": {
         "minVersion": "2.11.0",
-        "maxVersion": "2.11.5"
+        "maxVersion": "2.11.6"
       }
     },
     "availableVersions": [
@@ -5785,10 +5798,11 @@
       "2.11.2",
       "2.11.3",
       "2.11.4",
-      "2.11.5"
+      "2.11.5",
+      "2.11.6"
     ],
     "minVersion": "2.10.5",
-    "maxVersion": "2.11.5",
+    "maxVersion": "2.11.6",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6217,7 +6231,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6227,7 +6242,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6244,10 +6259,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6276,7 +6292,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6286,7 +6303,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6303,10 +6320,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6335,7 +6353,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6345,7 +6364,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6362,10 +6381,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6394,7 +6414,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6404,7 +6425,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6421,10 +6442,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6453,7 +6475,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6463,7 +6486,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6480,10 +6503,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6512,7 +6536,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6522,7 +6547,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6539,10 +6564,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6571,7 +6597,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6581,7 +6608,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6598,10 +6625,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6630,7 +6658,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6640,7 +6669,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6657,10 +6686,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6689,7 +6719,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6699,7 +6730,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6716,10 +6747,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -6748,7 +6780,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -6758,7 +6791,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -6775,10 +6808,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -8929,7 +8963,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -8939,7 +8974,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -8956,10 +8991,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -9293,7 +9329,8 @@
         "1.3.1",
         "1.3.1+0.1776877589.p",
         "1.3.1+0.1777856626.p",
-        "1.3.1+0.1778001943.p"
+        "1.3.1+0.1778001943.p",
+        "1.3.1+0.1778541831.p"
       ],
       "stable-v1": [
         "1.0.0",
@@ -9318,7 +9355,8 @@
         "1.3.1",
         "1.3.1+0.1776877589.p",
         "1.3.1+0.1777856626.p",
-        "1.3.1+0.1778001943.p"
+        "1.3.1+0.1778001943.p",
+        "1.3.1+0.1778541831.p"
       ],
       "stable-v1.0": [
         "1.0.0",
@@ -9330,11 +9368,11 @@
     "channelVersionRanges": {
       "latest": {
         "minVersion": "1.0.0",
-        "maxVersion": "1.3.1+0.1778001943.p"
+        "maxVersion": "1.3.1+0.1778541831.p"
       },
       "stable-v1": {
         "minVersion": "1.0.0",
-        "maxVersion": "1.3.1+0.1778001943.p"
+        "maxVersion": "1.3.1+0.1778541831.p"
       },
       "stable-v1.0": {
         "minVersion": "1.0.0",
@@ -9364,10 +9402,11 @@
       "1.3.1",
       "1.3.1+0.1776877589.p",
       "1.3.1+0.1777856626.p",
-      "1.3.1+0.1778001943.p"
+      "1.3.1+0.1778001943.p",
+      "1.3.1+0.1778541831.p"
     ],
     "minVersion": "1.0.0",
-    "maxVersion": "1.3.1+0.1778001943.p",
+    "maxVersion": "1.3.1+0.1778541831.p",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -12138,7 +12177,8 @@
         "7.6.12-opr-005",
         "7.6.12-opr-006",
         "7.6.12-opr-007",
-        "7.6.12-opr-008"
+        "7.6.12-opr-008",
+        "7.6.12-opr-009"
       ]
     },
     "channelVersionRanges": {
@@ -12148,7 +12188,7 @@
       },
       "stable": {
         "minVersion": "7.5.0",
-        "maxVersion": "7.6.12-opr-008"
+        "maxVersion": "7.6.12-opr-009"
       }
     },
     "availableVersions": [
@@ -12215,10 +12255,11 @@
       "7.6.12-opr-005",
       "7.6.12-opr-006",
       "7.6.12-opr-007",
-      "7.6.12-opr-008"
+      "7.6.12-opr-008",
+      "7.6.12-opr-009"
     ],
     "minVersion": "7.5.0",
-    "maxVersion": "7.6.12-opr-008",
+    "maxVersion": "7.6.12-opr-009",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
@@ -12337,7 +12378,8 @@
       "stable-4.21": [
         "4.21.0-rhodf",
         "4.21.1-rhodf",
-        "4.21.2-rhodf"
+        "4.21.2-rhodf",
+        "4.21.3-rhodf"
       ]
     },
     "channelVersionRanges": {
@@ -12347,7 +12389,7 @@
       },
       "stable-4.21": {
         "minVersion": "4.21.0-rhodf",
-        "maxVersion": "4.21.2-rhodf"
+        "maxVersion": "4.21.3-rhodf"
       }
     },
     "availableVersions": [
@@ -12364,10 +12406,11 @@
       "4.20.10-rhodf",
       "4.21.0-rhodf",
       "4.21.1-rhodf",
-      "4.21.2-rhodf"
+      "4.21.2-rhodf",
+      "4.21.3-rhodf"
     ],
     "minVersion": "4.20.0-rhodf",
-    "maxVersion": "4.21.2-rhodf",
+    "maxVersion": "4.21.3-rhodf",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"

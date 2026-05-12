@@ -2,7 +2,7 @@
   "catalog_type": "community-operator-index",
   "ocp_version": "v4.17",
   "catalog_url": "registry.redhat.io/redhat/community-operator-index:v4.17",
-  "operator_count": 286,
-  "digest": "sha256:f152244d986efdd41673e5e2aa5af409e33f67ad2ebffb072ed0f6568502bbf9",
-  "synced_at": "2026-05-11T20:26:38Z"
+  "operator_count": 287,
+  "digest": "sha256:d872eb28421c3adcb1479954b146f89f03c9d4a975db60667d4e58316dce7a5e",
+  "synced_at": "2026-05-12T19:53:14Z"
 }
