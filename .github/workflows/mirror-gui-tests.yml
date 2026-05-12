@@ -86,8 +86,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Podman
-        run: sudo apt-get update && sudo apt-get install -y podman
+      - name: Verify Podman available
+        run: podman --version
 
       - name: Build container image
         run: podman build -t mirror-gui:ci .
