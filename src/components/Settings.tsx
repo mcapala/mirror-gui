@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -140,6 +140,8 @@ const SettingsPage: React.FC = () => {
 
   const [catalogDigests, setCatalogDigests] = useState<{ name: string; url: string; digest: string | null; syncedAt: string | null }[]>([]);
   const [digestsExpanded, setDigestsExpanded] = useState(false);
+  /** Snapshot of digest by `catalogName:ocpVersion` taken when sync starts; used to label Updated vs Unchanged after sync. */
+  const [preSyncDigests, setPreSyncDigests] = useState<Record<string, string>>({});
 
   const fetchCatalogDigests = useCallback(async () => {
     try {
@@ -150,6 +152,23 @@ const SettingsPage: React.FC = () => {
       setCatalogDigests([]);
     }
   }, []);
+
+  const digestChangeStats = useMemo(() => {
+    let updated = 0;
+    let tracked = 0;
+    for (const cat of catalogDigests) {
+      const ocp = cat.url.split(':').pop() || '';
+      const key = `${cat.name}:${ocp}`;
+      if (!Object.prototype.hasOwnProperty.call(preSyncDigests, key)) {
+        continue;
+      }
+      tracked += 1;
+      if ((preSyncDigests[key] || '') !== (cat.digest || '')) {
+        updated += 1;
+      }
+    }
+    return { updated, tracked };
+  }, [catalogDigests, preSyncDigests]);
 
   const fetchSyncStatus = useCallback(async () => {
     try {
@@ -167,6 +186,14 @@ const SettingsPage: React.FC = () => {
   const startCatalogSync = async () => {
     try {
       await axios.post('/api/catalogs/sync');
+
+      const snapshot: Record<string, string> = {};
+      for (const cat of catalogDigests) {
+        const ocp = cat.url.split(':').pop() || '';
+        snapshot[`${cat.name}:${ocp}`] = cat.digest || '';
+      }
+      setPreSyncDigests(snapshot);
+
       setCatalogSyncStatus(prev => ({ ...prev, status: 'running', syncStartTime: new Date().toISOString(), logs: [], error: null, diff: [] }));
       syncPollRef.current = setInterval(fetchSyncStatus, 3000);
       setShowSyncLogs(false);
@@ -196,6 +223,7 @@ const SettingsPage: React.FC = () => {
     }
     if (prev === 'running' && curr === 'completed') {
       addSuccessAlert(`Catalog sync completed: ${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs successful`);
+      setDigestsExpanded(true);
       fetchCatalogDigests();
     } else if (prev === 'running' && curr === 'failed') {
       addDangerAlert(`Catalog sync failed: ${catalogSyncStatus.error || 'Unknown error'}`);
@@ -212,7 +240,9 @@ const SettingsPage: React.FC = () => {
     try {
       const response = await axios.delete('/api/catalogs/sync/data');
       addSuccessAlert(response.data.message);
+      setPreSyncDigests({});
       await fetchSyncStatus();
+      await fetchCatalogDigests();
     } catch (error: any) {
       const msg = error.response?.data?.error || 'Failed to clear sync data';
       addDangerAlert(msg);
@@ -764,7 +794,11 @@ const SettingsPage: React.FC = () => {
 
                 {catalogDigests.length > 0 && (
                   <ExpandableSection
-                    toggleText={`Catalog Digests (${catalogDigests.length})`}
+                    toggleText={
+                      digestChangeStats.updated > 0
+                        ? `Catalog Digests (${catalogDigests.length}) — ${digestChangeStats.updated} updated`
+                        : `Catalog Digests (${catalogDigests.length})`
+                    }
                     isExpanded={digestsExpanded}
                     onToggle={(_e, expanded) => setDigestsExpanded(expanded)}
                     className="pf-v6-u-mt-lg"
@@ -776,14 +810,18 @@ const SettingsPage: React.FC = () => {
                           <Th>OCP</Th>
                           <Th>Digest</Th>
                           <Th>Synced</Th>
+                          <Th>Status</Th>
                         </Tr>
                       </Thead>
                       <Tbody>
                         {catalogDigests.map((cat, i) => {
                           const ocp = cat.url.split(':').pop() || '';
                           const shortDigest = cat.digest ? `${cat.digest.slice(0, 19)}...` : '';
+                          const digestKey = `${cat.name}:${ocp}`;
+                          const hasPreSync = Object.prototype.hasOwnProperty.call(preSyncDigests, digestKey);
+                          const digestChanged = hasPreSync && (preSyncDigests[digestKey] || '') !== (cat.digest || '');
                           return (
-                            <Tr key={i}>
+                            <Tr key={`${digestKey}-${i}`}>
                               <Td>{cat.name}</Td>
                               <Td>{ocp}</Td>
                               <Td>
@@ -807,6 +845,11 @@ const SettingsPage: React.FC = () => {
                               </Td>
                               <Td>
                                 {cat.syncedAt && <Timestamp date={new Date(cat.syncedAt)} tooltip={{ variant: 'default' }} />}
+                              </Td>
+                              <Td>
+                                {digestChanged
+                                  ? <Label color="green" isCompact>Updated</Label>
+                                  : <Label color="grey" isCompact>Current</Label>}
                               </Td>
                             </Tr>
                           );
