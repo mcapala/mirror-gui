@@ -513,7 +513,7 @@ const MirrorConfig: React.FC = () => {
       const exactMatch = matchingCatalogs.find(c => c.digest === configDigest);
       if (exactMatch) {
         const ocp = exactMatch.url.split(':').pop() || 'unknown';
-        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'match', syncedDigest: exactMatch.digest, configDigest });
+        results.push({ catalog: catalogRef, name: namePart, ocp, status: 'match', syncedDigest: exactMatch.digest ?? undefined, configDigest });
       } else {
         const withDigest = matchingCatalogs.filter(c => c.digest && c.digest !== 'unknown');
         if (withDigest.length === 0) {
