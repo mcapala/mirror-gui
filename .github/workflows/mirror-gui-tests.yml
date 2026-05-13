@@ -71,7 +71,7 @@ jobs:
 
       - name: Run shellcheck on scripts
         run: |
-          for script in mirror-gui.sh entrypoint.sh container-run.sh fetch-catalogs-host.sh sync-catalogs.sh; do
+          for script in mirror-gui.sh entrypoint.sh local-build.sh sync-catalogs.sh; do
             if [ -f "$script" ]; then
               echo "Checking $script"
               shellcheck -S error "$script"
@@ -86,8 +86,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Podman
-        run: sudo apt-get update && sudo apt-get install -y podman
+      - name: Verify Podman available
+        run: podman --version
 
       - name: Build container image
         run: podman build -t mirror-gui:ci .

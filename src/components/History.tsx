@@ -9,6 +9,7 @@ import {
   Toolbar,
   ToolbarContent,
   ToolbarItem,
+  ToolbarGroup,
   Select,
   SelectOption,
   SelectList,
@@ -27,6 +28,11 @@ import {
   EmptyState,
   EmptyStateBody,
   Timestamp,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalVariant,
 } from '@patternfly/react-core';
 import {
   HistoryIcon,
@@ -37,6 +43,7 @@ import {
   AngleUpIcon,
   OutlinedClockIcon,
   ListIcon,
+  TrashAltIcon,
 } from '@patternfly/react-icons';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAlerts } from '../AlertContext';
@@ -64,7 +71,7 @@ interface OperationDetails {
 }
 
 const History: React.FC = () => {
-  const { addDangerAlert } = useAlerts();
+  const { addSuccessAlert, addDangerAlert } = useAlerts();
 
   const [operations, setOperations] = useState<Operation[]>([]);
   const [selectedOperation, setSelectedOperation] = useState<Operation | null>(null);
@@ -76,6 +83,10 @@ const History: React.FC = () => {
   const [logSource, setLogSource] = useState<EventSource | null>(null);
   const operationRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const logRef = useRef<HTMLDivElement>(null);
+
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [deleteModalTarget, setDeleteModalTarget] = useState<'selected' | 'all' | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -210,6 +221,75 @@ const History: React.FC = () => {
     setLiveLog('');
   };
 
+  const filteredOperations = operations.filter(op => {
+    if (op.status === 'running') return false;
+    if (filter === 'all') return true;
+    return op.status === filter;
+  });
+
+  const toggleChecked = (id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allFilteredChecked = filteredOperations.length > 0 && filteredOperations.every(op => checkedIds.has(op.id));
+  const someFilteredChecked = filteredOperations.some(op => checkedIds.has(op.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredChecked) {
+      setCheckedIds(prev => {
+        const next = new Set(prev);
+        for (const op of filteredOperations) next.delete(op.id);
+        return next;
+      });
+    } else {
+      setCheckedIds(prev => {
+        const next = new Set(prev);
+        for (const op of filteredOperations) next.add(op.id);
+        return next;
+      });
+    }
+  };
+
+  const deleteOperations = async (ids: string[]) => {
+    setDeleting(true);
+    try {
+      await Promise.all(ids.map(id => axios.delete(`/api/operations/${id}`)));
+      if (selectedOperation && ids.includes(selectedOperation.id)) {
+        clearSelectedOperation();
+      }
+      setCheckedIds(prev => {
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
+      addSuccessAlert(`Deleted ${ids.length} operation${ids.length > 1 ? 's' : ''}`);
+      await fetchHistory();
+    } catch {
+      addDangerAlert('Failed to delete some operations');
+    } finally {
+      setDeleting(false);
+      setDeleteModalTarget(null);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (deleteModalTarget === 'selected') {
+      const ids = filteredOperations.filter(op => checkedIds.has(op.id)).map(op => op.id);
+      void deleteOperations(ids);
+    } else if (deleteModalTarget === 'all') {
+      void deleteOperations(filteredOperations.map(op => op.id));
+    }
+  };
+
+  const deleteModalCount = deleteModalTarget === 'all'
+    ? filteredOperations.length
+    : filteredOperations.filter(op => checkedIds.has(op.id)).length;
+
   const handleOperationSelect = (operation: Operation) => {
     setOperationDetails(null);
     setSelectedOperation(operation);
@@ -246,12 +326,6 @@ const History: React.FC = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
   };
-
-  const filteredOperations = operations.filter(op => {
-    if (op.status === 'running') return false;
-    if (filter === 'all') return true;
-    return op.status === filter;
-  });
 
   const renderOperationDetails = () => {
     if (!selectedOperation) {
@@ -478,6 +552,32 @@ const History: React.FC = () => {
                   Export CSV
                 </Button>
               </ToolbarItem>
+              <ToolbarGroup align={{ default: 'alignEnd' }}>
+                {someFilteredChecked && (
+                  <ToolbarItem>
+                    <Button
+                      variant="secondary"
+                      icon={<TrashAltIcon />}
+                      isDanger
+                      onClick={() => setDeleteModalTarget('selected')}
+                    >
+                      Delete Selected ({filteredOperations.filter(op => checkedIds.has(op.id)).length})
+                    </Button>
+                  </ToolbarItem>
+                )}
+                {filteredOperations.length > 0 && (
+                  <ToolbarItem>
+                    <Button
+                      variant="secondary"
+                      icon={<TrashAltIcon />}
+                      isDanger
+                      onClick={() => setDeleteModalTarget('all')}
+                    >
+                      Delete All
+                    </Button>
+                  </ToolbarItem>
+                )}
+              </ToolbarGroup>
             </ToolbarContent>
           </Toolbar>
         </CardBody>
@@ -491,6 +591,13 @@ const History: React.FC = () => {
             <Table aria-label="Operations list" variant="compact" borders={false}>
               <Thead>
                 <Tr>
+                  <Th
+                    select={{
+                      onSelect: toggleSelectAll,
+                      isSelected: allFilteredChecked,
+                    }}
+                    aria-label="Select all"
+                  />
                   <Th>Operation</Th>
                   <Th>Config</Th>
                   <Th>Status</Th>
@@ -499,7 +606,7 @@ const History: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-                {filteredOperations.map((op) => {
+                {filteredOperations.map((op, rowIndex) => {
                   const isSelected = selectedOperation?.id === op.id;
 
                   return (
@@ -512,6 +619,16 @@ const History: React.FC = () => {
                             : handleOperationSelect(op)
                         )}
                       >
+                        <Td
+                          select={{
+                            rowIndex,
+                            onSelect: () => {
+                              toggleChecked(op.id);
+                            },
+                            isSelected: checkedIds.has(op.id),
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                         <Td dataLabel="Operation">
                           <div
                             ref={(element) => {
@@ -554,7 +671,7 @@ const History: React.FC = () => {
                       </Tr>
                       {isSelected && (
                         <Tr>
-                          <Td colSpan={5}>
+                          <Td colSpan={6}>
                             {renderOperationDetails()}
                           </Td>
                         </Tr>
@@ -567,6 +684,36 @@ const History: React.FC = () => {
           )}
         </CardBody>
       </Card>
+      <Modal
+        variant={ModalVariant.small}
+        isOpen={deleteModalTarget !== null}
+        onClose={() => setDeleteModalTarget(null)}
+        aria-label="Confirm deletion"
+      >
+        <ModalHeader title="Delete Operations" />
+        <ModalBody>
+          <p>
+            Are you sure you want to delete{' '}
+            <strong>
+              {deleteModalTarget === 'all' ? 'all' : deleteModalCount}
+            </strong>{' '}
+            operation{deleteModalCount !== 1 ? 's' : ''}? This action cannot be undone.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="danger"
+            onClick={confirmDelete}
+            isDisabled={deleting}
+            isLoading={deleting}
+          >
+            Delete
+          </Button>
+          <Button variant="link" onClick={() => setDeleteModalTarget(null)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </PageSection>
   );
 };

@@ -20,63 +20,63 @@
   "ocs-client-operator": [
     {
       "packageName": "cephcsi-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "odf-csi-addons-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "odf-external-snapshotter-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "recipe",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     }
   ],
   "odf-dependencies": [
     {
       "packageName": "cephcsi-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "mcg-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "ocs-client-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "ocs-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "odf-csi-addons-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "odf-external-snapshotter-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "odf-prometheus-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "recipe",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     },
     {
       "packageName": "rook-ceph-operator",
-      "versionRange": "4.21.2-rhodf"
+      "versionRange": "4.21.3-rhodf"
     }
   ],
   "odf-multicluster-orchestrator": [
     {
       "packageName": "odr-hub-operator",
-      "versionRange": "<=4.21.2"
+      "versionRange": "<=4.21.3"
     }
   ],
   "rhcl-operator": [

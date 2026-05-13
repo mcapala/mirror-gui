@@ -49,4 +49,41 @@ test.describe('Mirror Operations', () => {
     const actionsToggle = page.locator('#operation-history-card button[aria-label^="Actions for "]').first();
     await expect(emptyState.or(actionsToggle)).toBeVisible({ timeout: 10000 });
   });
+
+  test('operations filter dropdown is present', async ({ page }) => {
+    const card = page.locator('#operation-history-card');
+    await expect(card).toBeVisible({ timeout: 10000 });
+    await expect(card.getByLabel('Filter operations')).toBeVisible();
+  });
+
+  test('operations filter dropdown shows all status options', async ({ page }) => {
+    const card = page.locator('#operation-history-card');
+    await expect(card).toBeVisible({ timeout: 10000 });
+    await card.getByLabel('Filter operations').click();
+    await expect(page.getByRole('option', { name: 'All Operations' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Running' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Successful' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Failed' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Stopped' })).toBeVisible();
+  });
+
+  test('select all checkbox is present when operations exist', async ({ page }) => {
+    const card = page.locator('#operation-history-card');
+    await expect(card).toBeVisible({ timeout: 10000 });
+    const table = card.locator('table');
+    const hasTable = await table.isVisible({ timeout: 5000 }).catch(() => false);
+    if (hasTable) {
+      await expect(table.locator('thead input[type="checkbox"]')).toBeVisible();
+    }
+  });
+
+  test('Delete All button is present when operations exist', async ({ page }) => {
+    const card = page.locator('#operation-history-card');
+    await expect(card).toBeVisible({ timeout: 10000 });
+    const table = card.locator('table');
+    const hasTable = await table.isVisible({ timeout: 5000 }).catch(() => false);
+    if (hasTable) {
+      await expect(card.getByRole('button', { name: /delete all/i })).toBeVisible();
+    }
+  });
 });

@@ -1,11 +1,23 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { getTestApp } from './helpers/testApp.js';
+
+/** Dummy pull secret JSON only (no real credentials). */
+const dummyPullSecret = () =>
+  JSON.stringify({
+    auths: {
+      'registry.example.com': { auth: 'dXNlcjpwYXNz' },
+    },
+  });
 
 describe('Pull Secret API', () => {
   let request: Awaited<ReturnType<typeof getTestApp>>;
 
   beforeAll(async () => {
     request = await getTestApp();
+  });
+
+  afterAll(async () => {
+    await request.post('/api/pull-secret').send({ content: dummyPullSecret() });
   });
 
   describe('GET /api/pull-secret/status', () => {
@@ -76,6 +88,45 @@ describe('Pull Secret API', () => {
       const res = await request.get('/api/system/status');
       expect(res.status).toBe(200);
       expect(['healthy', 'degraded', 'warning', 'error']).toContain(res.body.systemHealth);
+    });
+  });
+
+  describe('GET /api/pull-secret/content', () => {
+    it('returns saved content after POST', async () => {
+      const content = dummyPullSecret();
+      await request.post('/api/pull-secret').send({ content });
+      const res = await request.get('/api/pull-secret/content');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('content');
+      expect(res.body.content).toBe(content);
+    });
+
+    it('returns empty content when pull secret is not configured', async () => {
+      await request.delete('/api/pull-secret');
+      const res = await request.get('/api/pull-secret/content');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('content');
+      expect(res.body.content).toBe('');
+    });
+  });
+
+  describe('DELETE /api/pull-secret', () => {
+    it('removes pull secret and status shows not detected', async () => {
+      await request.post('/api/pull-secret').send({ content: dummyPullSecret() });
+      const before = await request.get('/api/pull-secret/status');
+      expect(before.status).toBe(200);
+      expect(before.body.detected).toBe(true);
+
+      const del = await request.delete('/api/pull-secret');
+      expect(del.status).toBe(200);
+
+      const after = await request.get('/api/pull-secret/status');
+      expect(after.status).toBe(200);
+      expect(after.body.detected).toBe(false);
+      expect(after.body.path).toBeNull();
+
+      const contentRes = await request.get('/api/pull-secret/content');
+      expect(contentRes.body.content).toBe('');
     });
   });
 });

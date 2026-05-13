@@ -21,13 +21,28 @@ describe('Catalogs API', () => {
       expect(names).toContain('certified-operator-index');
       expect(names).toContain('community-operator-index');
 
-      res.body.forEach((catalog: { name: string; url: string; description: string; operatorCount: number }) => {
-        expect(catalog).toHaveProperty('name');
-        expect(catalog).toHaveProperty('url');
-        expect(catalog).toHaveProperty('description');
-        expect(typeof catalog.operatorCount).toBe('number');
-        expect(catalog.operatorCount).toBeGreaterThanOrEqual(1);
-      });
+      res.body.forEach(
+        (catalog: {
+          name: string;
+          url: string;
+          description: string;
+          operatorCount: number;
+          digest: string | null;
+          syncedAt: string | null;
+        }) => {
+          expect(catalog).toHaveProperty('name');
+          expect(catalog).toHaveProperty('url');
+          expect(catalog).toHaveProperty('description');
+          expect(typeof catalog.operatorCount).toBe('number');
+          expect(catalog.operatorCount).toBeGreaterThanOrEqual(1);
+          expect(catalog).toHaveProperty('digest');
+          expect(catalog).toHaveProperty('syncedAt');
+          const d = catalog.digest;
+          const s = catalog.syncedAt;
+          expect(d === null || typeof d === 'string').toBe(true);
+          expect(s === null || typeof s === 'string').toBe(true);
+        }
+      );
     });
 
     it('returns 500 when the catalogs route handler fails', async () => {

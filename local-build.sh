@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Mirror-GUI Application - Containerized Runner
-# This script runs the application in a container without requiring any host installations
-# Supports Podman only
+# Mirror-GUI — local build and run (Podman)
+# Builds the image, optionally fetches catalogs, and runs the app in a container without host Node installs.
+# Supports Podman only.
 
 set -e
 
@@ -131,7 +131,7 @@ ensure_available_web_port() {
 
     if [ "$WEB_PORT_WAS_SET" = "true" ]; then
         print_error "Requested WEB_PORT $WEB_PORT is already in use"
-        print_error "Choose another port, for example: WEB_PORT=3002 ./container-run.sh --run-only"
+        print_error "Choose another port, for example: WEB_PORT=3002 $0 --run-only"
         exit 1
     fi
 
@@ -175,13 +175,13 @@ create_directories() {
 fetch_catalogs() {
     print_status "Fetching operator catalogs (this may take several minutes)..."
 
-    if [ ! -f "fetch-catalogs-host.sh" ]; then
-        print_error "Catalog fetch script not found: ./fetch-catalogs-host.sh"
+    if [ ! -f "sync-catalogs.sh" ]; then
+        print_error "Catalog sync script not found: ./sync-catalogs.sh"
         exit 1
     fi
 
-    chmod +x fetch-catalogs-host.sh
-    if ./fetch-catalogs-host.sh; then
+    chmod +x sync-catalogs.sh
+    if ./sync-catalogs.sh; then
         print_success "Catalog fetch completed successfully"
     else
         print_error "Catalog fetch failed"
@@ -339,7 +339,7 @@ run_container() {
         if echo "$run_output" | grep -qiE 'address already in use|port is already allocated'; then
             if [ "$WEB_PORT_WAS_SET" = "true" ]; then
                 print_error "Requested WEB_PORT $WEB_PORT is unavailable to Podman"
-                print_error "Choose another port, for example: WEB_PORT=3002 ./container-run.sh --run-only"
+                print_error "Choose another port, for example: WEB_PORT=3002 $0 --run-only"
                 exit 1
             fi
 
@@ -367,7 +367,7 @@ run_container() {
 show_status() {
     if ! is_container_running; then
         print_warning "Application is not running"
-        print_status "Start it with: ./container-run.sh"
+        print_status "Start it with: $0"
         return 0
     fi
 
@@ -398,10 +398,10 @@ show_status() {
     $CONTAINER_ENGINE ps --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     echo ""
     echo "📝 Useful Commands:"
-    echo "  View logs:     ./container-run.sh --logs"
-    echo "  Stop app:      ./container-run.sh --stop"
-    echo "  Status:        ./container-run.sh --status"
-    echo "  Help:          ./container-run.sh --help"
+    echo "  View logs:     $0 --logs"
+    echo "  Stop app:      $0 --stop"
+    echo "  Status:        $0 --status"
+    echo "  Help:          $0 --help"
     echo ""
 }
 
@@ -446,7 +446,7 @@ show_help() {
 build_only() {
     echo "=========================================="
     echo "  Mirror-GUI Application"
-    echo "  Containerized Runner"
+    echo "  Local build"
     echo "=========================================="
     echo ""
 
@@ -526,7 +526,7 @@ parse_arguments() {
 main() {
     echo "=========================================="
     echo "  Mirror-GUI Application"
-    echo "  Containerized Runner"
+    echo "  Local build"
     echo "=========================================="
     echo ""
     

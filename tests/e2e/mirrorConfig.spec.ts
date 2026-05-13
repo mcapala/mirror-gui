@@ -38,4 +38,15 @@ test.describe('Mirror Configuration', () => {
     await page.getByRole('button', { name: /save configuration/i }).click();
     await expect(page.getByText(/configuration has errors/i)).toBeVisible({ timeout: 5000 });
   });
+
+  test('Preview tab has digest references toggle', async ({ page }) => {
+    await page.getByRole('tab', { name: /preview/i }).click();
+    const toggle = page.locator('#use-digest-ref-toggle');
+    await expect(toggle).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Load Configuration tab is present and has file upload', async ({ page }) => {
+    await page.getByRole('tab', { name: /load configuration/i }).click();
+    await expect(page.getByText(/load imagesetconfiguration yaml/i)).toBeVisible({ timeout: 10000 });
+  });
 });
