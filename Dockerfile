@@ -120,18 +120,6 @@ RUN chmod +x ./sync-catalogs.sh
 # Copy only generated catalog metadata required at runtime.
 COPY --from=builder /app/catalog-data-minimal ./catalog-data
 
-# Optional: refresh catalog metadata during image build (e.g. periodic CI with SYNC_CATALOGS=true).
-ARG SYNC_CATALOGS=""
-RUN if [ "$SYNC_CATALOGS" = "true" ]; then \
-      set -ex; \
-      echo "Running catalog sync during image build"; \
-      if [ -f /etc/pull-secret/.dockerconfigjson ]; then \
-        export REGISTRY_AUTH_FILE=/etc/pull-secret/.dockerconfigjson; \
-      fi; \
-      CATALOG_DATA_DIR=./catalog-data \
-      MAX_PARALLEL_JOBS=3 \
-      ./sync-catalogs.sh; \
-    fi
 
 RUN mkdir -p /app/data && chown -R node:node /app
 
