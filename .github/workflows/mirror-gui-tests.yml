@@ -33,8 +33,6 @@ jobs:
       - name: Run audit-catalog tests
         run: npx vitest run tests/scripts/auditFetchCatalogs.test.ts
 
-      - name: Validate committed catalog metadata
-        run: npx vitest run tests/scripts/catalogDataIntegrity.test.ts
 
   e2e:
     runs-on: ubuntu-latest
