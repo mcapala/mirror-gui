@@ -10,6 +10,7 @@ const baseURL = `http://localhost:${basePort}`;
 const e2eStorageDir = path.join(os.tmpdir(), `oc-mirror-e2e-${Date.now()}`);
 
 export default defineConfig({
+  globalSetup: './tests/e2e/global-setup.ts',
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: isCI,

@@ -1,8 +1,0 @@
-{
-  "catalog_type": "certified-operator-index",
-  "ocp_version": "v4.18",
-  "catalog_url": "registry.redhat.io/redhat/certified-operator-index:v4.18",
-  "operator_count": 249,
-  "digest": "sha256:1701042ecece7c66fbab1b72533c0dc05a41fb698b80dacd114e511f8827d358",
-  "synced_at": "2026-05-12T19:53:44Z"
-}

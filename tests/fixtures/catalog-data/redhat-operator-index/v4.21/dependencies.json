@@ -1,0 +1,12 @@
+{
+  "odf-operator": [
+    {
+      "packageName": "mcg-operator",
+      "versionRange": ">=4.17.0"
+    },
+    {
+      "packageName": "ocs-operator",
+      "versionRange": ">=4.17.0"
+    }
+  ]
+}

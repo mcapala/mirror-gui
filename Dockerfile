@@ -20,10 +20,15 @@ RUN npm config set fetch-timeout 300000 && \
 
 COPY . .
 RUN mkdir -p /app/catalog-data-minimal && \
-    (cp /app/catalog-data/catalog-index.json /app/catalog-data-minimal/ 2>/dev/null || \
+    if [ -d /app/catalog-data-synced ] && [ -f /app/catalog-data-synced/catalog-index.json ]; then \
+      CATALOG_SRC=/app/catalog-data-synced; \
+    else \
+      CATALOG_SRC=/app/catalog-data; \
+    fi && \
+    (cp "$CATALOG_SRC/catalog-index.json" /app/catalog-data-minimal/ 2>/dev/null || \
      echo '{"ocp_versions":[],"catalog_types":[],"catalogs":[]}' > /app/catalog-data-minimal/catalog-index.json) && \
-    find /app/catalog-data -type f \( -name "operators.json" -o -name "dependencies.json" -o -name "catalog-info.json" \) ! -path "*/configs/*" 2>/dev/null | while read file; do \
-      rel_path=$(echo "$file" | sed 's|/app/catalog-data/||'); \
+    find "$CATALOG_SRC" -type f \( -name "operators.json" -o -name "dependencies.json" -o -name "catalog-info.json" \) ! -path "*/configs/*" 2>/dev/null | while read file; do \
+      rel_path=$(echo "$file" | sed "s|$CATALOG_SRC/||"); \
       mkdir -p "/app/catalog-data-minimal/$(dirname "$rel_path")"; \
       cp "$file" "/app/catalog-data-minimal/$rel_path"; \
     done

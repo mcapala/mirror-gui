@@ -1,8 +1,0 @@
-{
-  "catalog_type": "redhat-operator-index",
-  "ocp_version": "v4.19",
-  "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.19",
-  "operator_count": 147,
-  "digest": "sha256:1b67582edb19a05951424ddffccbce6798402ea3e02ddd29ebb0ced61b6aec82",
-  "synced_at": "2026-05-12T19:54:24Z"
-}

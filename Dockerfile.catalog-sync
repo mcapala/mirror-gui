@@ -44,28 +44,28 @@ RUN apt-get update && \
 
 COPY scripts/catalog_metadata.py ./scripts/catalog_metadata.py
 
-COPY --from=redhat-4-16 /configs catalog-data/redhat-operator-index/v4.16/configs/
-COPY --from=redhat-4-17 /configs catalog-data/redhat-operator-index/v4.17/configs/
-COPY --from=redhat-4-18 /configs catalog-data/redhat-operator-index/v4.18/configs/
-COPY --from=redhat-4-19 /configs catalog-data/redhat-operator-index/v4.19/configs/
-COPY --from=redhat-4-20 /configs catalog-data/redhat-operator-index/v4.20/configs/
-COPY --from=redhat-4-21 /configs catalog-data/redhat-operator-index/v4.21/configs/
-COPY --from=certified-4-16 /configs catalog-data/certified-operator-index/v4.16/configs/
-COPY --from=certified-4-17 /configs catalog-data/certified-operator-index/v4.17/configs/
-COPY --from=certified-4-18 /configs catalog-data/certified-operator-index/v4.18/configs/
-COPY --from=certified-4-19 /configs catalog-data/certified-operator-index/v4.19/configs/
-COPY --from=certified-4-20 /configs catalog-data/certified-operator-index/v4.20/configs/
-COPY --from=certified-4-21 /configs catalog-data/certified-operator-index/v4.21/configs/
-COPY --from=community-4-16 /configs catalog-data/community-operator-index/v4.16/configs/
-COPY --from=community-4-17 /configs catalog-data/community-operator-index/v4.17/configs/
-COPY --from=community-4-18 /configs catalog-data/community-operator-index/v4.18/configs/
-COPY --from=community-4-19 /configs catalog-data/community-operator-index/v4.19/configs/
-COPY --from=community-4-20 /configs catalog-data/community-operator-index/v4.20/configs/
-COPY --from=community-4-21 /configs catalog-data/community-operator-index/v4.21/configs/
+COPY --from=redhat-4-16 /configs catalog-data-synced/redhat-operator-index/v4.16/configs/
+COPY --from=redhat-4-17 /configs catalog-data-synced/redhat-operator-index/v4.17/configs/
+COPY --from=redhat-4-18 /configs catalog-data-synced/redhat-operator-index/v4.18/configs/
+COPY --from=redhat-4-19 /configs catalog-data-synced/redhat-operator-index/v4.19/configs/
+COPY --from=redhat-4-20 /configs catalog-data-synced/redhat-operator-index/v4.20/configs/
+COPY --from=redhat-4-21 /configs catalog-data-synced/redhat-operator-index/v4.21/configs/
+COPY --from=certified-4-16 /configs catalog-data-synced/certified-operator-index/v4.16/configs/
+COPY --from=certified-4-17 /configs catalog-data-synced/certified-operator-index/v4.17/configs/
+COPY --from=certified-4-18 /configs catalog-data-synced/certified-operator-index/v4.18/configs/
+COPY --from=certified-4-19 /configs catalog-data-synced/certified-operator-index/v4.19/configs/
+COPY --from=certified-4-20 /configs catalog-data-synced/certified-operator-index/v4.20/configs/
+COPY --from=certified-4-21 /configs catalog-data-synced/certified-operator-index/v4.21/configs/
+COPY --from=community-4-16 /configs catalog-data-synced/community-operator-index/v4.16/configs/
+COPY --from=community-4-17 /configs catalog-data-synced/community-operator-index/v4.17/configs/
+COPY --from=community-4-18 /configs catalog-data-synced/community-operator-index/v4.18/configs/
+COPY --from=community-4-19 /configs catalog-data-synced/community-operator-index/v4.19/configs/
+COPY --from=community-4-20 /configs catalog-data-synced/community-operator-index/v4.20/configs/
+COPY --from=community-4-21 /configs catalog-data-synced/community-operator-index/v4.21/configs/
 
 SHELL ["/bin/bash", "-c"]
 RUN set -euo pipefail && \
-    CATALOG_DATA_DIR=./catalog-data && \
+    CATALOG_DATA_DIR=./catalog-data-synced && \
     OCP_VERSIONS="4.16 4.17 4.18 4.19 4.20 4.21" && \
     CATALOG_TYPES="redhat-operator-index certified-operator-index community-operator-index" && \
     TOTAL=0 && SUCCESS=0 && FAILED=0 && \
