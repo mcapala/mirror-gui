@@ -9,7 +9,8 @@ async function globalSetup() {
   try {
     await fs.promises.access(path.join(catalogDataDest, 'catalog-index.json'));
   } catch {
-    await fs.promises.cp(catalogDataFixture, catalogDataDest, { recursive: true, force: true });
+    await fs.promises.rm(catalogDataDest, { recursive: true, force: true });
+    await fs.promises.cp(catalogDataFixture, catalogDataDest, { recursive: true });
   }
 }
 
