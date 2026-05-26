@@ -144,6 +144,7 @@ interface CleanConfig {
       catalog: string;
       packages: {
         name: string;
+        defaultChannel?: string;
         channels: CleanOperatorChannel[];
       }[];
     }[];
@@ -1132,14 +1133,29 @@ const MirrorConfig: React.FC = () => {
           : catalogRef;
         return {
         catalog: resolvedCatalog,
-        packages: operator.packages.map(pkg => ({
-          name: pkg.name,
-          channels: pkg.channels.map(ch => {
-            const c: CleanOperatorChannel = { name: ch.name };
-            if (ch.minVersion?.trim()) c.minVersion = ch.minVersion;
-            return c;
-          }),
-        })),
+        packages: operator.packages.map(pkg => {
+          const operatorInfo = detailedOperators[operator.catalog]
+            ?.find(op => op.name === pkg.name);
+          const selectedChannelNames = pkg.channels.map(ch => ch.name);
+          const originalDefault = operatorInfo?.defaultChannel;
+          const needsDefaultOverride = originalDefault
+            && !selectedChannelNames.includes(originalDefault);
+
+          const cleanPkg: { name: string; defaultChannel?: string; channels: CleanOperatorChannel[] } = {
+            name: pkg.name,
+            channels: pkg.channels.map(ch => {
+              const c: CleanOperatorChannel = { name: ch.name };
+              if (ch.minVersion?.trim()) c.minVersion = ch.minVersion;
+              return c;
+            }),
+          };
+
+          if (needsDefaultOverride && selectedChannelNames.length > 0) {
+            cleanPkg.defaultChannel = selectedChannelNames[0];
+          }
+
+          return cleanPkg;
+        }),
       };
       });
     }
@@ -1149,7 +1165,7 @@ const MirrorConfig: React.FC = () => {
     }
 
     return clean;
-  }, [config, useDigestRef, catalogDigestMap]);
+  }, [config, useDigestRef, catalogDigestMap, detailedOperators]);
 
   const validateConfiguration = (currentConfig: ImageSetConfig = config): string[] => {
     const errors: string[] = [];

@@ -174,7 +174,23 @@ const SettingsPage: React.FC = () => {
     try {
       const response = await axios.get('/api/catalogs/sync/status');
       setCatalogSyncStatus(response.data);
-      if (response.data.status !== 'running' && syncPollRef.current) {
+      if (response.data.status === 'running' && !syncPollRef.current) {
+        syncPollRef.current = setInterval(async () => {
+          try {
+            const r = await axios.get('/api/catalogs/sync/status');
+            setCatalogSyncStatus(r.data);
+            if (r.data.status !== 'running' && syncPollRef.current) {
+              clearInterval(syncPollRef.current);
+              syncPollRef.current = null;
+            }
+          } catch (e) {
+            console.error('Error polling sync status:', e);
+          }
+        }, 3000);
+        if (!elapsedTimerRef.current) {
+          elapsedTimerRef.current = setInterval(() => setTick(t => t + 1), 1000);
+        }
+      } else if (response.data.status !== 'running' && syncPollRef.current) {
         clearInterval(syncPollRef.current);
         syncPollRef.current = null;
       }
