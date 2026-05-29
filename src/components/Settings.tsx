@@ -795,7 +795,7 @@ const SettingsPage: React.FC = () => {
                           <Th>Catalog</Th>
                           <Th>OCP</Th>
                           <Th>Digest</Th>
-                          <Th>Synced</Th>
+                          <Th>Updated</Th>
                         </Tr>
                       </Thead>
                       <Tbody>
@@ -828,7 +828,7 @@ const SettingsPage: React.FC = () => {
                                       />
                                     </>
                                   ) : (
-                                    <Tooltip content="Run Sync Catalogs to fetch real digests">
+                                    <Tooltip content="Built-in catalog data does not include digests. Run Sync Catalogs to fetch them.">
                                       <Label color="orange" isCompact icon={<InfoCircleIcon />}>N/A</Label>
                                     </Tooltip>
                                   )}
