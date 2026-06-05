@@ -487,7 +487,7 @@ const MirrorConfig: React.FC = () => {
   const catalogDigestMap = useMemo(() => {
     const map: Record<string, string> = {};
     for (const cat of availableCatalogs) {
-      if (cat.digest && cat.digest !== 'unknown') {
+      if (cat.digest && cat.digest.startsWith('sha256:')) {
         map[cat.url] = cat.digest;
       }
     }
