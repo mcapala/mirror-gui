@@ -9,25 +9,6 @@ process.env.VITEST = 'true';
 process.env.STORAGE_DIR = storageDir;
 process.env.OC_MIRROR_AUTHFILE = path.join(storageDir, 'pull-secret.json');
 
-const projectRoot = path.resolve(import.meta.dirname, '../../..');
-const catalogDataDest = path.join(projectRoot, 'catalog-data');
-const catalogDataFixture = path.join(projectRoot, 'tests/fixtures/catalog-data');
-
-async function ensureCatalogFixture(): Promise<void> {
-  try {
-    await fs.promises.access(path.join(catalogDataDest, 'catalog-index.json'));
-  } catch {
-    await fs.promises.rm(catalogDataDest, { recursive: true, force: true });
-    await fs.promises.mkdir(catalogDataDest, { recursive: true });
-    const entries = await fs.promises.readdir(catalogDataFixture, { withFileTypes: true });
-    for (const entry of entries) {
-      const src = path.join(catalogDataFixture, entry.name);
-      const dest = path.join(catalogDataDest, entry.name);
-      await fs.promises.cp(src, dest, { recursive: true, force: true });
-    }
-  }
-}
-
 export async function ensureTestDirs(): Promise<void> {
   const dirs = [
     storageDir,
@@ -41,7 +22,6 @@ export async function ensureTestDirs(): Promise<void> {
   for (const dir of dirs) {
     await fs.promises.mkdir(dir, { recursive: true });
   }
-  await ensureCatalogFixture();
 }
 
 export async function cleanupTestDirs(): Promise<void> {
