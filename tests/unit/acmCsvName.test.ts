@@ -38,4 +38,9 @@ describe('parseCsvName', () => {
     expect(parseCsvName('single-number.v3')).toBeNull();
     expect(parseCsvName('')).toBeNull();
   });
+
+  it('rejects names longer than 253 characters without catastrophic backtracking', () => {
+    const long = `${'a.'.repeat(300)}v1.2.3`;
+    expect(parseCsvName(long)).toBeNull();
+  });
 });

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { AcmStore } from '../../server/acm/snapshotStore.js';
+import { AcmStore, SnapshotSchemaError } from '../../server/acm/snapshotStore.js';
 import type {
   AcmHub,
   DeployedOperatorSnapshot,
@@ -62,6 +62,15 @@ describe('AcmStore', () => {
     raw.schemaVersion = 99;
     await fs.promises.writeFile(file, JSON.stringify(raw));
     await expect(store.readSnapshot()).rejects.toThrow(/schemaVersion/);
+  });
+
+  it('throws SnapshotSchemaError on schemaVersion mismatch', async () => {
+    await fs.promises.mkdir(path.join(dir, 'acm'), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(dir, 'acm', 'snapshot.json'),
+      JSON.stringify({ schemaVersion: 999 }),
+    );
+    await expect(store.readSnapshot()).rejects.toBeInstanceOf(SnapshotSchemaError);
   });
 
   it('does not leave a .tmp file behind after writing', async () => {

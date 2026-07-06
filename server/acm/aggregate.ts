@@ -164,10 +164,6 @@ export function buildSnapshot(
     pkg.latestAvailable = info.latestAvailable;
     pkg.catalogSource = info.catalogSource;
 
-    if (pkg.deployments.some(d => !isSemverish(d.version))) {
-      pkg.status = 'unknown';
-      continue;
-    }
     let status: PackageStatus = 'current';
     for (const deployment of pkg.deployments) {
       deployment.behind =

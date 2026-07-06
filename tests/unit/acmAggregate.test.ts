@@ -148,6 +148,40 @@ describe('buildSnapshot', () => {
     expect(snap.refreshedAt).toBe(NOW);
     expect(snap.schemaVersion).toBe(1);
   });
+
+  it('does not merge deployments when cluster/name contain the dedup separator ambiguously', () => {
+    // "a b" + "c" vs "a" + "b c" must be two distinct deployments
+    const outcomes: HubFetchOutcome[] = [
+      {
+        hub: hub('h1', 'prod'),
+        status: 'ok',
+        items: [
+          { name: 'op.v1.0.0', cluster: 'a b', phase: 'Succeeded' },
+          { name: 'op.v1.0.0', cluster: 'a', phase: 'Succeeded' },
+        ],
+      },
+    ];
+    const snap = buildSnapshot(outcomes, emptyCatalog, NOW);
+    expect(snap.packages['op'].deployments).toHaveLength(2);
+  });
+
+  it('gives status unknown and keeps latestAvailable null when catalog latest is garbage', () => {
+    const outcomes: HubFetchOutcome[] = [
+      {
+        hub: hub('h1', 'prod'),
+        status: 'ok',
+        items: [
+          { name: 'op.v1.0.0', cluster: 'c1', phase: 'Succeeded' },
+        ],
+      },
+    ];
+    const catalog = new Map([
+      ['op', { latestAvailable: 'not-a-version', catalogSource: 'x' }],
+    ]);
+    const snap = buildSnapshot(outcomes, catalog, NOW);
+    expect(snap.packages['op'].status).toBe('unknown');
+    expect(snap.packages['op'].latestAvailable).toBeNull();
+  });
 });
 
 describe('buildCatalogLookup', () => {

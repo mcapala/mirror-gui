@@ -45,6 +45,14 @@ export function getCatalogDescription(catalogType: string): string {
   return descriptions[catalogType] || 'Unknown catalog type';
 }
 
+/**
+ * Tolerant version comparator. The leading x.y.z base is compared
+ * numerically; when the bases are equal the FULL strings are tie-broken
+ * with localeCompare, i.e. suffixes order LEXICOGRAPHICALLY, not
+ * numerically ('4.3.1-0.99' sorts after '4.3.1-0.100'). Good enough for
+ * min/max floors where suffix order rarely matters; do not use it where
+ * true semver prerelease ordering is required.
+ */
 export function compareVersionStrings(a: string, b: string): number {
   const getBaseVersion = (version: string): string => {
     const match = version.match(/^(\d+\.\d+\.\d+)/);

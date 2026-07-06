@@ -151,6 +151,29 @@ describe('ACM routes', () => {
         (await request(app).put('/api/acm/hubs/nope').send(HUB_INPUT)).status
       ).toBe(404);
     });
+
+    it('PUT returns 404 for an unknown hub even with an invalid body', async () => {
+      const res = await request(makeApp({ acmDir: dir })).put('/api/acm/hubs/no-such-id').send({});
+      expect(res.status).toBe(404);
+    });
+
+    it('PUT keeps the stored CA bundle when caBundle is omitted and clears it when empty string', async () => {
+      const app = makeApp({ acmDir: dir });
+      const created = await request(app).post('/api/acm/hubs').send({
+        name: 'ca-hub', url: 'https://hub.example', token: 't', caBundle: 'PEM-DATA',
+      });
+      const id = created.body.hub.id;
+
+      const kept = await request(app).put(`/api/acm/hubs/${id}`).send({
+        name: 'ca-hub', url: 'https://hub.example',
+      });
+      expect(kept.body.hub.hasCaBundle).toBe(true);
+
+      const cleared = await request(app).put(`/api/acm/hubs/${id}`).send({
+        name: 'ca-hub', url: 'https://hub.example', caBundle: '',
+      });
+      expect(cleared.body.hub.hasCaBundle).toBe(false);
+    });
   });
 
   describe('POST /hubs/:id/test', () => {
@@ -292,6 +315,17 @@ describe('ACM routes', () => {
 
       release();
       expect((await first).status).toBe(200);
+    });
+
+    it('GET /snapshot returns 422 when the stored snapshot has an unsupported schemaVersion', async () => {
+      const app = makeApp({ acmDir: dir });
+      await fs.promises.writeFile(
+        path.join(dir, 'snapshot.json'),
+        JSON.stringify({ schemaVersion: 999 }),
+      );
+      const res = await request(app).get('/api/acm/snapshot');
+      expect(res.status).toBe(422);
+      expect(res.body.error).toMatch(/refresh/i);
     });
   });
 });

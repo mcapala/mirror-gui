@@ -11,6 +11,11 @@ export interface ParsedCsvName {
 const CSV_NAME_PATTERN = /^(.+?)\.v?(\d+(?:\.\d+)+(?:[-+.][0-9A-Za-z.+-]*)?)$/;
 
 export function parseCsvName(name: string): ParsedCsvName | null {
+  // K8s object names are capped at 253 chars; bail before the regex to
+  // bound backtracking on adversarial input.
+  if (name.length > 253) {
+    return null;
+  }
   const match = CSV_NAME_PATTERN.exec(name);
   if (!match) {
     return null;

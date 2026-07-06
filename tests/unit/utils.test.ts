@@ -95,6 +95,16 @@ describe('compareVersionStrings', () => {
   });
 });
 
+describe('compareVersionStrings suffix semantics', () => {
+  it('orders numeric x.y.z bases numerically', () => {
+    expect(compareVersionStrings('4.10.0', '4.9.9')).toBeGreaterThan(0);
+  });
+  it('tie-breaks equal bases lexicographically on the full string (documented limitation)', () => {
+    // '-0.99' > '-0.100' lexicographically even though 99 < 100 numerically
+    expect(compareVersionStrings('4.3.1-0.99', '4.3.1-0.100')).toBeGreaterThan(0);
+  });
+});
+
 describe('sortVersions', () => {
   it('deduplicates and sorts versions', () => {
     expect(sortVersions(['1.0.1', '1.0.0', '1.0.1'])).toEqual([

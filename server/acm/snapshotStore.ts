@@ -6,6 +6,13 @@ const fsp = fs.promises;
 
 export const SNAPSHOT_SCHEMA_VERSION = 1;
 
+export class SnapshotSchemaError extends Error {
+  constructor(found: unknown) {
+    super(`Unsupported snapshot schemaVersion: ${found}`);
+    this.name = 'SnapshotSchemaError';
+  }
+}
+
 export class AcmStore {
   constructor(private readonly acmDir: string) {}
 
@@ -44,9 +51,7 @@ export class AcmStore {
     }
     const parsed = JSON.parse(raw);
     if (parsed?.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
-      throw new Error(
-        `Unsupported snapshot schemaVersion: ${parsed?.schemaVersion}`,
-      );
+      throw new SnapshotSchemaError(parsed?.schemaVersion);
     }
     return parsed as DeployedOperatorSnapshot;
   }

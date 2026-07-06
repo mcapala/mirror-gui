@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { AcmStore } from './snapshotStore.js';
+import { AcmStore, SnapshotSchemaError } from './snapshotStore.js';
 import { buildSnapshot, type HubFetchOutcome } from './aggregate.js';
 import { queryHub as defaultQueryHub } from './client.js';
 import {
@@ -111,16 +111,16 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
   router.put(
     '/hubs/:id',
     wrap(async (req, res) => {
-      const input = (req.body ?? {}) as HubInput;
-      const error = validateHubInput(input, { requireToken: false });
-      if (error) {
-        res.status(400).json({ error });
-        return;
-      }
       const hubs = await store.readHubs();
       const hub = hubs.find(h => h.id === req.params.id);
       if (!hub) {
         res.status(404).json({ error: 'hub not found' });
+        return;
+      }
+      const input = (req.body ?? {}) as HubInput;
+      const error = validateHubInput(input, { requireToken: false });
+      if (error) {
+        res.status(400).json({ error });
         return;
       }
       if (
@@ -138,7 +138,10 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
       if (input.token && typeof input.token === 'string') {
         hub.token = input.token;
       }
-      hub.caBundle = (input.caBundle as string) || undefined;
+      if (input.caBundle !== undefined) {
+        // '' clears the stored bundle; omitted keeps it.
+        hub.caBundle = (input.caBundle as string) || undefined;
+      }
       hub.insecureSkipVerify = Boolean(input.insecureSkipVerify);
       await store.writeHubs(hubs);
       res.json({ hub: redactHub(hub) });
@@ -232,7 +235,19 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
   router.get(
     '/snapshot',
     wrap(async (_req, res) => {
-      const snapshot = await store.readSnapshot();
+      let snapshot;
+      try {
+        snapshot = await store.readSnapshot();
+      } catch (error) {
+        if (error instanceof SnapshotSchemaError) {
+          res.status(422).json({
+            error:
+              'stored snapshot was written by an incompatible version — refresh to rebuild it',
+          });
+          return;
+        }
+        throw error;
+      }
       if (!snapshot) {
         res.status(404).json({ error: 'never refreshed' });
         return;
