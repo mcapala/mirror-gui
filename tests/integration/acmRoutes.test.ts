@@ -21,6 +21,7 @@ function makeApp(opts: {
   acmDir: string;
   queryHub?: FakeQueryHub;
   catalog?: CatalogLookup;
+  loadCatalogLookup?: () => Promise<CatalogLookup>;
 }) {
   const app = express();
   app.use(express.json());
@@ -30,7 +31,8 @@ function makeApp(opts: {
       acmDir: opts.acmDir,
       queryHub: (opts.queryHub ??
         (async () => ({ items: [], truncated: false }))) as never,
-      loadCatalogLookup: async () => opts.catalog ?? new Map(),
+      loadCatalogLookup:
+        opts.loadCatalogLookup ?? (async () => opts.catalog ?? new Map()),
       now: () => '2026-07-06T12:00:00.000Z',
     })
   );
@@ -104,6 +106,35 @@ describe('ACM routes', () => {
         await fs.promises.readFile(path.join(dir, 'hubs.json'), 'utf8')
       );
       expect(hubsOnDisk[0].token).toBe('sha256~secret');
+    });
+
+    it('rejects creating a hub with a duplicate name', async () => {
+      const app = makeApp({ acmDir: dir });
+      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+
+      const dup = await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      expect(dup.status).toBe(400);
+      expect(dup.body.error).toMatch(/already exists/);
+    });
+
+    it('rejects renaming a hub to another hub\'s name, but allows keeping its own name', async () => {
+      const app = makeApp({ acmDir: dir });
+      const hubA = await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      const hubB = await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, name: 'staging' });
+
+      const renameToOther = await request(app)
+        .put(`/api/acm/hubs/${hubB.body.hub.id}`)
+        .send({ ...HUB_INPUT, name: 'prod' });
+      expect(renameToOther.status).toBe(400);
+      expect(renameToOther.body.error).toMatch(/already exists/);
+
+      const keepOwnName = await request(app)
+        .put(`/api/acm/hubs/${hubA.body.hub.id}`)
+        .send(HUB_INPUT);
+      expect(keepOwnName.status).toBe(200);
+      expect(keepOwnName.body.hub.name).toBe('prod');
     });
 
     it('deletes a hub and 404s on unknown ids', async () => {
@@ -213,6 +244,24 @@ describe('ACM routes', () => {
       expect(stored.status).toBe(200);
       expect(stored.body).toEqual(res.body);
       expect(JSON.stringify(stored.body)).not.toContain('sha256~secret');
+    });
+
+    it('degrades to unknown status when the catalog lookup totally fails', async () => {
+      const app = makeApp({
+        acmDir: dir,
+        loadCatalogLookup: async () => {
+          throw new Error('boom');
+        },
+        queryHub: async () => ({
+          items: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+          truncated: false,
+        }),
+      });
+      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+
+      const res = await request(app).post('/api/acm/refresh');
+      expect(res.status).toBe(200);
+      expect(res.body.packages.acm.status).toBe('unknown');
     });
 
     it('409s a concurrent refresh', async () => {

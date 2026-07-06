@@ -52,7 +52,11 @@ function wrap(handler: Handler): Handler {
     try {
       await handler(req, res);
     } catch (error) {
-      console.error(`ACM route error on ${req.method} ${req.path}:`, error);
+      console.error(
+        `ACM route error on ${req.method} ${req.path}: ${
+          error instanceof Error ? (error.stack ?? error.message) : String(error)
+        }`,
+      );
       res.status(500).json({ error: 'internal server error' });
     }
   };
@@ -83,6 +87,13 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         res.status(400).json({ error });
         return;
       }
+      const hubs = await store.readHubs();
+      if (hubs.some(h => h.name === (input.name as string))) {
+        res
+          .status(400)
+          .json({ error: `a hub named "${input.name as string}" already exists` });
+        return;
+      }
       const hub: AcmHub = {
         id: uuidv4(),
         name: input.name as string,
@@ -91,7 +102,6 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         caBundle: (input.caBundle as string) || undefined,
         insecureSkipVerify: Boolean(input.insecureSkipVerify),
       };
-      const hubs = await store.readHubs();
       hubs.push(hub);
       await store.writeHubs(hubs);
       res.status(201).json({ hub: redactHub(hub) });
@@ -111,6 +121,16 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
       const hub = hubs.find(h => h.id === req.params.id);
       if (!hub) {
         res.status(404).json({ error: 'hub not found' });
+        return;
+      }
+      if (
+        hubs.some(
+          h => h.id !== req.params.id && h.name === (input.name as string),
+        )
+      ) {
+        res
+          .status(400)
+          .json({ error: `a hub named "${input.name as string}" already exists` });
         return;
       }
       hub.name = input.name as string;
@@ -192,9 +212,14 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
                     : String(result.reason),
               },
         );
-        const catalog = await deps
-          .loadCatalogLookup()
-          .catch(() => new Map() as CatalogLookup);
+        const catalog = await deps.loadCatalogLookup().catch((error: unknown) => {
+          console.warn(
+            `ACM refresh: catalog lookup failed, statuses will be 'unknown': ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+          return new Map() as CatalogLookup;
+        });
         const snapshot = buildSnapshot(outcomes, catalog, now());
         await store.writeSnapshot(snapshot);
         res.json(snapshot);
