@@ -33,9 +33,23 @@ export interface CsvSearchItem {
   phase: string;
 }
 
+export interface ClusterSearchItem {
+  name?: string;
+  openshiftVersion?: string;
+  version?: string;
+  label?: string;
+}
+
 export interface HubQueryResult {
-  items: CsvSearchItem[];
+  csvItems: CsvSearchItem[];
+  clusterItems: ClusterSearchItem[];
   truncated: boolean;
+}
+
+export interface ClusterInfo {
+  cluster: string;
+  hub: string;
+  openshiftVersion: string;
 }
 
 export type HubErrorKind = 'auth' | 'tls' | 'unreachable' | 'bad-response';
@@ -79,9 +93,10 @@ export interface PackageSnapshot {
 }
 
 export interface DeployedOperatorSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 2;
   refreshedAt: string;
   hubs: HubSnapshotStatus[];
+  clusters: ClusterInfo[];
   packages: Record<string, PackageSnapshot>;
 }
 

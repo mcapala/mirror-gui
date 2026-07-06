@@ -1,8 +1,11 @@
 import { compareVersionStrings } from '../utils.js';
 import { parseCsvName } from './csvName.js';
+import { extractClusterVersion } from './client.js';
 import type {
   AcmHub,
   CatalogLookup,
+  ClusterInfo,
+  ClusterSearchItem,
   CsvSearchItem,
   DeployedOperatorSnapshot,
   HubSnapshotStatus,
@@ -15,6 +18,7 @@ export interface HubFetchOutcome {
   status: 'ok' | 'error';
   error?: string;
   items?: CsvSearchItem[];
+  clusterItems?: ClusterSearchItem[];
   truncated?: boolean;
 }
 
@@ -77,6 +81,7 @@ export function buildSnapshot(
 ): DeployedOperatorSnapshot {
   const hubs: HubSnapshotStatus[] = [];
   const packages: Record<string, PackageSnapshot> = {};
+  const allClusters: ClusterInfo[] = [];
 
   for (const outcome of outcomes) {
     if (outcome.status === 'error') {
@@ -140,6 +145,30 @@ export function buildSnapshot(
       });
     }
 
+    const clusterSeen = new Set<string>();
+    for (const clusterItem of outcome.clusterItems ?? []) {
+      if (!clusterItem || typeof clusterItem.name !== 'string' || !clusterItem.name) {
+        skipped++;
+        continue;
+      }
+      const clusterKey = `${outcome.hub.name} ${clusterItem.name}`;
+      if (clusterSeen.has(clusterKey)) {
+        continue;
+      }
+      clusterSeen.add(clusterKey);
+      clusters.add(clusterItem.name);
+      const version = extractClusterVersion(clusterItem);
+      if (!version) {
+        skipped++;
+        continue;
+      }
+      allClusters.push({
+        cluster: clusterItem.name,
+        hub: outcome.hub.name,
+        openshiftVersion: version,
+      });
+    }
+
     hubs.push({
       id: outcome.hub.id,
       name: outcome.hub.name,
@@ -175,5 +204,8 @@ export function buildSnapshot(
     pkg.status = status;
   }
 
-  return { schemaVersion: 1, refreshedAt, hubs, packages };
+  allClusters.sort(
+    (a, b) => a.cluster.localeCompare(b.cluster) || a.hub.localeCompare(b.hub),
+  );
+  return { schemaVersion: 2, refreshedAt, hubs, clusters: allClusters, packages };
 }

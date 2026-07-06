@@ -146,7 +146,31 @@ describe('buildSnapshot', () => {
     const snap = buildSnapshot(outcomes, emptyCatalog, NOW);
     expect(snap.hubs[0].truncated).toBe(true);
     expect(snap.refreshedAt).toBe(NOW);
-    expect(snap.schemaVersion).toBe(1);
+    expect(snap.schemaVersion).toBe(2);
+  });
+
+  it('collects deduplicated cluster OCP versions into snapshot.clusters', () => {
+    const HUB = hub('h1', 'prod');
+    const outcome: HubFetchOutcome = {
+      hub: HUB,
+      status: 'ok',
+      items: [],
+      clusterItems: [
+        { name: 'c1', openshiftVersion: '4.16.8' },
+        { name: 'c1', openshiftVersion: '4.16.8' }, // dup
+        { name: 'c2', version: '4.15.2' },
+        { name: 'c3' }, // no version → skipped
+      ],
+    };
+    const snapshot = buildSnapshot([outcome], new Map(), NOW);
+    expect(snapshot.schemaVersion).toBe(2);
+    expect(snapshot.clusters).toEqual([
+      { cluster: 'c1', hub: HUB.name, openshiftVersion: '4.16.8' },
+      { cluster: 'c2', hub: HUB.name, openshiftVersion: '4.15.2' },
+    ]);
+    const hubStatus = snapshot.hubs[0];
+    expect(hubStatus.skippedItems).toBe(1);
+    expect(hubStatus.clusterCount).toBe(3); // c1, c2, c3 all seen
   });
 
   it('does not merge deployments when cluster/name contain the dedup separator ambiguously', () => {

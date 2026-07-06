@@ -30,7 +30,11 @@ function makeApp(opts: {
     createAcmRouter({
       acmDir: opts.acmDir,
       queryHub: (opts.queryHub ??
-        (async () => ({ items: [], truncated: false }))) as never,
+        (async () => ({
+          csvItems: [],
+          clusterItems: [],
+          truncated: false,
+        }))) as never,
       loadCatalogLookup:
         opts.loadCatalogLookup ?? (async () => opts.catalog ?? new Map()),
       now: () => '2026-07-06T12:00:00.000Z',
@@ -182,7 +186,7 @@ describe('ACM routes', () => {
         acmDir: dir,
         queryHub: async (_hub, opts) => {
           expect(opts?.limit).toBe(1);
-          return { items: [], truncated: false };
+          return { csvItems: [], clusterItems: [], truncated: false };
         },
       });
       const created = await request(app).post('/api/acm/hubs').send(HUB_INPUT);
@@ -242,7 +246,8 @@ describe('ACM routes', () => {
             throw new HubQueryError('unreachable', 'hub unreachable — refused');
           }
           return {
-            items: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+            csvItems: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+            clusterItems: [{ name: 'c1', openshiftVersion: '4.16.8' }],
             truncated: false,
           };
         },
@@ -254,7 +259,7 @@ describe('ACM routes', () => {
 
       const res = await request(app).post('/api/acm/refresh');
       expect(res.status).toBe(200);
-      expect(res.body.schemaVersion).toBe(1);
+      expect(res.body.schemaVersion).toBe(2);
       expect(res.body.refreshedAt).toBe('2026-07-06T12:00:00.000Z');
       expect(res.body.packages.acm.status).toBe('behind');
       const down = res.body.hubs.find(
@@ -276,7 +281,8 @@ describe('ACM routes', () => {
           throw new Error('boom');
         },
         queryHub: async () => ({
-          items: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+          csvItems: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+          clusterItems: [],
           truncated: false,
         }),
       });
@@ -285,6 +291,25 @@ describe('ACM routes', () => {
       const res = await request(app).post('/api/acm/refresh');
       expect(res.status).toBe(200);
       expect(res.body.packages.acm.status).toBe('unknown');
+    });
+
+    it('refresh persists cluster versions in the snapshot', async () => {
+      const app = makeApp({
+        acmDir: dir,
+        queryHub: async () => ({
+          csvItems: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+          clusterItems: [{ name: 'c1', openshiftVersion: '4.16.8' }],
+          truncated: false,
+        }),
+      });
+      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+
+      const res = await request(app).post('/api/acm/refresh');
+      expect(res.status).toBe(200);
+      expect(res.body.schemaVersion).toBe(2);
+      expect(res.body.clusters).toEqual([
+        expect.objectContaining({ cluster: 'c1', openshiftVersion: '4.16.8' }),
+      ]);
     });
 
     it('409s a concurrent refresh', async () => {
@@ -296,7 +321,7 @@ describe('ACM routes', () => {
         acmDir: dir,
         queryHub: async () => {
           await gate;
-          return { items: [], truncated: false };
+          return { csvItems: [], clusterItems: [], truncated: false };
         },
       });
       await request(app).post('/api/acm/hubs').send(HUB_INPUT);

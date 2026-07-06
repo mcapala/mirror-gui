@@ -27,6 +27,12 @@ const STUB_RESPONSE = {
           },
         ],
       },
+      {
+        items: [
+          { kind: 'Cluster', name: 'e2e-cluster-1', openshiftVersion: '4.16.8' },
+          { kind: 'Cluster', name: 'e2e-cluster-2', openshiftVersion: '4.16.20' },
+        ],
+      },
     ],
   },
 };

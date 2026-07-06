@@ -203,7 +203,8 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
             ? {
                 hub: hubs[i],
                 status: 'ok',
-                items: result.value.items,
+                items: result.value.csvItems,
+                clusterItems: result.value.clusterItems,
                 truncated: result.value.truncated,
               }
             : {

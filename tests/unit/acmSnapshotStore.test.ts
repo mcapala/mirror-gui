@@ -16,9 +16,10 @@ const HUB: AcmHub = {
 };
 
 const SNAPSHOT: DeployedOperatorSnapshot = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   refreshedAt: '2026-07-06T12:00:00.000Z',
   hubs: [],
+  clusters: [],
   packages: {},
 };
 

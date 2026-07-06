@@ -3,6 +3,7 @@ import {
   queryHub,
   classifyHubError,
   buildSearchRequestBody,
+  extractClusterVersion,
   searchApiUrl,
   SEARCH_RESULT_LIMIT,
 } from '../../server/acm/client.js';
@@ -15,8 +16,10 @@ const HUB: AcmHub = {
   token: 'sha256~tok',
 };
 
-function okResponse(items: unknown[]) {
-  return { data: { data: { searchResult: [{ items }] } } };
+function okResponse(items: unknown[], clusterItems: unknown[] = []) {
+  return {
+    data: { data: { searchResult: [{ items }, { items: clusterItems }] } },
+  };
 }
 
 describe('searchApiUrl', () => {
@@ -35,6 +38,32 @@ describe('buildSearchRequestBody', () => {
     ]);
     expect(body.variables.input[0].limit).toBe(SEARCH_RESULT_LIMIT);
   });
+
+  it('requests CSVs and Clusters in one GraphQL call', () => {
+    const body = buildSearchRequestBody(500);
+    expect(body.variables.input).toHaveLength(2);
+    expect(body.variables.input[0].filters[0].values).toEqual([
+      'ClusterServiceVersion',
+    ]);
+    expect(body.variables.input[1].filters[0].values).toEqual(['Cluster']);
+    expect(body.variables.input[1].limit).toBe(500);
+  });
+});
+
+describe('extractClusterVersion', () => {
+  it('prefers openshiftVersion, then version, then the openshiftVersion label', () => {
+    expect(extractClusterVersion({ openshiftVersion: '4.16.8' })).toBe(
+      '4.16.8',
+    );
+    expect(extractClusterVersion({ version: '4.15.2' })).toBe('4.15.2');
+    expect(
+      extractClusterVersion({ label: 'env=prod; openshiftVersion=4.14.30; x=y' }),
+    ).toBe('4.14.30');
+  });
+  it('returns null when nothing version-like is present', () => {
+    expect(extractClusterVersion({ name: 'c1', version: 'unknown' })).toBeNull();
+    expect(extractClusterVersion({})).toBeNull();
+  });
 });
 
 describe('queryHub', () => {
@@ -49,7 +78,7 @@ describe('queryHub', () => {
       },
     };
     const result = await queryHub(HUB, { transport });
-    expect(result.items).toHaveLength(1);
+    expect(result.csvItems).toHaveLength(1);
     expect(result.truncated).toBe(false);
     expect((seenConfig.headers as Record<string, string>).Authorization).toBe(
       'Bearer sha256~tok'
@@ -67,8 +96,38 @@ describe('queryHub', () => {
     expect(result.truncated).toBe(true);
   });
 
+  it('returns csvItems and clusterItems and flags truncation from either list', async () => {
+    const transport = {
+      post: async () => ({
+        data: {
+          data: {
+            searchResult: [
+              { items: [{ name: 'op.v1.0.0', cluster: 'c1', phase: 'Succeeded' }] },
+              { items: [{ name: 'c1', openshiftVersion: '4.16.8' }] },
+            ],
+          },
+        },
+      }),
+    };
+    const result = await queryHub(HUB, { transport, limit: 1 });
+    expect(result.csvItems).toHaveLength(1);
+    expect(result.clusterItems).toHaveLength(1);
+    expect(result.truncated).toBe(true); // both lists hit limit 1
+  });
+
   it('throws bad-response when items array is missing', async () => {
     const transport = { post: async () => ({ data: { data: {} } }) };
+    await expect(queryHub(HUB, { transport })).rejects.toMatchObject({
+      kind: 'bad-response',
+    });
+  });
+
+  it('rejects with bad-response when the cluster result is missing', async () => {
+    const transport = {
+      post: async () => ({
+        data: { data: { searchResult: [{ items: [] }] } },
+      }),
+    };
     await expect(queryHub(HUB, { transport })).rejects.toMatchObject({
       kind: 'bad-response',
     });

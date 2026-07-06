@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   HubQueryError,
   type AcmHub,
+  type ClusterSearchItem,
   type CsvSearchItem,
   type HubQueryResult,
 } from './types.js';
@@ -37,9 +38,35 @@ export function buildSearchRequestBody(limit: number = SEARCH_RESULT_LIMIT) {
           filters: [{ property: 'kind', values: ['ClusterServiceVersion'] }],
           limit,
         },
+        {
+          filters: [{ property: 'kind', values: ['Cluster'] }],
+          limit,
+        },
       ],
     },
   };
+}
+
+const VERSIONISH = /^\d+\.\d+/;
+
+// ACM's search index exposes the managed cluster's OCP version under
+// different properties across ACM releases; try the known spellings, then
+// the well-known ManagedCluster label.
+export function extractClusterVersion(
+  item: ClusterSearchItem,
+): string | null {
+  for (const candidate of [item.openshiftVersion, item.version]) {
+    if (typeof candidate === 'string' && VERSIONISH.test(candidate)) {
+      return candidate;
+    }
+  }
+  if (typeof item.label === 'string') {
+    const match = item.label.match(/(?:^|;\s*)openshiftVersion=([^;\s]+)/);
+    if (match && VERSIONISH.test(match[1])) {
+      return match[1];
+    }
+  }
+  return null;
 }
 
 const TLS_ERROR_CODES = new Set([
@@ -116,15 +143,17 @@ export async function queryHub(
       `Search API returned an error: ${data.errors[0]?.message ?? 'unknown'}`,
     );
   }
-  const items = data?.data?.searchResult?.[0]?.items;
-  if (!Array.isArray(items)) {
+  const csvItems = data?.data?.searchResult?.[0]?.items;
+  const clusterItems = data?.data?.searchResult?.[1]?.items;
+  if (!Array.isArray(csvItems) || !Array.isArray(clusterItems)) {
     throw new HubQueryError(
       'bad-response',
-      'Search API response did not contain an items array',
+      'Search API response did not contain items arrays for both queries',
     );
   }
   return {
-    items: items as CsvSearchItem[],
-    truncated: items.length >= limit,
+    csvItems: csvItems as CsvSearchItem[],
+    clusterItems: clusterItems as ClusterSearchItem[],
+    truncated: csvItems.length >= limit || clusterItems.length >= limit,
   };
 }

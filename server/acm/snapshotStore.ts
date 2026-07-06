@@ -4,7 +4,7 @@ import type { AcmHub, DeployedOperatorSnapshot } from './types.js';
 
 const fsp = fs.promises;
 
-export const SNAPSHOT_SCHEMA_VERSION = 1;
+export const SNAPSHOT_SCHEMA_VERSION = 2;
 
 export class SnapshotSchemaError extends Error {
   constructor(found: unknown) {
