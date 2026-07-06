@@ -64,7 +64,7 @@ import {
 import { FieldBuilder } from '@patternfly/react-component-groups';
 import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 
-interface PlatformChannel {
+export interface PlatformChannel {
   name: string;
   minVersion: string;
   maxVersion: string;
@@ -72,26 +72,26 @@ interface PlatformChannel {
   shortestPath: boolean;
 }
 
-interface OperatorChannel {
+export interface OperatorChannel {
   name: string;
   minVersion: string;
 }
 
-interface OperatorPackage {
+export interface OperatorPackage {
   name: string;
   channels: OperatorChannel[];
   isDependency?: boolean;
   autoAddedBy?: string;
 }
 
-interface OperatorCatalog {
+export interface OperatorCatalog {
   catalog: string;
   catalogVersion?: string;
   availableOperators?: string[];
   packages: OperatorPackage[];
 }
 
-interface ImageSetConfig {
+export interface ImageSetConfig {
   kind: string;
   apiVersion: string;
   archiveSize: string;
