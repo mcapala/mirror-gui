@@ -41,7 +41,7 @@ describe('queryHub', () => {
   it('returns items and sends the Bearer token', async () => {
     let seenConfig: Record<string, unknown> = {};
     const transport = {
-      post: async (_url: string, _body: unknown, config: never) => {
+      post: async (_url: string, _body: unknown, config: Record<string, unknown>) => {
         seenConfig = config;
         return okResponse([
           { name: 'x.v1.0.0', cluster: 'c1', phase: 'Succeeded' },
@@ -93,6 +93,38 @@ describe('queryHub', () => {
     await expect(queryHub(HUB, { transport })).rejects.toMatchObject({
       kind: 'auth',
     });
+  });
+
+  it('builds an https agent with the hub CA bundle and verification on', async () => {
+    let seenConfig: Record<string, unknown> = {};
+    const transport = {
+      post: async (_url: string, _body: unknown, config: Record<string, unknown>) => {
+        seenConfig = config;
+        return okResponse([]);
+      },
+    };
+    await queryHub({ ...HUB, caBundle: 'PEMDATA' }, { transport });
+    const agent = seenConfig.httpsAgent as import('https').Agent & {
+      options: { ca?: string; rejectUnauthorized?: boolean };
+    };
+    expect(agent.options.ca).toBe('PEMDATA');
+    expect(agent.options.rejectUnauthorized).toBe(true);
+  });
+
+  it('disables verification when insecureSkipVerify is set', async () => {
+    let seenConfig: Record<string, unknown> = {};
+    const transport = {
+      post: async (_url: string, _body: unknown, config: Record<string, unknown>) => {
+        seenConfig = config;
+        return okResponse([]);
+      },
+    };
+    await queryHub({ ...HUB, insecureSkipVerify: true }, { transport });
+    const agent = seenConfig.httpsAgent as import('https').Agent & {
+      options: { ca?: string; rejectUnauthorized?: boolean };
+    };
+    expect(agent.options.ca).toBeUndefined();
+    expect(agent.options.rejectUnauthorized).toBe(false);
   });
 });
 

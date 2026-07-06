@@ -62,13 +62,13 @@ export function classifyHubError(error: unknown): HubQueryError {
   if (status === 401 || status === 403) {
     return new HubQueryError(
       'auth',
-      `authentication failed (HTTP ${status}) — check the hub token`
+      `authentication failed (HTTP ${status}) — check the hub token`,
     );
   }
   if (err?.code && TLS_ERROR_CODES.has(err.code)) {
     return new HubQueryError(
       'tls',
-      `TLS verification failed (${err.code}) — add the hub CA bundle or enable skip-verify`
+      `TLS verification failed (${err.code}) — add the hub CA bundle or enable skip-verify`,
     );
   }
   const detail = err?.code
@@ -79,7 +79,7 @@ export function classifyHubError(error: unknown): HubQueryError {
 
 export async function queryHub(
   hub: AcmHub,
-  opts: { limit?: number; transport?: Transport } = {}
+  opts: { limit?: number; transport?: Transport } = {},
 ): Promise<HubQueryResult> {
   const limit = opts.limit ?? SEARCH_RESULT_LIMIT;
   const transport = opts.transport ?? axios;
@@ -100,7 +100,7 @@ export async function queryHub(
         },
         httpsAgent,
         timeout: HUB_TIMEOUT_MS,
-      }
+      },
     );
   } catch (error) {
     throw classifyHubError(error);
@@ -113,14 +113,14 @@ export async function queryHub(
   if (data?.errors?.length) {
     throw new HubQueryError(
       'bad-response',
-      `Search API returned an error: ${data.errors[0]?.message ?? 'unknown'}`
+      `Search API returned an error: ${data.errors[0]?.message ?? 'unknown'}`,
     );
   }
   const items = data?.data?.searchResult?.[0]?.items;
   if (!Array.isArray(items)) {
     throw new HubQueryError(
       'bad-response',
-      'Search API response did not contain an items array'
+      'Search API response did not contain an items array',
     );
   }
   return {

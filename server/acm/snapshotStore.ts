@@ -31,7 +31,7 @@ export class AcmStore {
     await this.atomicWrite(
       this.hubsPath(),
       JSON.stringify(hubs, null, 2),
-      0o600
+      0o600,
     );
   }
 
@@ -45,7 +45,7 @@ export class AcmStore {
     const parsed = JSON.parse(raw);
     if (parsed?.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
       throw new Error(
-        `Unsupported snapshot schemaVersion: ${parsed?.schemaVersion}`
+        `Unsupported snapshot schemaVersion: ${parsed?.schemaVersion}`,
       );
     }
     return parsed as DeployedOperatorSnapshot;
@@ -55,14 +55,14 @@ export class AcmStore {
     await this.atomicWrite(
       this.snapshotPath(),
       JSON.stringify(snapshot, null, 2),
-      0o644
+      0o644,
     );
   }
 
   private async atomicWrite(
     dest: string,
     content: string,
-    mode: number
+    mode: number,
   ): Promise<void> {
     await fsp.mkdir(this.acmDir, { recursive: true });
     const tmp = `${dest}.tmp`;
