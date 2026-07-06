@@ -207,10 +207,12 @@ describe('ACM routes', () => {
         (h: { name: string }) => h.name === 'down'
       );
       expect(down.status).toBe('error');
+      expect(JSON.stringify(res.body)).not.toContain('sha256~secret');
 
       const stored = await request(app).get('/api/acm/snapshot');
       expect(stored.status).toBe(200);
       expect(stored.body).toEqual(res.body);
+      expect(JSON.stringify(stored.body)).not.toContain('sha256~secret');
     });
 
     it('409s a concurrent refresh', async () => {
