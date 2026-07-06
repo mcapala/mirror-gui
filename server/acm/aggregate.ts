@@ -27,6 +27,8 @@ export interface CatalogOperatorLike {
   availableVersions?: string[];
   maxVersion?: string | null;
   catalog?: string;
+  defaultChannel?: string;
+  channelVersions?: Record<string, string[]>;
 }
 
 export interface CatalogDataLike {

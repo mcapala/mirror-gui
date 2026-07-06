@@ -1,18 +1,19 @@
 import express, { type Request, type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { AcmStore, SnapshotSchemaError } from './snapshotStore.js';
-import { buildSnapshot, type HubFetchOutcome } from './aggregate.js';
-import { queryHub as defaultQueryHub } from './client.js';
 import {
-  HubQueryError,
-  redactHub,
-  type AcmHub,
-  type CatalogLookup,
-} from './types.js';
+  buildCatalogLookup,
+  buildSnapshot,
+  type CatalogDataLike,
+  type HubFetchOutcome,
+} from './aggregate.js';
+import { queryHub as defaultQueryHub } from './client.js';
+import { buildReconcileCatalog, reconcile, type IscConfig } from './reconcile.js';
+import { HubQueryError, redactHub, type AcmHub } from './types.js';
 
 export interface AcmRouterDeps {
   acmDir: string;
-  loadCatalogLookup: () => Promise<CatalogLookup>;
+  loadCatalogData: () => Promise<CatalogDataLike | null>;
   queryHub?: typeof defaultQueryHub;
   now?: () => string;
 }
@@ -216,14 +217,15 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
                     : String(result.reason),
               },
         );
-        const catalog = await deps.loadCatalogLookup().catch((error: unknown) => {
+        const catalogData = await deps.loadCatalogData().catch((error: unknown) => {
           console.warn(
-            `ACM refresh: catalog lookup failed, statuses will be 'unknown': ${
+            `ACM refresh: catalog data load failed, statuses will be 'unknown': ${
               error instanceof Error ? error.message : String(error)
             }`,
           );
-          return new Map() as CatalogLookup;
+          return null;
         });
+        const catalog = buildCatalogLookup(catalogData);
         const snapshot = buildSnapshot(outcomes, catalog, now());
         await store.writeSnapshot(snapshot);
         res.json(snapshot);
@@ -233,27 +235,86 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
     }),
   );
 
+  type SnapshotOutcome =
+    | { ok: true; snapshot: Awaited<ReturnType<AcmStore['readSnapshot']>> }
+    | { ok: false };
+
+  async function readSnapshotOr422(res: Response): Promise<SnapshotOutcome> {
+    try {
+      return { ok: true, snapshot: await store.readSnapshot() };
+    } catch (error) {
+      if (error instanceof SnapshotSchemaError) {
+        res.status(422).json({
+          error:
+            'stored snapshot was written by an incompatible version — refresh to rebuild it',
+        });
+        return { ok: false };
+      }
+      throw error;
+    }
+  }
+
   router.get(
     '/snapshot',
     wrap(async (_req, res) => {
-      let snapshot;
-      try {
-        snapshot = await store.readSnapshot();
-      } catch (error) {
-        if (error instanceof SnapshotSchemaError) {
-          res.status(422).json({
-            error:
-              'stored snapshot was written by an incompatible version — refresh to rebuild it',
-          });
-          return;
-        }
-        throw error;
+      const outcome = await readSnapshotOr422(res);
+      if (!outcome.ok) {
+        return;
       }
-      if (!snapshot) {
+      if (!outcome.snapshot) {
         res.status(404).json({ error: 'never refreshed' });
         return;
       }
-      res.json(snapshot);
+      res.json(outcome.snapshot);
+    }),
+  );
+
+  router.post(
+    '/suggest-update',
+    wrap(async (req, res) => {
+      const body = (req.body ?? {}) as { config?: unknown };
+      const config = body.config as IscConfig | undefined;
+      if (!config || typeof config !== 'object') {
+        res.status(422).json({ error: 'config object is required' });
+        return;
+      }
+      if (config.kind !== 'ImageSetConfiguration') {
+        res
+          .status(422)
+          .json({ error: 'config.kind must be ImageSetConfiguration' });
+        return;
+      }
+      if (
+        typeof config.apiVersion !== 'string' ||
+        !config.apiVersion.startsWith('mirror.openshift.io/')
+      ) {
+        res.status(422).json({
+          error: 'config.apiVersion must be a mirror.openshift.io version',
+        });
+        return;
+      }
+      const outcome = await readSnapshotOr422(res);
+      if (!outcome.ok) {
+        return;
+      }
+      if (!outcome.snapshot) {
+        res.status(404).json({ error: 'never refreshed' });
+        return;
+      }
+      const catalogData = await deps.loadCatalogData().catch((error: unknown) => {
+        console.warn(
+          `ACM suggest-update: catalog data load failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return null;
+      });
+      const result = reconcile(
+        config,
+        outcome.snapshot,
+        buildReconcileCatalog(catalogData),
+      );
+      res.json(result);
     }),
   );
 

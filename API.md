@@ -907,13 +907,51 @@ Hub tokens are stored server-side and are never returned by any endpoint.
 | DELETE | `/api/acm/hubs/:id` | Remove a hub |
 | POST | `/api/acm/hubs/:id/test` | Connectivity test (`limit: 1` search query). Returns `{status: 'ok'}` or `{status: 'failed', kind: 'auth'|'tls'|'unreachable'|'bad-response', error}` |
 | POST | `/api/acm/refresh` | Query all hubs, build and persist a new snapshot, return it. `409` if a refresh is already running; `400` if no hubs configured |
-| GET | `/api/acm/snapshot` | Return the stored snapshot; `404` `{error: 'never refreshed'}` before the first refresh |
+| GET | `/api/acm/snapshot` | Return the stored snapshot; `404` `{error: 'never refreshed'}` before the first refresh; `422` if the stored snapshot was written by an incompatible schema version (re-run refresh to rebuild it) |
+| POST | `/api/acm/suggest-update` | Stateless: reconcile a supplied ImageSetConfiguration against the stored snapshot and bundled catalog data. Body: `{config: <ImageSetConfiguration JSON>}`. Returns `200` with a `ReconcileResult`; `422` if `config` isn't a valid ISC (wrong `kind`/`apiVersion`) or the stored snapshot has an incompatible schema; `404` `{error: 'never refreshed'}` if no snapshot has ever been written |
 
 The snapshot aggregates ClusterServiceVersions (phase `Succeeded`) across all
 hubs into `packages: {<olm-package>: {deployments, minDeployed, maxDeployed,
 latestAvailable, catalogSource, status}}` with per-hub health
-(`status`/`error`/`truncated`/`skippedItems`) in `hubs`. A failed hub's data is
-dropped and flagged — never carried forward from a previous snapshot.
+(`status`/`error`/`truncated`/`skippedItems`) in `hubs`, plus a `clusters`
+array (`{cluster, hub, openshiftVersion}`) used to reconcile the ISC's
+platform channels. A failed hub's data is dropped and flagged — never carried
+forward from a previous snapshot. The snapshot's `schemaVersion` is checked on
+every read; a mismatch (e.g. a snapshot written by an older/newer server)
+yields a `422` on both `GET /snapshot` and `POST /suggest-update` rather than
+being silently reinterpreted.
+
+`POST /api/acm/suggest-update` computes a `ReconcileResult`:
+
+```json
+{
+  "suggestions": [
+    {
+      "id": "string",
+      "kind": "raise-min-version | lower-min-version-drift | raise-platform-min-version | add-channel | add-operator | remove-channel | reset-unused-operator",
+      "path": { "...": "operator-channel | operator | platform-channel" },
+      "current": "string | null",
+      "proposed": "string | null",
+      "proposedChannels": [{ "name": "string", "minVersion": "string" }],
+      "evidence": "string",
+      "defaultChecked": true
+    }
+  ],
+  "report": [
+    { "package": "string", "latestAvailable": "string | null", "behindClusters": [{ "cluster": "string", "hub": "string", "version": "string" }] }
+  ],
+  "noData": [
+    { "package": "string", "reason": "no-fleet-data | not-in-catalog | catalog-unavailable" }
+  ],
+  "warnings": ["string"]
+}
+```
+
+- `raise-min-version` / `lower-min-version-drift` / `raise-platform-min-version`: the fleet's observed floor is above/below the ISC's configured `minVersion` for an operator channel or platform channel.
+- `add-channel`: a catalog channel not selected in the ISC is newer than every currently-selected channel.
+- `add-operator`: a package is deployed on the fleet but missing from the ISC entirely.
+- `remove-channel` / `reset-unused-operator`: no fleet deployment attributes to a configured channel/operator; suppressed (with a warning) unless every hub in the snapshot reported `status: 'ok'` and untruncated, since a hub gap could hide a cluster still using it.
+- `report`/`noData`/`warnings` surface per-package status, packages the reconciler couldn't evaluate (and why), and other caveats (e.g. deployed versions outside any catalog channel).
 
 ## Error Codes
 

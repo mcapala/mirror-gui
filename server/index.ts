@@ -21,7 +21,6 @@ import {
   normalizeChannels,
 } from './utils.js';
 import { createAcmRouter } from './acm/routes.js';
-import { buildCatalogLookup } from './acm/aggregate.js';
 
 const fsp = fs.promises;
 
@@ -2276,8 +2275,7 @@ app.use(
   '/api/acm',
   createAcmRouter({
     acmDir: ACM_DIR,
-    loadCatalogLookup: async () =>
-      buildCatalogLookup(await loadPreFetchedCatalogData()),
+    loadCatalogData: loadPreFetchedCatalogData,
   }),
 );
 

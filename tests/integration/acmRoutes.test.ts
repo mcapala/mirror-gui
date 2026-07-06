@@ -5,12 +5,9 @@ import os from 'os';
 import path from 'path';
 import request from 'supertest';
 import { createAcmRouter } from '../../server/acm/routes.js';
-import {
-  HubQueryError,
-  type AcmHub,
-  type CatalogLookup,
-} from '../../server/acm/types.js';
+import { HubQueryError, type AcmHub } from '../../server/acm/types.js';
 import type { HubQueryResult } from '../../server/acm/types.js';
+import type { CatalogDataLike } from '../../server/acm/aggregate.js';
 
 type FakeQueryHub = (
   hub: AcmHub,
@@ -20,8 +17,8 @@ type FakeQueryHub = (
 function makeApp(opts: {
   acmDir: string;
   queryHub?: FakeQueryHub;
-  catalog?: CatalogLookup;
-  loadCatalogLookup?: () => Promise<CatalogLookup>;
+  catalogData?: CatalogDataLike;
+  loadCatalogData?: () => Promise<CatalogDataLike | null>;
 }) {
   const app = express();
   app.use(express.json());
@@ -35,8 +32,8 @@ function makeApp(opts: {
           clusterItems: [],
           truncated: false,
         }))) as never,
-      loadCatalogLookup:
-        opts.loadCatalogLookup ?? (async () => opts.catalog ?? new Map()),
+      loadCatalogData:
+        opts.loadCatalogData ?? (async () => opts.catalogData ?? null),
       now: () => '2026-07-06T12:00:00.000Z',
     })
   );
@@ -232,15 +229,20 @@ describe('ACM routes', () => {
     });
 
     it('builds, persists, and returns a snapshot; partial hub failure is flagged', async () => {
-      const catalog: CatalogLookup = new Map([
-        [
-          'acm',
-          { latestAvailable: '2.12.0', catalogSource: 'redhat-operator-index' },
-        ],
-      ]);
+      const catalogData: CatalogDataLike = {
+        operators: {
+          'redhat-operator-index': [
+            {
+              name: 'acm',
+              availableVersions: ['2.12.0'],
+              catalog: 'redhat-operator-index',
+            },
+          ],
+        },
+      };
       const app = makeApp({
         acmDir: dir,
-        catalog,
+        catalogData,
         queryHub: async hub => {
           if (hub.name === 'down') {
             throw new HubQueryError('unreachable', 'hub unreachable — refused');
@@ -277,7 +279,7 @@ describe('ACM routes', () => {
     it('degrades to unknown status when the catalog lookup totally fails', async () => {
       const app = makeApp({
         acmDir: dir,
-        loadCatalogLookup: async () => {
+        loadCatalogData: async () => {
           throw new Error('boom');
         },
         queryHub: async () => ({
@@ -349,6 +351,94 @@ describe('ACM routes', () => {
         JSON.stringify({ schemaVersion: 999 }),
       );
       const res = await request(app).get('/api/acm/snapshot');
+      expect(res.status).toBe(422);
+      expect(res.body.error).toMatch(/refresh/i);
+    });
+  });
+
+  describe('POST /api/acm/suggest-update', () => {
+    const VALID_ISC = {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      mirror: {
+        operators: [
+          {
+            catalog: 'registry.redhat.io/redhat/redhat-operator-index:v4.21',
+            packages: [
+              {
+                name: 'advanced-cluster-management',
+                channels: [{ name: 'release-2.15' }],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    it('404s before the first refresh', async () => {
+      const res = await request(makeApp({ acmDir: dir }))
+        .post('/api/acm/suggest-update')
+        .send({ config: VALID_ISC });
+      expect(res.status).toBe(404);
+    });
+
+    it('422s on a body that is not an ISC', async () => {
+      const res = await request(makeApp({ acmDir: dir }))
+        .post('/api/acm/suggest-update')
+        .send({ config: { kind: 'DeleteImageSetConfiguration' } });
+      expect(res.status).toBe(422);
+    });
+
+    it('returns suggestions computed from the stored snapshot and catalog data', async () => {
+      const catalogData: CatalogDataLike = {
+        operators: {
+          'redhat-operator-index:v4.21': [
+            {
+              name: 'advanced-cluster-management',
+              defaultChannel: 'release-2.16',
+              channelVersions: {
+                'release-2.15': ['2.15.0', '2.15.1'],
+                'release-2.16': ['2.16.0'],
+              },
+            },
+          ],
+        },
+      };
+      const app = makeApp({
+        acmDir: dir,
+        catalogData,
+        queryHub: async () => ({
+          csvItems: [
+            {
+              name: 'advanced-cluster-management.v2.15.0',
+              cluster: 'c1',
+              phase: 'Succeeded',
+            },
+          ],
+          clusterItems: [{ name: 'c1', openshiftVersion: '4.16.8' }],
+          truncated: false,
+        }),
+      });
+      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      await request(app).post('/api/acm/refresh').expect(200);
+      const res = await request(app)
+        .post('/api/acm/suggest-update')
+        .send({ config: VALID_ISC });
+      expect(res.status).toBe(200);
+      const kinds = res.body.suggestions.map((s: { kind: string }) => s.kind);
+      expect(kinds).toContain('raise-min-version');
+      expect(kinds).toContain('add-channel');
+      expect(JSON.stringify(res.body)).not.toContain('sha256~secret');
+    });
+
+    it('422s when the stored snapshot has an incompatible schema', async () => {
+      await fs.promises.writeFile(
+        path.join(dir, 'snapshot.json'),
+        JSON.stringify({ schemaVersion: 1 }),
+      );
+      const res = await request(makeApp({ acmDir: dir }))
+        .post('/api/acm/suggest-update')
+        .send({ config: VALID_ISC });
       expect(res.status).toBe(422);
       expect(res.body.error).toMatch(/refresh/i);
     });
