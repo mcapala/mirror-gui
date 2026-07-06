@@ -64,15 +64,24 @@ const AcmHubsSettings: React.FC = () => {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingHasToken, setEditingHasToken] = useState(false);
   const [form, setForm] = useState<HubForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<RedactedHub | null>(null);
 
   const loadHubs = useCallback(async () => {
     try {
       const response = await axios.get('/api/acm/hubs');
       setHubs(response.data.hubs || []);
-    } catch {
-      addDangerAlert('Failed to load ACM hubs');
+    } catch (error) {
+      const detail = axios.isAxiosError(error)
+        ? error.response?.data?.error
+        : undefined;
+      addDangerAlert(
+        detail
+          ? `Failed to load ACM hubs: ${detail}`
+          : 'Failed to load ACM hubs',
+      );
     }
   }, [addDangerAlert]);
 
@@ -82,12 +91,14 @@ const AcmHubsSettings: React.FC = () => {
 
   const openAdd = () => {
     setEditingId(null);
+    setEditingHasToken(false);
     setForm(emptyForm);
     setModalOpen(true);
   };
 
   const openEdit = (hub: RedactedHub) => {
     setEditingId(hub.id);
+    setEditingHasToken(hub.hasToken);
     setForm({
       name: hub.name,
       url: hub.url,
@@ -134,9 +145,18 @@ const AcmHubsSettings: React.FC = () => {
       await axios.delete(`/api/acm/hubs/${hub.id}`);
       addSuccessAlert(`Hub "${hub.name}" removed`);
       await loadHubs();
-    } catch {
-      addDangerAlert(`Failed to delete hub "${hub.name}"`);
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.message
+        : String(error);
+      addDangerAlert(`Failed to delete hub "${hub.name}": ${message}`);
     }
+  };
+
+  const confirmDeleteHub = async () => {
+    if (!deleteTarget) return;
+    await deleteHub(deleteTarget);
+    setDeleteTarget(null);
   };
 
   const testHub = async (hub: RedactedHub) => {
@@ -144,10 +164,13 @@ const AcmHubsSettings: React.FC = () => {
     try {
       const response = await axios.post(`/api/acm/hubs/${hub.id}/test`);
       setTestResults(prev => ({ ...prev, [hub.id]: response.data }));
-    } catch {
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.message
+        : String(error);
       setTestResults(prev => ({
         ...prev,
-        [hub.id]: { status: 'failed', error: 'request failed' },
+        [hub.id]: { status: 'failed', error: message },
       }));
     } finally {
       setTestingId(null);
@@ -214,7 +237,9 @@ const AcmHubsSettings: React.FC = () => {
                       >
                         {test.status === 'ok'
                           ? 'ok'
-                          : `${test.kind ?? 'failed'}: ${test.error ?? ''}`}
+                          : test.error
+                            ? `${test.kind ?? 'failed'}: ${test.error}`
+                            : (test.kind ?? 'failed')}
                       </Label>
                     ) : (
                       '—'
@@ -242,7 +267,7 @@ const AcmHubsSettings: React.FC = () => {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => deleteHub(hub)}
+                      onClick={() => setDeleteTarget(hub)}
                     >
                       Delete
                     </Button>
@@ -291,14 +316,16 @@ const AcmHubsSettings: React.FC = () => {
             </FormGroup>
             <FormGroup
               label="API token"
-              isRequired={!editingId}
+              isRequired={!editingId || !editingHasToken}
               fieldId="acm-hub-token"
             >
               <TextInput
                 id="acm-hub-token"
                 type="password"
                 placeholder={
-                  editingId ? 'token stored — leave empty to keep' : ''
+                  editingId && editingHasToken
+                    ? 'token stored — leave empty to keep'
+                    : ''
                 }
                 value={form.token}
                 onChange={(_e, value) => setForm({ ...form, token: value })}
@@ -342,12 +369,41 @@ const AcmHubsSettings: React.FC = () => {
             onClick={saveHub}
             isLoading={saving}
             isDisabled={
-              saving || !form.name || !form.url || (!editingId && !form.token)
+              saving ||
+              !form.name ||
+              !form.url ||
+              ((!editingId || !editingHasToken) && !form.token)
             }
           >
             Save
           </Button>
           <Button variant="link" onClick={() => setModalOpen(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        variant={ModalVariant.small}
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        aria-label="Delete confirmation"
+      >
+        <ModalHeader title="Delete ACM Hub" />
+        <ModalBody>
+          <p>
+            Are you sure you want to delete{' '}
+            <span style={{ fontWeight: 600 }}>
+              &quot;{deleteTarget?.name}&quot;
+            </span>
+            ? This action cannot be undone.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="danger" onClick={confirmDeleteHub}>
+            Delete
+          </Button>
+          <Button variant="link" onClick={() => setDeleteTarget(null)}>
             Cancel
           </Button>
         </ModalFooter>
