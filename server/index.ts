@@ -20,6 +20,8 @@ import {
   getVersionsFromMetadata,
   normalizeChannels,
 } from './utils.js';
+import { createAcmRouter } from './acm/routes.js';
+import { buildCatalogLookup } from './acm/aggregate.js';
 
 const fsp = fs.promises;
 
@@ -138,6 +140,7 @@ const CACHE_DIR = path.resolve(process.env.OC_MIRROR_CACHE_DIR || path.join(STOR
 const APP_ROOT_DIR = process.env.OC_MIRROR_WORKDIR || path.resolve(__dirname, '..');
 const DEV_CACHE_DIR = path.join(APP_ROOT_DIR, '.local-run', 'vite');
 const MIRROR_BASE_DIR = path.resolve(process.env.OC_MIRROR_BASE_MIRROR_DIR || path.join(STORAGE_DIR, 'mirrors'));
+const ACM_DIR = path.join(STORAGE_DIR, 'acm');
 const DEFAULT_MIRROR_DIR = path.join(MIRROR_BASE_DIR, 'default');
 const CUSTOM_MIRROR_DIR = path.join(MIRROR_BASE_DIR, 'custom');
 const EPHEMERAL_MIRROR_DIR = path.resolve(process.env.OC_MIRROR_EPHEMERAL_DIR || path.join(APP_ROOT_DIR, 'mirror'));
@@ -2268,6 +2271,15 @@ app.get('/api/system/info', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to get system info' });
   }
 });
+
+app.use(
+  '/api/acm',
+  createAcmRouter({
+    acmDir: ACM_DIR,
+    loadCatalogLookup: async () =>
+      buildCatalogLookup(await loadPreFetchedCatalogData()),
+  }),
+);
 
 function configureProductionFrontend(): void {
   app.use(express.static(DIST_DIR, {

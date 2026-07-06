@@ -894,6 +894,27 @@ Clear runtime-synced catalog data and fall back to built-in catalog data baked i
 }
 ```
 
+## ACM Integration
+
+Endpoints for managing ACM hub connections and the deployed-operator snapshot.
+Hub tokens are stored server-side and are never returned by any endpoint.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/acm/hubs` | List configured hubs (tokens redacted; `hasToken` indicates presence) |
+| POST | `/api/acm/hubs` | Add a hub: `{name, url, token, caBundle?, insecureSkipVerify?}`. `url` must be `https://` |
+| PUT | `/api/acm/hubs/:id` | Update a hub; omitting `token` keeps the stored one |
+| DELETE | `/api/acm/hubs/:id` | Remove a hub |
+| POST | `/api/acm/hubs/:id/test` | Connectivity test (`limit: 1` search query). Returns `{status: 'ok'}` or `{status: 'failed', kind: 'auth'|'tls'|'unreachable'|'bad-response', error}` |
+| POST | `/api/acm/refresh` | Query all hubs, build and persist a new snapshot, return it. `409` if a refresh is already running; `400` if no hubs configured |
+| GET | `/api/acm/snapshot` | Return the stored snapshot; `404` `{error: 'never refreshed'}` before the first refresh |
+
+The snapshot aggregates ClusterServiceVersions (phase `Succeeded`) across all
+hubs into `packages: {<olm-package>: {deployments, minDeployed, maxDeployed,
+latestAvailable, catalogSource, status}}` with per-hub health
+(`status`/`error`/`truncated`/`skippedItems`) in `hubs`. A failed hub's data is
+dropped and flagged — never carried forward from a previous snapshot.
+
 ## Error Codes
 
 | Code | Description |
