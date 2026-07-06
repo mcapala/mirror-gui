@@ -60,9 +60,11 @@ import {
   ArrowRightIcon,
   PencilAltIcon,
   CheckIcon,
+  ClusterIcon,
 } from '@patternfly/react-icons';
 import { FieldBuilder } from '@patternfly/react-component-groups';
 import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
+import FleetUpdates from './fleetUpdates/FleetUpdates';
 
 export interface PlatformChannel {
   name: string;
@@ -2293,6 +2295,18 @@ const MirrorConfig: React.FC = () => {
                   Load into Editor
                 </Button>
               </div>
+            </Tab>
+
+            <Tab
+              eventKey="fleet-updates"
+              title={
+                <>
+                  <TabTitleIcon><ClusterIcon /></TabTitleIcon>
+                  <TabTitleText>Fleet Updates</TabTitleText>
+                </>
+              }
+            >
+              <FleetUpdates config={config} setConfig={setConfig} />
             </Tab>
           </Tabs>
 
