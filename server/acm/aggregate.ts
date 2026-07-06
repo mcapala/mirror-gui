@@ -1,0 +1,183 @@
+import { compareVersionStrings } from '../utils.js';
+import { parseCsvName } from './csvName.js';
+import type {
+  AcmHub,
+  CatalogLookup,
+  CsvSearchItem,
+  DeployedOperatorSnapshot,
+  HubSnapshotStatus,
+  PackageSnapshot,
+  PackageStatus,
+} from './types.js';
+
+export interface HubFetchOutcome {
+  hub: AcmHub;
+  status: 'ok' | 'error';
+  error?: string;
+  items?: CsvSearchItem[];
+  truncated?: boolean;
+}
+
+export interface CatalogOperatorLike {
+  name: string;
+  availableVersions?: string[];
+  maxVersion?: string | null;
+  catalog?: string;
+}
+
+export interface CatalogDataLike {
+  operators: Record<string, CatalogOperatorLike[]>;
+}
+
+const SEMVERISH = /^\d+(\.\d+)+/;
+
+function isSemverish(version: string): boolean {
+  return SEMVERISH.test(version);
+}
+
+export function buildCatalogLookup(
+  data: CatalogDataLike | null,
+): CatalogLookup {
+  const lookup: CatalogLookup = new Map();
+  if (!data?.operators) {
+    return lookup;
+  }
+  for (const operators of Object.values(data.operators)) {
+    for (const op of operators) {
+      const versions = op.availableVersions?.length
+        ? op.availableVersions
+        : op.maxVersion
+          ? [op.maxVersion]
+          : [];
+      if (!versions.length) {
+        continue;
+      }
+      const latest = versions.reduce((a, b) =>
+        compareVersionStrings(a, b) >= 0 ? a : b,
+      );
+      const existing = lookup.get(op.name);
+      if (
+        !existing ||
+        compareVersionStrings(latest, existing.latestAvailable) > 0
+      ) {
+        lookup.set(op.name, {
+          latestAvailable: latest,
+          catalogSource: op.catalog ?? 'unknown',
+        });
+      }
+    }
+  }
+  return lookup;
+}
+
+export function buildSnapshot(
+  outcomes: HubFetchOutcome[],
+  catalog: CatalogLookup,
+  refreshedAt: string,
+): DeployedOperatorSnapshot {
+  const hubs: HubSnapshotStatus[] = [];
+  const packages: Record<string, PackageSnapshot> = {};
+
+  for (const outcome of outcomes) {
+    if (outcome.status === 'error') {
+      hubs.push({
+        id: outcome.hub.id,
+        name: outcome.hub.name,
+        status: 'error',
+        error: outcome.error ?? 'unknown error',
+        truncated: false,
+        skippedItems: 0,
+        clusterCount: 0,
+      });
+      continue;
+    }
+
+    const seen = new Set<string>();
+    const clusters = new Set<string>();
+    let skipped = 0;
+
+    for (const item of outcome.items ?? []) {
+      if (
+        !item ||
+        typeof item.name !== 'string' ||
+        typeof item.cluster !== 'string' ||
+        typeof item.phase !== 'string'
+      ) {
+        skipped++;
+        continue;
+      }
+      if (item.phase !== 'Succeeded') {
+        continue;
+      }
+      const dedupKey = `${item.cluster} ${item.name}`;
+      if (seen.has(dedupKey)) {
+        continue;
+      }
+      seen.add(dedupKey);
+      const parsed = parseCsvName(item.name);
+      if (!parsed) {
+        skipped++;
+        continue;
+      }
+      clusters.add(item.cluster);
+      let pkg = packages[parsed.packageName];
+      if (!pkg) {
+        pkg = {
+          deployments: [],
+          minDeployed: parsed.version,
+          maxDeployed: parsed.version,
+          latestAvailable: null,
+          catalogSource: null,
+          status: 'unknown',
+        };
+        packages[parsed.packageName] = pkg;
+      }
+      pkg.deployments.push({
+        cluster: item.cluster,
+        hub: outcome.hub.name,
+        version: parsed.version,
+        behind: false,
+      });
+    }
+
+    hubs.push({
+      id: outcome.hub.id,
+      name: outcome.hub.name,
+      status: 'ok',
+      error: null,
+      truncated: Boolean(outcome.truncated),
+      skippedItems: skipped,
+      clusterCount: clusters.size,
+    });
+  }
+
+  for (const [name, pkg] of Object.entries(packages)) {
+    pkg.deployments.sort((a, b) => compareVersionStrings(a.version, b.version));
+    pkg.minDeployed = pkg.deployments[0].version;
+    pkg.maxDeployed = pkg.deployments[pkg.deployments.length - 1].version;
+
+    const info = catalog.get(name);
+    if (!info || !isSemverish(info.latestAvailable)) {
+      pkg.status = 'unknown';
+      continue;
+    }
+    pkg.latestAvailable = info.latestAvailable;
+    pkg.catalogSource = info.catalogSource;
+
+    if (pkg.deployments.some(d => !isSemverish(d.version))) {
+      pkg.status = 'unknown';
+      continue;
+    }
+    let status: PackageStatus = 'current';
+    for (const deployment of pkg.deployments) {
+      deployment.behind =
+        compareVersionStrings(deployment.version, info.latestAvailable) < 0;
+      if (deployment.behind) {
+        status = 'behind';
+      }
+    }
+    pkg.status = status;
+  }
+
+  return { schemaVersion: 1, refreshedAt, hubs, packages };
+}
