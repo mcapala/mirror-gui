@@ -29,6 +29,7 @@ import {
   SyncAltIcon,
   HistoryIcon,
   WrenchIcon,
+  ClusterIcon,
 } from '@patternfly/react-icons';
 import { AlertProvider } from './AlertContext';
 import { ThemeProvider, useTheme } from './ThemeContext';
@@ -41,6 +42,7 @@ const MirrorConfig = lazy(() => import('./components/MirrorConfig'));
 const MirrorOperations = lazy(() => import('./components/MirrorOperations'));
 const History = lazy(() => import('./components/History'));
 const Settings = lazy(() => import('./components/Settings'));
+const FleetOperators = lazy(() => import('./components/FleetOperators'));
 
 interface NavRoute {
   path: string;
@@ -54,6 +56,7 @@ const navRoutes: NavRoute[] = [
   { path: '/config', label: 'Mirror Configuration', icon: <CogIcon />, component: MirrorConfig },
   { path: '/operations', label: 'Mirror Operations', icon: <SyncAltIcon />, component: MirrorOperations },
   { path: '/history', label: 'History', icon: <HistoryIcon />, component: History },
+  { path: '/fleet', label: 'Fleet Operators', icon: <ClusterIcon />, component: FleetOperators },
   { path: '/settings', label: 'Settings', icon: <WrenchIcon />, component: Settings },
 ];
 
