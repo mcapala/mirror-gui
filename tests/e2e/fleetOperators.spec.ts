@@ -63,8 +63,11 @@ test.describe('Fleet Operators', () => {
   let hubId: string | undefined;
 
   test.afterAll(async ({ request }) => {
-    if (hubId) {
-      await request.delete(`/api/acm/hubs/${hubId}`).catch(() => {});
+    if (!hubId) return;
+    try {
+      await request.delete(`/api/acm/hubs/${hubId}`);
+    } catch (error) {
+      console.warn(`fleetOperators cleanup: failed to delete hub ${hubId}:`, error);
     }
   });
 

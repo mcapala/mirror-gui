@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   ActionGroup,
   Button,
+  Checkbox,
   EmptyState,
   EmptyStateBody,
   Form,
@@ -65,6 +66,8 @@ const AcmHubsSettings: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingHasToken, setEditingHasToken] = useState(false);
+  const [editingHasCaBundle, setEditingHasCaBundle] = useState(false);
+  const [clearCaBundle, setClearCaBundle] = useState(false);
   const [form, setForm] = useState<HubForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RedactedHub | null>(null);
@@ -92,6 +95,8 @@ const AcmHubsSettings: React.FC = () => {
   const openAdd = () => {
     setEditingId(null);
     setEditingHasToken(false);
+    setEditingHasCaBundle(false);
+    setClearCaBundle(false);
     setForm(emptyForm);
     setModalOpen(true);
   };
@@ -99,6 +104,8 @@ const AcmHubsSettings: React.FC = () => {
   const openEdit = (hub: RedactedHub) => {
     setEditingId(hub.id);
     setEditingHasToken(hub.hasToken);
+    setEditingHasCaBundle(hub.hasCaBundle);
+    setClearCaBundle(false);
     setForm({
       name: hub.name,
       url: hub.url,
@@ -115,9 +122,14 @@ const AcmHubsSettings: React.FC = () => {
       const payload: Record<string, unknown> = {
         name: form.name,
         url: form.url,
-        caBundle: form.caBundle || undefined,
         insecureSkipVerify: form.insecureSkipVerify,
       };
+      if (form.caBundle) {
+        payload.caBundle = form.caBundle;
+      } else if (!editingId || clearCaBundle) {
+        payload.caBundle = '';
+      }
+      // omitted caBundle on edit = keep the stored bundle (server contract)
       if (form.token) {
         payload.token = form.token;
       }
@@ -343,13 +355,22 @@ const AcmHubsSettings: React.FC = () => {
                 id="acm-hub-ca"
                 rows={4}
                 placeholder={
-                  editingId
-                    ? 'leave empty to keep / clear the stored CA bundle'
+                  editingId && editingHasCaBundle
+                    ? 'CA bundle stored — paste to replace, leave empty to keep'
                     : '-----BEGIN CERTIFICATE-----'
                 }
                 value={form.caBundle}
                 onChange={(_e, value) => setForm({ ...form, caBundle: value })}
               />
+              {editingId && editingHasCaBundle && !form.caBundle && (
+                <Checkbox
+                  id="acm-hub-clear-ca"
+                  className="pf-v6-u-mt-sm"
+                  label="Clear the stored CA bundle"
+                  isChecked={clearCaBundle}
+                  onChange={(_e, checked) => setClearCaBundle(checked)}
+                />
+              )}
             </FormGroup>
             <FormGroup fieldId="acm-hub-skip-tls">
               <Switch

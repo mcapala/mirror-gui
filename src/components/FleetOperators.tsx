@@ -82,6 +82,7 @@ const FleetOperators: React.FC = () => {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [hubCount, setHubCount] = useState<number | null>(null);
 
   const loadSnapshot = useCallback(async () => {
     try {
@@ -102,6 +103,13 @@ const FleetOperators: React.FC = () => {
   useEffect(() => {
     loadSnapshot();
   }, [loadSnapshot]);
+
+  useEffect(() => {
+    axios
+      .get('/api/acm/hubs')
+      .then(res => setHubCount((res.data.hubs || []).length))
+      .catch(() => setHubCount(null));
+  }, []);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -144,7 +152,11 @@ const FleetOperators: React.FC = () => {
   };
 
   if (loading) {
-    return <Spinner aria-label="Loading fleet snapshot" />;
+    return (
+      <div className="pf-v6-u-text-align-center pf-v6-u-mt-2xl">
+        <Spinner aria-label="Loading fleet snapshot" />
+      </div>
+    );
   }
 
   return (
@@ -199,11 +211,22 @@ const FleetOperators: React.FC = () => {
             </ToolbarContent>
           </Toolbar>
 
-          {neverRefreshed ? (
+          {hubCount === 0 ? (
+            <EmptyState titleText="No ACM hubs configured" headingLevel="h4">
+              <EmptyStateBody>
+                Add at least one hub under Settings → ACM Hubs to build a fleet
+                snapshot.
+                <div className="pf-v6-u-mt-md">
+                  <Button component="a" href="/settings" variant="primary">
+                    Go to Settings
+                  </Button>
+                </div>
+              </EmptyStateBody>
+            </EmptyState>
+          ) : neverRefreshed ? (
             <EmptyState titleText="No snapshot yet" headingLevel="h4">
               <EmptyStateBody>
-                Click Refresh to query the configured ACM hubs. If no hubs are
-                configured yet, add them under Settings → ACM Hubs.
+                Click Refresh to query the configured ACM hubs.
               </EmptyStateBody>
             </EmptyState>
           ) : (
@@ -225,7 +248,7 @@ const FleetOperators: React.FC = () => {
                         value => (
                           <ToggleGroupItem
                             key={value}
-                            text={value}
+                            text={value[0].toUpperCase() + value.slice(1)}
                             isSelected={statusFilter === value}
                             onChange={() => setStatusFilter(value)}
                           />
@@ -263,7 +286,13 @@ const FleetOperators: React.FC = () => {
                           ? pkg.minDeployed
                           : `${pkg.minDeployed} → ${pkg.maxDeployed}`}
                       </Td>
-                      <Td dataLabel="Clusters">{pkg.deployments.length}</Td>
+                      <Td dataLabel="Clusters">
+                        {
+                          new Set(
+                            pkg.deployments.map(d => `${d.hub} ${d.cluster}`),
+                          ).size
+                        }
+                      </Td>
                       <Td dataLabel="Latest available">
                         {pkg.latestAvailable ?? '—'}
                       </Td>
@@ -327,9 +356,18 @@ const FleetOperators: React.FC = () => {
                 ))}
               </Table>
               {rows.length === 0 && (
-                <EmptyState titleText="No packages match" headingLevel="h4">
+                <EmptyState
+                  titleText={
+                    snapshot && Object.keys(snapshot.packages).length === 0
+                      ? 'No operator deployments found'
+                      : 'No packages match'
+                  }
+                  headingLevel="h4"
+                >
                   <EmptyStateBody>
-                    No deployed operators match the current filters.
+                    {snapshot && Object.keys(snapshot.packages).length === 0
+                      ? 'The snapshot contains no succeeded operator deployments on any hub.'
+                      : 'No deployed operators match the current filters.'}
                   </EmptyStateBody>
                 </EmptyState>
               )}
