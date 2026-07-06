@@ -113,9 +113,7 @@ const SettingsPage: React.FC = () => {
   });
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<string | number>(
-    searchParams.get('tab') || 'pull-secret',
-  );
+  const [activeTab, setActiveTab] = useState<string | number>(searchParams.get('tab') || 'pull-secret');
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -123,28 +121,14 @@ const SettingsPage: React.FC = () => {
   }, [searchParams]);
   const [pullSecretContent, setPullSecretContent] = useState('');
   const [pullSecretFilename, setPullSecretFilename] = useState('');
-  const [pullSecretStatus, setPullSecretStatus] = useState<{
-    detected: boolean;
-    path: string | null;
-  }>({ detected: false, path: null });
+  const [pullSecretStatus, setPullSecretStatus] = useState<{ detected: boolean; path: string | null }>({ detected: false, path: null });
   const [registries, setRegistries] = useState<RegistryEntry[]>([]);
 
-  const [catalogSyncStatus, setCatalogSyncStatus] = useState<CatalogSyncStatus>(
-    {
-      status: 'idle',
-      lastSyncTime: null,
-      syncStartTime: null,
-      successCount: 0,
-      failedCount: 0,
-      totalCount: 0,
-      completedCatalogs: 0,
-      currentCatalog: null,
-      error: null,
-      logs: [],
-      diff: [],
-      hasRuntimeSyncData: false,
-    },
-  );
+  const [catalogSyncStatus, setCatalogSyncStatus] = useState<CatalogSyncStatus>({
+    status: 'idle', lastSyncTime: null, syncStartTime: null, successCount: 0, failedCount: 0,
+    totalCount: 0, completedCatalogs: 0, currentCatalog: null, error: null, logs: [], diff: [],
+    hasRuntimeSyncData: false,
+  });
   const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const prevSyncStatusRef = useRef<string>('idle');
@@ -153,19 +137,10 @@ const SettingsPage: React.FC = () => {
   const [showSyncLogs, setShowSyncLogs] = useState(false);
 
   const [cacheHostPath, setCacheHostPath] = useState('');
-  const [generatedRestartCommand, setGeneratedRestartCommand] = useState<
-    string | null
-  >(null);
+  const [generatedRestartCommand, setGeneratedRestartCommand] = useState<string | null>(null);
   const [cacheChangeExpanded, setCacheChangeExpanded] = useState(false);
 
-  const [catalogDigests, setCatalogDigests] = useState<
-    {
-      name: string;
-      url: string;
-      digest: string | null;
-      syncedAt: string | null;
-    }[]
-  >([]);
+  const [catalogDigests, setCatalogDigests] = useState<{ name: string; url: string; digest: string | null; syncedAt: string | null }[]>([]);
   const [digestsExpanded, setDigestsExpanded] = useState(false);
   /** Snapshot of digest by `catalogName:ocpVersion` taken when sync starts; used to label Updated vs Unchanged after sync. */
 
@@ -177,6 +152,7 @@ const SettingsPage: React.FC = () => {
       setCatalogDigests([]);
     }
   }, []);
+
 
   const fetchSyncStatus = useCallback(async () => {
     try {
@@ -196,10 +172,7 @@ const SettingsPage: React.FC = () => {
           }
         }, 3000);
         if (!elapsedTimerRef.current) {
-          elapsedTimerRef.current = setInterval(
-            () => setTick(t => t + 1),
-            1000,
-          );
+          elapsedTimerRef.current = setInterval(() => setTick(t => t + 1), 1000);
         }
       } else if (response.data.status !== 'running' && syncPollRef.current) {
         clearInterval(syncPollRef.current);
@@ -214,14 +187,7 @@ const SettingsPage: React.FC = () => {
     try {
       await axios.post('/api/catalogs/sync');
 
-      setCatalogSyncStatus(prev => ({
-        ...prev,
-        status: 'running',
-        syncStartTime: new Date().toISOString(),
-        logs: [],
-        error: null,
-        diff: [],
-      }));
+      setCatalogSyncStatus(prev => ({ ...prev, status: 'running', syncStartTime: new Date().toISOString(), logs: [], error: null, diff: [] }));
       syncPollRef.current = setInterval(fetchSyncStatus, 3000);
       setShowSyncLogs(false);
       if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
@@ -249,15 +215,11 @@ const SettingsPage: React.FC = () => {
       }
     }
     if (prev === 'running' && curr === 'completed') {
-      addSuccessAlert(
-        `Catalog sync completed: ${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs successful`,
-      );
+      addSuccessAlert(`Catalog sync completed: ${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs successful`);
       setDigestsExpanded(true);
       fetchCatalogDigests();
     } else if (prev === 'running' && curr === 'failed') {
-      addDangerAlert(
-        `Catalog sync failed: ${catalogSyncStatus.error || 'Unknown error'}`,
-      );
+      addDangerAlert(`Catalog sync failed: ${catalogSyncStatus.error || 'Unknown error'}`);
     }
     prevSyncStatusRef.current = curr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,32 +257,18 @@ const SettingsPage: React.FC = () => {
   };
 
   const verifyRegistry = async (registry: string) => {
-    setRegistries(prev =>
-      prev.map(r =>
-        r.registry === registry ? { ...r, status: 'verifying' as const } : r,
-      ),
-    );
+    setRegistries(prev => prev.map(r =>
+      r.registry === registry ? { ...r, status: 'verifying' as const } : r,
+    ));
     try {
       const response = await axios.post('/api/registries/verify', { registry });
-      setRegistries(prev =>
-        prev.map(r =>
-          r.registry === registry
-            ? { ...r, status: response.data.status, error: response.data.error }
-            : r,
-        ),
-      );
+      setRegistries(prev => prev.map(r =>
+        r.registry === registry ? { ...r, status: response.data.status, error: response.data.error } : r,
+      ));
     } catch {
-      setRegistries(prev =>
-        prev.map(r =>
-          r.registry === registry
-            ? {
-                ...r,
-                status: 'failed' as const,
-                error: 'Verification request failed',
-              }
-            : r,
-        ),
-      );
+      setRegistries(prev => prev.map(r =>
+        r.registry === registry ? { ...r, status: 'failed' as const, error: 'Verification request failed' } : r,
+      ));
     }
   };
 
@@ -430,6 +378,7 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+
   const formatBytes = (bytes: string | number) => {
     if (!bytes) return 'Unknown';
     const numBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes;
@@ -459,26 +408,16 @@ const SettingsPage: React.FC = () => {
           >
             <Tab
               eventKey="pull-secret"
-              title={
-                <TabTitleText>
-                  <KeyIcon /> Pull Secret
-                </TabTitleText>
-              }
+              title={<TabTitleText><KeyIcon /> Pull Secret</TabTitleText>}
             >
               <div className="pf-v6-u-py-lg">
-                <Title headingLevel="h3" className="pf-v6-u-mb-md">
-                  Pull Secret
-                </Title>
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Pull Secret</Title>
 
                 <Alert
                   variant={pullSecretStatus.detected ? 'success' : 'warning'}
                   isInline
                   isPlain
-                  title={
-                    pullSecretStatus.detected
-                      ? 'Pull secret detected'
-                      : 'No pull secret detected'
-                  }
+                  title={pullSecretStatus.detected ? 'Pull secret detected' : 'No pull secret detected'}
                   className="pf-v6-u-mb-lg"
                 >
                   {pullSecretStatus.detected
@@ -496,18 +435,14 @@ const SettingsPage: React.FC = () => {
                     onFileInputChange={(_event, file) => {
                       setPullSecretFilename(file.name);
                       const reader = new FileReader();
-                      reader.onload = e => {
+                      reader.onload = (e) => {
                         const text = e.target?.result as string;
                         setPullSecretContent(text || '');
                       };
                       reader.readAsText(file);
                     }}
-                    onDataChange={(_event, value) =>
-                      setPullSecretContent(value)
-                    }
-                    onTextChange={(_event, value) =>
-                      setPullSecretContent(value)
-                    }
+                    onDataChange={(_event, value) => setPullSecretContent(value)}
+                    onTextChange={(_event, value) => setPullSecretContent(value)}
                     onClearClick={() => {
                       setPullSecretContent('');
                       setPullSecretFilename('');
@@ -517,16 +452,8 @@ const SettingsPage: React.FC = () => {
                   />
                   <HelperText>
                     <HelperTextItem>
-                      Drag and drop your pull-secret.json file or paste the
-                      content directly. Download from{' '}
-                      <a
-                        href="https://console.redhat.com/openshift/downloads#tool-pull-secret"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        console.redhat.com
-                      </a>
-                      .
+                      Drag and drop your pull-secret.json file or paste the content directly.
+                      Download from <a href="https://console.redhat.com/openshift/downloads#tool-pull-secret" target="_blank" rel="noreferrer">console.redhat.com</a>.
                     </HelperTextItem>
                   </HelperText>
                 </FormGroup>
@@ -547,16 +474,10 @@ const SettingsPage: React.FC = () => {
 
             <Tab
               eventKey="registry"
-              title={
-                <TabTitleText>
-                  <RegistryIcon /> Registry
-                </TabTitleText>
-              }
+              title={<TabTitleText><RegistryIcon /> Registry</TabTitleText>}
             >
               <div className="pf-v6-u-py-lg">
-                <Title headingLevel="h3" className="pf-v6-u-mb-md">
-                  Registry Authentication
-                </Title>
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Registry Authentication</Title>
 
                 {registries.length === 0 ? (
                   <Alert
@@ -566,15 +487,11 @@ const SettingsPage: React.FC = () => {
                     title="No registries found"
                     className="pf-v6-u-mb-md"
                   >
-                    Add a pull secret in the Pull Secret tab to see registry
-                    authentication status.
+                    Add a pull secret in the Pull Secret tab to see registry authentication status.
                   </Alert>
                 ) : (
                   <>
-                    <Table
-                      aria-label="Registry authentication status"
-                      variant="compact"
-                    >
+                    <Table aria-label="Registry authentication status" variant="compact">
                       <Thead>
                         <Tr>
                           <Th>Registry</Th>
@@ -582,7 +499,7 @@ const SettingsPage: React.FC = () => {
                         </Tr>
                       </Thead>
                       <Tbody>
-                        {registries.map(r => (
+                        {registries.map((r) => (
                           <Tr key={r.registry}>
                             <Td>{r.registry}</Td>
                             <Td>
@@ -590,18 +507,8 @@ const SettingsPage: React.FC = () => {
                                 <Label status="success">Authenticated</Label>
                               )}
                               {r.status === 'failed' && (
-                                <Popover
-                                  bodyContent={
-                                    r.error || 'Authentication failed'
-                                  }
-                                  position="left"
-                                >
-                                  <Label
-                                    status="danger"
-                                    style={{ cursor: 'pointer' }}
-                                  >
-                                    Failed
-                                  </Label>
+                                <Popover bodyContent={r.error || 'Authentication failed'} position="left">
+                                  <Label status="danger" style={{ cursor: 'pointer' }}>Failed</Label>
                                 </Popover>
                               )}
                               {r.status === 'verifying' && (
@@ -634,16 +541,10 @@ const SettingsPage: React.FC = () => {
 
             <Tab
               eventKey="cache"
-              title={
-                <TabTitleText>
-                  <DatabaseIcon /> Cache
-                </TabTitleText>
-              }
+              title={<TabTitleText><DatabaseIcon /> Cache</TabTitleText>}
             >
               <div className="pf-v6-u-py-lg">
-                <Title headingLevel="h3" className="pf-v6-u-mb-md">
-                  Cache
-                </Title>
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Cache</Title>
 
                 <FormGroup
                   label={
@@ -653,18 +554,7 @@ const SettingsPage: React.FC = () => {
                         position="right"
                         bodyContent="This path reflects the running container (OC_MIRROR_CACHE_DIR / default data volume). To use a different host disk, save a host path below and restart with the generated command so the new directory can be mounted."
                       >
-                        <button
-                          type="button"
-                          aria-label="Cache location info"
-                          className="pf-v6-u-ml-xs"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: 0,
-                            verticalAlign: 'middle',
-                          }}
-                        >
+                        <button type="button" aria-label="Cache location info" className="pf-v6-u-ml-xs" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>
                           <InfoCircleIcon />
                         </button>
                       </Popover>
@@ -672,21 +562,11 @@ const SettingsPage: React.FC = () => {
                   }
                   fieldId="cache-location"
                 >
-                  <Label isCompact>
-                    {systemInfo.hostCacheDir ||
-                      systemInfo.cacheDir ||
-                      'Unknown'}
-                  </Label>
+                  <Label isCompact>{systemInfo.hostCacheDir || systemInfo.cacheDir || 'Unknown'}</Label>
                 </FormGroup>
 
-                <FormGroup
-                  label="Cache Size"
-                  fieldId="cache-size"
-                  className="pf-v6-u-mt-md"
-                >
-                  <Label isCompact>
-                    {formatBytes(systemInfo.cacheSizeBytes)}
-                  </Label>
+                <FormGroup label="Cache Size" fieldId="cache-size" className="pf-v6-u-mt-md">
+                  <Label isCompact>{formatBytes(systemInfo.cacheSizeBytes)}</Label>
                 </FormGroup>
 
                 <ExpandableSection
@@ -707,32 +587,25 @@ const SettingsPage: React.FC = () => {
                       placeholder="/mnt/fast-ssd/mirror-cache"
                     />
                     <HelperText>
-                      <HelperTextItem>
-                        Directory on the host to mount as the oc-mirror cache
-                        (e.g. /mnt/fast-ssd/mirror-cache).
-                      </HelperTextItem>
+                      <HelperTextItem>Directory on the host to mount as the oc-mirror cache (e.g. /mnt/fast-ssd/mirror-cache).</HelperTextItem>
                     </HelperText>
                   </FormGroup>
 
                   <ActionGroup className="pf-v6-u-mt-md">
-                    <Button variant="primary" onClick={generateRestartCommand}>
+                    <Button
+                      variant="primary"
+                      onClick={generateRestartCommand}
+                    >
                       Generate Restart Command
                     </Button>
                   </ActionGroup>
 
                   {generatedRestartCommand && (
                     <div className="pf-v6-u-mt-md">
-                      <Flex
-                        justifyContent={{
-                          default: 'justifyContentSpaceBetween',
-                        }}
-                        alignItems={{ default: 'alignItemsFlexStart' }}
-                      >
+                      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsFlexStart' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <CodeBlock>
-                            <CodeBlockCode>
-                              {generatedRestartCommand}
-                            </CodeBlockCode>
+                            <CodeBlockCode>{generatedRestartCommand}</CodeBlockCode>
                           </CodeBlock>
                         </div>
                         <Button
@@ -771,35 +644,17 @@ const SettingsPage: React.FC = () => {
 
             <Tab
               eventKey="sync-catalogs"
-              title={
-                <TabTitleText>
-                  <SyncAltIcon /> Sync Catalogs
-                </TabTitleText>
-              }
+              title={<TabTitleText><SyncAltIcon /> Sync Catalogs</TabTitleText>}
             >
               <div className="pf-v6-u-py-lg">
-                <Title headingLevel="h3" className="pf-v6-u-mb-md">
-                  Sync Operator Catalogs
-                </Title>
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Sync Operator Catalogs</Title>
 
                 <Alert
                   variant={pullSecretStatus.detected ? 'custom' : 'warning'}
                   isInline
                   isPlain
-                  customIcon={
-                    pullSecretStatus.detected ? (
-                      <InfoCircleIcon
-                        style={{
-                          color: 'var(--pf-t--global--icon--color--regular)',
-                        }}
-                      />
-                    ) : undefined
-                  }
-                  title={
-                    pullSecretStatus.detected
-                      ? 'Pull secret detected'
-                      : 'Pull secret required'
-                  }
+                  customIcon={pullSecretStatus.detected ? <InfoCircleIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} /> : undefined}
+                  title={pullSecretStatus.detected ? 'Pull secret detected' : 'Pull secret required'}
                   className="pf-v6-u-mb-lg"
                 >
                   {pullSecretStatus.detected
@@ -808,34 +663,14 @@ const SettingsPage: React.FC = () => {
                 </Alert>
 
                 {catalogSyncStatus.lastSyncTime && (
-                  <FormGroup
-                    label="Last Sync"
-                    fieldId="last-sync-time"
-                    className="pf-v6-u-mb-md"
-                  >
+                  <FormGroup label="Last Sync" fieldId="last-sync-time" className="pf-v6-u-mb-md">
                     <Label
                       isCompact
-                      color={
-                        catalogSyncStatus.status === 'completed'
-                          ? 'green'
-                          : catalogSyncStatus.status === 'failed'
-                            ? 'red'
-                            : undefined
-                      }
-                      icon={
-                        catalogSyncStatus.status === 'completed' ? (
-                          <CheckCircleIcon />
-                        ) : catalogSyncStatus.status === 'failed' ? (
-                          <TimesCircleIcon />
-                        ) : undefined
-                      }
+                      color={catalogSyncStatus.status === 'completed' ? 'green' : catalogSyncStatus.status === 'failed' ? 'red' : undefined}
+                      icon={catalogSyncStatus.status === 'completed' ? <CheckCircleIcon /> : catalogSyncStatus.status === 'failed' ? <TimesCircleIcon /> : undefined}
                     >
-                      <Timestamp
-                        date={new Date(catalogSyncStatus.lastSyncTime)}
-                        tooltip={{ variant: 'default' }}
-                      />
-                      {catalogSyncStatus.status === 'completed' &&
-                        ` (${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs)`}
+                      <Timestamp date={new Date(catalogSyncStatus.lastSyncTime)} tooltip={{ variant: 'default' }} />
+                      {catalogSyncStatus.status === 'completed' && ` (${catalogSyncStatus.successCount}/${catalogSyncStatus.totalCount} catalogs)`}
                       {catalogSyncStatus.status === 'failed' && ' (failed)'}
                     </Label>
                   </FormGroup>
@@ -844,21 +679,12 @@ const SettingsPage: React.FC = () => {
                 <Flex gap={{ default: 'gapSm' }} className="pf-v6-u-mt-md">
                   <Button
                     variant="primary"
-                    icon={
-                      catalogSyncStatus.status !== 'running' ? (
-                        <SyncAltIcon />
-                      ) : undefined
-                    }
+                    icon={catalogSyncStatus.status !== 'running' ? <SyncAltIcon /> : undefined}
                     onClick={startCatalogSync}
-                    isDisabled={
-                      !pullSecretStatus.detected ||
-                      catalogSyncStatus.status === 'running'
-                    }
+                    isDisabled={!pullSecretStatus.detected || catalogSyncStatus.status === 'running'}
                     isLoading={catalogSyncStatus.status === 'running'}
                   >
-                    {catalogSyncStatus.status === 'running'
-                      ? 'Syncing Catalogs...'
-                      : 'Sync Catalogs'}
+                    {catalogSyncStatus.status === 'running' ? 'Syncing Catalogs...' : 'Sync Catalogs'}
                   </Button>
                   {catalogSyncStatus.logs.length > 0 && (
                     <Button
@@ -874,8 +700,8 @@ const SettingsPage: React.FC = () => {
                     icon={<TrashAltIcon />}
                     onClick={clearSyncData}
                     isDisabled={
-                      catalogSyncStatus.status === 'running' ||
-                      !(catalogSyncStatus.hasRuntimeSyncData ?? false)
+                      catalogSyncStatus.status === 'running'
+                      || !(catalogSyncStatus.hasRuntimeSyncData ?? false)
                     }
                     isDanger
                   >
@@ -883,135 +709,80 @@ const SettingsPage: React.FC = () => {
                   </Button>
                 </Flex>
 
-                {catalogSyncStatus.status === 'running' &&
-                  catalogSyncStatus.totalCount > 0 && (
-                    <div className="pf-v6-u-mt-lg">
-                      <Progress
-                        value={Math.round(
-                          (catalogSyncStatus.completedCatalogs /
-                            catalogSyncStatus.totalCount) *
-                            100,
-                        )}
-                        title="Catalog sync progress"
-                        size={ProgressSize.lg}
-                        measureLocation={ProgressMeasureLocation.outside}
-                        label={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
-                        valueText={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
-                      />
-                      <HelperText className="pf-v6-u-mt-xs">
-                        <HelperTextItem>
-                          {catalogSyncStatus.currentCatalog &&
-                            `Processing: ${catalogSyncStatus.currentCatalog} | `}
-                          Elapsed:{' '}
-                          {formatElapsed(
-                            catalogSyncStatus.syncStartTime
-                              ? Math.floor(
-                                  (Date.now() -
-                                    new Date(
-                                      catalogSyncStatus.syncStartTime,
-                                    ).getTime()) /
-                                    1000,
-                                )
-                              : 0,
-                          )}
-                        </HelperTextItem>
-                      </HelperText>
-                    </div>
-                  )}
+                {catalogSyncStatus.status === 'running' && catalogSyncStatus.totalCount > 0 && (
+                  <div className="pf-v6-u-mt-lg">
+                    <Progress
+                      value={Math.round((catalogSyncStatus.completedCatalogs / catalogSyncStatus.totalCount) * 100)}
+                      title="Catalog sync progress"
+                      size={ProgressSize.lg}
+                      measureLocation={ProgressMeasureLocation.outside}
+                      label={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
+                      valueText={`${catalogSyncStatus.completedCatalogs} / ${catalogSyncStatus.totalCount} catalogs`}
+                    />
+                    <HelperText className="pf-v6-u-mt-xs">
+                      <HelperTextItem>
+                        {catalogSyncStatus.currentCatalog && `Processing: ${catalogSyncStatus.currentCatalog} | `}
+                        Elapsed: {formatElapsed(catalogSyncStatus.syncStartTime ? Math.floor((Date.now() - new Date(catalogSyncStatus.syncStartTime).getTime()) / 1000) : 0)}
+                      </HelperTextItem>
+                    </HelperText>
+                  </div>
+                )}
 
-                {catalogSyncStatus.status === 'completed' &&
-                  catalogSyncStatus.diff.length > 0 && (
-                    <div className="pf-v6-u-mt-lg">
-                      <Alert
-                        variant="success"
-                        isInline
-                        isPlain
-                        title="Catalog changes detected"
-                        className="pf-v6-u-mb-md"
-                      >
-                        The following changes were found compared to the
-                        previously loaded catalog data.
-                      </Alert>
-                      {catalogSyncStatus.diff.map(entry => (
-                        <ExpandableSection
-                          key={entry.catalog}
-                          toggleText={`${entry.catalog} (${entry.newOperators.length} new, ${entry.updatedOperators.length} updated, ${entry.removedOperators.length} removed)`}
-                          isIndented
-                        >
-                          {entry.newOperators.length > 0 && (
-                            <div className="pf-v6-u-mb-sm">
-                              <Title
-                                headingLevel="h5"
-                                className="pf-v6-u-mb-xs"
-                              >
-                                <Label color="green" isCompact>
-                                  New Operators ({entry.newOperators.length})
-                                </Label>
-                              </Title>
-                              <List isPlain>
-                                {entry.newOperators.map(op => (
-                                  <ListItem key={op}>{op}</ListItem>
-                                ))}
-                              </List>
-                            </div>
-                          )}
-                          {entry.updatedOperators.length > 0 && (
-                            <div className="pf-v6-u-mb-sm">
-                              <Title
-                                headingLevel="h5"
-                                className="pf-v6-u-mb-xs"
-                              >
-                                <Label color="blue" isCompact>
-                                  Updated Operators (
-                                  {entry.updatedOperators.length})
-                                </Label>
-                              </Title>
-                              <List isPlain>
-                                {entry.updatedOperators.map(op => (
-                                  <ListItem key={op.name}>
-                                    <strong>{op.name}</strong>:{' '}
-                                    {op.addedVersions.join(', ')}
-                                  </ListItem>
-                                ))}
-                              </List>
-                            </div>
-                          )}
-                          {entry.removedOperators.length > 0 && (
-                            <div className="pf-v6-u-mb-sm">
-                              <Title
-                                headingLevel="h5"
-                                className="pf-v6-u-mb-xs"
-                              >
-                                <Label color="red" isCompact>
-                                  Removed Operators (
-                                  {entry.removedOperators.length})
-                                </Label>
-                              </Title>
-                              <List isPlain>
-                                {entry.removedOperators.map(op => (
-                                  <ListItem key={op}>{op}</ListItem>
-                                ))}
-                              </List>
-                            </div>
-                          )}
-                        </ExpandableSection>
-                      ))}
-                    </div>
-                  )}
-
-                {catalogSyncStatus.status === 'completed' &&
-                  catalogSyncStatus.diff.length === 0 && (
-                    <Alert
-                      variant="success"
-                      isInline
-                      isPlain
-                      title="Catalogs are up to date"
-                      className="pf-v6-u-mt-lg"
-                    >
-                      No differences found between the synced data and the
-                      previously loaded catalogs.
+                {catalogSyncStatus.status === 'completed' && catalogSyncStatus.diff.length > 0 && (
+                  <div className="pf-v6-u-mt-lg">
+                    <Alert variant="success" isInline isPlain title="Catalog changes detected" className="pf-v6-u-mb-md">
+                      The following changes were found compared to the previously loaded catalog data.
                     </Alert>
-                  )}
+                    {catalogSyncStatus.diff.map((entry) => (
+                      <ExpandableSection
+                        key={entry.catalog}
+                        toggleText={`${entry.catalog} (${entry.newOperators.length} new, ${entry.updatedOperators.length} updated, ${entry.removedOperators.length} removed)`}
+                        isIndented
+                      >
+                        {entry.newOperators.length > 0 && (
+                          <div className="pf-v6-u-mb-sm">
+                            <Title headingLevel="h5" className="pf-v6-u-mb-xs">
+                              <Label color="green" isCompact>New Operators ({entry.newOperators.length})</Label>
+                            </Title>
+                            <List isPlain>
+                              {entry.newOperators.map(op => <ListItem key={op}>{op}</ListItem>)}
+                            </List>
+                          </div>
+                        )}
+                        {entry.updatedOperators.length > 0 && (
+                          <div className="pf-v6-u-mb-sm">
+                            <Title headingLevel="h5" className="pf-v6-u-mb-xs">
+                              <Label color="blue" isCompact>Updated Operators ({entry.updatedOperators.length})</Label>
+                            </Title>
+                            <List isPlain>
+                              {entry.updatedOperators.map(op => (
+                                <ListItem key={op.name}>
+                                  <strong>{op.name}</strong>: {op.addedVersions.join(', ')}
+                                </ListItem>
+                              ))}
+                            </List>
+                          </div>
+                        )}
+                        {entry.removedOperators.length > 0 && (
+                          <div className="pf-v6-u-mb-sm">
+                            <Title headingLevel="h5" className="pf-v6-u-mb-xs">
+                              <Label color="red" isCompact>Removed Operators ({entry.removedOperators.length})</Label>
+                            </Title>
+                            <List isPlain>
+                              {entry.removedOperators.map(op => <ListItem key={op}>{op}</ListItem>)}
+                            </List>
+                          </div>
+                        )}
+                      </ExpandableSection>
+                    ))}
+                  </div>
+                )}
+
+                {catalogSyncStatus.status === 'completed' && catalogSyncStatus.diff.length === 0 && (
+                  <Alert variant="success" isInline isPlain title="Catalogs are up to date" className="pf-v6-u-mt-lg">
+                    No differences found between the synced data and the previously loaded catalogs.
+                  </Alert>
+                )}
 
                 {catalogDigests.length > 0 && (
                   <ExpandableSection
@@ -1020,11 +791,7 @@ const SettingsPage: React.FC = () => {
                     onToggle={(_e, expanded) => setDigestsExpanded(expanded)}
                     className="pf-v6-u-mt-lg"
                   >
-                    <Table
-                      variant="compact"
-                      borders={false}
-                      aria-label="Catalog digests"
-                    >
+                    <Table variant="compact" borders={false} aria-label="Catalog digests">
                       <Thead>
                         <Tr>
                           <Th>Catalog</Th>
@@ -1036,44 +803,26 @@ const SettingsPage: React.FC = () => {
                       <Tbody>
                         {catalogDigests.map((cat, i) => {
                           const ocp = cat.url.split(':').pop() || '';
-                          const isRealDigest =
-                            cat.digest?.startsWith('sha256:');
-                          const shortDigest = isRealDigest
-                            ? `${cat.digest!.slice(0, 19)}...`
-                            : '';
+                          const isRealDigest = cat.digest?.startsWith('sha256:');
+                          const shortDigest = isRealDigest ? `${cat.digest!.slice(0, 19)}...` : '';
                           const digestKey = `${cat.name}:${ocp}`;
                           return (
                             <Tr key={`${digestKey}-${i}`}>
                               <Td>{cat.name}</Td>
                               <Td>{ocp}</Td>
                               <Td>
-                                <Flex
-                                  spaceItems={{ default: 'spaceItemsSm' }}
-                                  alignItems={{ default: 'alignItemsCenter' }}
-                                  flexWrap={{ default: 'nowrap' }}
-                                >
+                                <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }} flexWrap={{ default: 'nowrap' }}>
                                   {isRealDigest ? (
                                     <>
                                       <Tooltip content={cat.digest || ''}>
-                                        <Label color="blue" isCompact>
-                                          <span
-                                            style={{
-                                              fontFamily:
-                                                'var(--pf-t--global--font--family--mono)',
-                                            }}
-                                          >
-                                            {shortDigest}
-                                          </span>
-                                        </Label>
+                                        <Label color="blue" isCompact><span style={{ fontFamily: 'var(--pf-t--global--font--family--mono)' }}>{shortDigest}</span></Label>
                                       </Tooltip>
                                       <Button
                                         variant="plain"
                                         isInline
                                         icon={<CopyIcon />}
                                         onClick={() => {
-                                          navigator.clipboard.writeText(
-                                            cat.digest || '',
-                                          );
+                                          navigator.clipboard.writeText(cat.digest || '');
                                           addSuccessAlert('Digest copied');
                                         }}
                                         aria-label="Copy digest"
@@ -1082,28 +831,15 @@ const SettingsPage: React.FC = () => {
                                     </>
                                   ) : (
                                     <Tooltip content="Built-in catalog data does not include digests. Run Sync Catalogs to fetch them.">
-                                      <Label
-                                        color="orange"
-                                        isCompact
-                                        icon={<InfoCircleIcon />}
-                                      >
-                                        N/A
-                                      </Label>
+                                      <Label color="orange" isCompact icon={<InfoCircleIcon />}>N/A</Label>
                                     </Tooltip>
                                   )}
                                 </Flex>
                               </Td>
                               <Td>
-                                {cat.syncedAt ? (
-                                  <Timestamp
-                                    date={new Date(cat.syncedAt)}
-                                    tooltip={{ variant: 'default' }}
-                                  />
-                                ) : (
-                                  <span className="pf-v6-u-color-200">
-                                    Not synced
-                                  </span>
-                                )}
+                                {cat.syncedAt
+                                  ? <Timestamp date={new Date(cat.syncedAt)} tooltip={{ variant: 'default' }} />
+                                  : <span className="pf-v6-u-color-200">Not synced</span>}
                               </Td>
                             </Tr>
                           );
@@ -1117,10 +853,8 @@ const SettingsPage: React.FC = () => {
                   <div className="pf-v6-u-mt-lg">
                     <div
                       style={{
-                        backgroundColor:
-                          'var(--pf-t--global--background--color--secondary--default)',
-                        border:
-                          '1px solid var(--pf-t--global--border--color--default)',
+                        backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
+                        border: '1px solid var(--pf-t--global--border--color--default)',
                         borderRadius: '6px',
                         padding: 'var(--pf-t--global--spacer--sm)',
                         maxHeight: '300px',
@@ -1142,17 +876,15 @@ const SettingsPage: React.FC = () => {
 
             <Tab
               eventKey="acm-hubs"
-              title={
-                <TabTitleText>
-                  <ClusterIcon /> ACM Hubs
-                </TabTitleText>
-              }
+              title={<TabTitleText><ClusterIcon /> ACM Hubs</TabTitleText>}
             >
               <AcmHubsSettings />
             </Tab>
+
           </Tabs>
         </CardBody>
       </Card>
+
     </div>
   );
 };
