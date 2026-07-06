@@ -18,11 +18,13 @@ export class AcmStore {
   }
 
   async readHubs(): Promise<AcmHub[]> {
+    let raw: string;
     try {
-      return JSON.parse(await fsp.readFile(this.hubsPath(), 'utf8'));
+      raw = await fsp.readFile(this.hubsPath(), 'utf8');
     } catch {
       return [];
     }
+    return JSON.parse(raw);
   }
 
   async writeHubs(hubs: AcmHub[]): Promise<void> {

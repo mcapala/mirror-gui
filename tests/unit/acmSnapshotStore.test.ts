@@ -69,4 +69,13 @@ describe('AcmStore', () => {
     const entries = await fs.promises.readdir(path.join(dir, 'acm'));
     expect(entries.filter(e => e.endsWith('.tmp'))).toEqual([]);
   });
+
+  it('propagates corruption of hubs.json instead of returning []', async () => {
+    await store.writeHubs([HUB]);
+    await fs.promises.writeFile(
+      path.join(dir, 'acm', 'hubs.json'),
+      'not-json{'
+    );
+    await expect(store.readHubs()).rejects.toThrow();
+  });
 });
