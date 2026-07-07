@@ -77,6 +77,7 @@ interface OperatorEntry {
   channelVersionRanges?: Record<string, { minVersion?: string | null; maxVersion?: string | null }>;
   minVersion?: string | null;
   maxVersion?: string | null;
+  csvNamePrefixes?: string[];
 }
 
 interface OperatorDependency {

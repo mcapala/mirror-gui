@@ -106,3 +106,6 @@ export interface CatalogPackageInfo {
 }
 
 export type CatalogLookup = Map<string, CatalogPackageInfo>;
+
+// csvNamePrefix -> canonical OLM package name (from operators.json csvNamePrefixes)
+export type AliasLookup = Map<string, string>;

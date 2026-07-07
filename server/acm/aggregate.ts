@@ -3,6 +3,7 @@ import { parseCsvName } from './csvName.js';
 import { extractClusterVersion } from './client.js';
 import type {
   AcmHub,
+  AliasLookup,
   CatalogLookup,
   ClusterInfo,
   ClusterSearchItem,
@@ -29,6 +30,7 @@ export interface CatalogOperatorLike {
   catalog?: string;
   defaultChannel?: string;
   channelVersions?: Record<string, string[]>;
+  csvNamePrefixes?: string[];
 }
 
 export interface CatalogDataLike {
@@ -74,6 +76,51 @@ export function buildCatalogLookup(
     }
   }
   return lookup;
+}
+
+export function buildAliasLookup(data: CatalogDataLike | null): AliasLookup {
+  const aliases: AliasLookup = new Map();
+  if (!data?.operators) {
+    return aliases;
+  }
+  const packageNames = new Set<string>();
+  for (const operators of Object.values(data.operators)) {
+    for (const op of operators) {
+      packageNames.add(op.name);
+    }
+  }
+  const ambiguous = new Set<string>();
+  for (const operators of Object.values(data.operators)) {
+    for (const op of operators) {
+      for (const prefix of op.csvNamePrefixes ?? []) {
+        if (!prefix || prefix === op.name) {
+          continue;
+        }
+        const existing = aliases.get(prefix);
+        if (existing !== undefined && existing !== op.name) {
+          ambiguous.add(prefix);
+          continue;
+        }
+        aliases.set(prefix, op.name);
+      }
+    }
+  }
+  for (const prefix of ambiguous) {
+    // A prefix equal to a real package name is dropped silently below —
+    // that rule takes priority over the ambiguity warning.
+    if (!packageNames.has(prefix)) {
+      console.warn(
+        `ACM alias map: CSV prefix "${prefix}" is claimed by multiple packages — dropped`,
+      );
+    }
+    aliases.delete(prefix);
+  }
+  for (const prefix of aliases.keys()) {
+    if (packageNames.has(prefix)) {
+      aliases.delete(prefix); // a literal package name always wins
+    }
+  }
+  return aliases;
 }
 
 export function buildSnapshot(

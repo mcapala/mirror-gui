@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   buildSnapshot,
   buildCatalogLookup,
+  buildAliasLookup,
   type HubFetchOutcome,
 } from '../../server/acm/aggregate.js';
 import type { AcmHub, CatalogLookup } from '../../server/acm/types.js';
@@ -248,5 +249,99 @@ describe('buildCatalogLookup', () => {
       },
     });
     expect(lookup.get('foo')?.latestAvailable).toBe('1.2.3');
+  });
+});
+
+describe('buildAliasLookup', () => {
+  it('maps csvNamePrefixes to their package name', () => {
+    const lookup = buildAliasLookup({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'cincinnati-operator',
+            availableVersions: ['4.9.0'],
+            csvNamePrefixes: ['update-service-operator'],
+          },
+        ],
+      },
+    });
+    expect(lookup.get('update-service-operator')).toBe('cincinnati-operator');
+  });
+
+  it('tolerates null input and operators without prefixes', () => {
+    expect(buildAliasLookup(null).size).toBe(0);
+    expect(
+      buildAliasLookup({
+        operators: {
+          'redhat-operator-index:v4.21': [
+            { name: 'acm', availableVersions: ['2.16.0'] },
+          ],
+        },
+      }).size,
+    ).toBe(0);
+  });
+
+  it('never shadows a real package name', () => {
+    const lookup = buildAliasLookup({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'operator-a',
+            availableVersions: ['1.0.0'],
+            csvNamePrefixes: ['operator-b'],
+          },
+          { name: 'operator-b', availableVersions: ['2.0.0'] },
+        ],
+      },
+    });
+    expect(lookup.has('operator-b')).toBe(false);
+  });
+
+  it('drops an ambiguous prefix claimed by two packages, with a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lookup = buildAliasLookup({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          { name: 'pkg-one', availableVersions: ['1.0.0'], csvNamePrefixes: ['shared-prefix'] },
+          { name: 'pkg-two', availableVersions: ['1.0.0'], csvNamePrefixes: ['shared-prefix'] },
+        ],
+      },
+    });
+    expect(lookup.has('shared-prefix')).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('shared-prefix'));
+    warn.mockRestore();
+  });
+
+  it('drops an ambiguous prefix that is also a real package name silently (literal wins)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lookup = buildAliasLookup({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          { name: 'pkg-one', availableVersions: ['1.0.0'], csvNamePrefixes: ['operator-c'] },
+          { name: 'pkg-two', availableVersions: ['1.0.0'], csvNamePrefixes: ['operator-c'] },
+          { name: 'operator-c', availableVersions: ['3.0.0'] },
+        ],
+      },
+    });
+    expect(lookup.has('operator-c')).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('does not treat the same prefix->package pair across snapshots as a conflict', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lookup = buildAliasLookup({
+      operators: {
+        'redhat-operator-index:v4.20': [
+          { name: 'cincinnati-operator', availableVersions: ['4.6.0'], csvNamePrefixes: ['update-service-operator'] },
+        ],
+        'redhat-operator-index:v4.21': [
+          { name: 'cincinnati-operator', availableVersions: ['4.9.0'], csvNamePrefixes: ['update-service-operator'] },
+        ],
+      },
+    });
+    expect(lookup.get('update-service-operator')).toBe('cincinnati-operator');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
