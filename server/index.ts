@@ -21,6 +21,8 @@ import {
   normalizeChannels,
 } from './utils.js';
 import { createAcmRouter } from './acm/routes.js';
+import { createRegistryRouter } from './registry/routes.js';
+import type { IscConfig } from './acm/reconcile.js';
 
 const fsp = fs.promises;
 
@@ -2277,6 +2279,41 @@ app.use(
   createAcmRouter({
     acmDir: ACM_DIR,
     loadCatalogData: loadPreFetchedCatalogData,
+  }),
+);
+
+app.use(
+  '/api/mirror-registries',
+  createRegistryRouter({
+    storageDir: STORAGE_DIR,
+    readPullSecretAuths: async () => {
+      if (!pullSecretDetected || !pullSecretPath) {
+        return null;
+      }
+      const content = await fsp.readFile(pullSecretPath, 'utf8');
+      return JSON.parse(content).auths ?? null;
+    },
+    resolveCatalogDir: resolveCatalogDataDir,
+    listIscConfigs: async () => {
+      const files = await fsp.readdir(CONFIGS_DIR).catch(() => [] as string[]);
+      const configs: IscConfig[] = [];
+      for (const file of files) {
+        if (!/\.ya?ml$/i.test(file)) {
+          continue;
+        }
+        try {
+          const parsed = YAML.parse(
+            await fsp.readFile(path.join(CONFIGS_DIR, file), 'utf8'),
+          );
+          if (parsed?.kind === 'ImageSetConfiguration') {
+            configs.push(parsed as IscConfig);
+          }
+        } catch {
+          /* skip unparseable configs */
+        }
+      }
+      return configs;
+    },
   }),
 );
 
