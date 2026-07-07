@@ -12,7 +12,11 @@ import {
   deriveExpectations,
   executeScan,
 } from './scan.js';
-import { RegistryStore, ScanSnapshotSchemaError } from './store.js';
+import {
+  RegistryStore,
+  SCAN_SCHEMA_VERSION,
+  ScanSnapshotSchemaError,
+} from './store.js';
 import type {
   CatalogBundles,
   MirrorRegistryConfig,
@@ -302,7 +306,7 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         const result = await executeScan(expectations, client);
         const errors = [...catalogIssues, ...result.errors];
         const snapshot: RegistryScanSnapshot = {
-          schemaVersion: 1,
+          schemaVersion: SCAN_SCHEMA_VERSION,
           registryId: registry.id,
           host: registry.host,
           pathPrefix: registry.pathPrefix,
