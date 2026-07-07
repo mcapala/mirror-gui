@@ -43,7 +43,9 @@ test.describe('Registry Cleanup tab', () => {
     await page.goto('/config');
     await page.getByRole('tab', { name: /registry cleanup/i }).click();
     await expect(
-      page.getByText('No mirror registries configured'),
+      page
+        .getByText('No mirror registries configured')
+        .filter({ visible: true }),
     ).toBeVisible();
 
     const created = await request.post('/api/mirror-registries', {

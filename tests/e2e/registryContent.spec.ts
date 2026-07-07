@@ -43,7 +43,9 @@ test.describe('Registry Content tab', () => {
     await page.goto('/config');
     await page.getByRole('tab', { name: /registry content/i }).click();
     await expect(
-      page.getByText('No mirror registries configured'),
+      page
+        .getByText('No mirror registries configured')
+        .filter({ visible: true }),
     ).toBeVisible();
 
     await page.getByRole('button', { name: /add registry/i }).click();
@@ -67,7 +69,9 @@ test.describe('Registry Content tab', () => {
     await page.getByRole('button', { name: /^delete$/i }).click();
     await page.getByRole('button', { name: /confirm delete/i }).click();
     await expect(
-      page.getByText('No mirror registries configured'),
+      page
+        .getByText('No mirror registries configured')
+        .filter({ visible: true }),
     ).toBeVisible({ timeout: 10000 });
     registryId = undefined;
   });
