@@ -41,15 +41,25 @@ export interface RepoExpectation {
   byTag: Map<string, ExpectedBundleRef>;
 }
 
+export type RepoOrigin = 'operator' | 'additional' | 'walk';
+
 export interface ScannedTag {
   tag: string;
   digest: string | null;
   matched: ExpectedBundleRef | null;
+  /** Source ref of the additionalImage this tag satisfies, else null. */
+  matchedAdditional: string | null;
 }
 
 export interface ScannedRepo {
   repo: string;
   present: boolean;
+  origin: RepoOrigin;
+  /** Unique source registry host for origin 'additional'; null otherwise or
+   * when more than one host maps here. */
+  sourceHost: string | null;
+  /** True when >1 source host maps onto this repo path (spec §3.2). */
+  hostAmbiguous: boolean;
   tags: ScannedTag[];
 }
 
@@ -66,19 +76,31 @@ export interface ScanStats {
   tagsScanned: number;
   matched: number;
   unknown: number;
+  reposAdditional: number;
+  reposWalked: number;
 }
 
 export interface RegistryScanSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 2;
   registryId: string;
   host: string;
   pathPrefix: string;
   scannedAt: string;
   partial: boolean;
+  /** True when the /v2/_catalog walk completed; false → orphan list incomplete. */
+  walkOk: boolean;
   catalogs: string[];
   repos: ScannedRepo[];
   errors: ScanIssue[];
   stats: ScanStats;
+}
+
+/** Expected additionalImages content of one repo (map values = source refs). */
+export interface AdditionalRepoExpectation {
+  repo: string;
+  sourceHosts: Set<string>;
+  byDigest: Map<string, string>;
+  byTag: Map<string, string>;
 }
 
 export interface OperatorContentVersion {

@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildOperatorContent,
+  buildScanTargets,
+  deriveAdditionalExpectations,
   deriveExpectations,
   executeScan,
   joinRepoPath,
   stripImageRef,
   type ScanClientLike,
+  type ScanTarget,
 } from '../../server/registry/scan.js';
 import {
   RegistryRequestError,
@@ -175,7 +178,7 @@ describe('executeScan', () => {
   it('joins on digest, falls back to tag, flags unknown', async () => {
     const expectations = deriveExpectations(catalogBundles(), '');
     const result = await executeScan(
-      expectations,
+      buildScanTargets(expectations, new Map(), []),
       client({
         listTags: async repo => {
           if (repo === 'rhacm2/acm-operator-bundle') return ['t1', 't-drift'];
@@ -205,13 +208,18 @@ describe('executeScan', () => {
       tagsScanned: 3,
       matched: 2,
       unknown: 1,
+      reposAdditional: 0,
+      reposWalked: 0,
     });
     expect(result.errors).toEqual([]);
   });
 
   it('records absent repos without error', async () => {
     const expectations = deriveExpectations(catalogBundles(), '');
-    const result = await executeScan(expectations, client({}));
+    const result = await executeScan(
+      buildScanTargets(expectations, new Map(), []),
+      client({}),
+    );
     expect(result.repos.every(r => r.present === false)).toBe(true);
     expect(result.stats.reposPresent).toBe(0);
     expect(result.errors).toEqual([]);
@@ -220,7 +228,7 @@ describe('executeScan', () => {
   it('collects per-repo errors and continues', async () => {
     const expectations = deriveExpectations(catalogBundles(), '');
     const result = await executeScan(
-      expectations,
+      buildScanTargets(expectations, new Map(), []),
       client({
         listTags: async repo => {
           if (repo === 'rhacm2/acm-operator-bundle') {
@@ -245,20 +253,156 @@ describe('executeScan', () => {
   });
 });
 
+describe('deriveAdditionalExpectations', () => {
+  const iscs = [
+    {
+      mirror: {
+        additionalImages: [
+          { name: 'registry.redhat.io/ubi8/ubi:8.10' },
+          { name: 'registry.redhat.io/ubi8/ubi@sha256:pinned' },
+          { name: 'quay.io/other/tool' }, // no tag → latest
+          { name: 'not-a-ref' },
+        ],
+      },
+    },
+    {
+      mirror: {
+        additionalImages: [{ name: 'docker.io/ubi8/ubi:8.9' }],
+      },
+    },
+  ];
+
+  it('maps refs to prefixed repos with tag/digest/source-host detail', () => {
+    const exp = deriveAdditionalExpectations(iscs, 'mirror');
+    const ubi = exp.get('mirror/ubi8/ubi');
+    expect(ubi?.byTag.get('8.10')).toBe('registry.redhat.io/ubi8/ubi:8.10');
+    expect(ubi?.byDigest.get('sha256:pinned')).toBe(
+      'registry.redhat.io/ubi8/ubi@sha256:pinned',
+    );
+    expect([...(ubi?.sourceHosts ?? [])].sort()).toEqual([
+      'docker.io',
+      'registry.redhat.io',
+    ]);
+    expect(exp.get('mirror/other/tool')?.byTag.get('latest')).toBe(
+      'quay.io/other/tool',
+    );
+    expect(exp.size).toBe(2); // 'not-a-ref' skipped
+  });
+});
+
+describe('buildScanTargets', () => {
+  it('applies origin priority operator > additional > walk and merges maps', () => {
+    const operator = deriveExpectations(catalogBundles(), 'mirror');
+    const opRepo = [...operator.keys()][0];
+    const additional = new Map([
+      [
+        opRepo,
+        {
+          repo: opRepo,
+          sourceHosts: new Set(['registry.redhat.io']),
+          byDigest: new Map(),
+          byTag: new Map([['extra', 'registry.redhat.io/x/y:extra']]),
+        },
+      ],
+      [
+        'mirror/ubi8/ubi',
+        {
+          repo: 'mirror/ubi8/ubi',
+          sourceHosts: new Set(['a.example', 'b.example']),
+          byDigest: new Map(),
+          byTag: new Map([['8.10', 'a.example/ubi8/ubi:8.10']]),
+        },
+      ],
+    ]);
+    const targets = buildScanTargets(operator, additional, [
+      opRepo,
+      'mirror/ubi8/ubi',
+      'mirror/orphan/repo',
+    ]);
+    const byRepo = new Map(targets.map(t => [t.repo, t]));
+    expect(byRepo.get(opRepo)?.origin).toBe('operator');
+    expect(byRepo.get(opRepo)?.additionalByTag.get('extra')).toBeDefined();
+    const ubi = byRepo.get('mirror/ubi8/ubi');
+    expect(ubi?.origin).toBe('additional');
+    expect(ubi?.hostAmbiguous).toBe(true);
+    expect(ubi?.sourceHost).toBeNull();
+    expect(byRepo.get('mirror/orphan/repo')?.origin).toBe('walk');
+  });
+});
+
+describe('executeScan v2', () => {
+  const target = (over: Partial<ScanTarget>): ScanTarget => ({
+    repo: 'mirror/ubi8/ubi',
+    origin: 'additional',
+    sourceHost: 'registry.redhat.io',
+    hostAmbiguous: false,
+    bundleByDigest: new Map(),
+    bundleByTag: new Map(),
+    additionalByDigest: new Map(),
+    additionalByTag: new Map([['8.10', 'registry.redhat.io/ubi8/ubi:8.10']]),
+    ...over,
+  });
+
+  const client = (overrides: Partial<ScanClientLike>): ScanClientLike => ({
+    listTags: async () => null,
+    headManifest: async () => null,
+    ...overrides,
+  });
+
+  it('populates matchedAdditional and origin metadata', async () => {
+    const scanClient: ScanClientLike = {
+      listTags: async () => ['8.10', '8.9'],
+      headManifest: async () => 'sha256:d1',
+    };
+    const { repos, stats } = await executeScan([target({})], scanClient);
+    expect(repos[0].origin).toBe('additional');
+    expect(repos[0].sourceHost).toBe('registry.redhat.io');
+    expect(repos[0].tags).toEqual([
+      {
+        tag: '8.10',
+        digest: 'sha256:d1',
+        matched: null,
+        matchedAdditional: 'registry.redhat.io/ubi8/ubi:8.10',
+      },
+      { tag: '8.9', digest: 'sha256:d1', matched: null, matchedAdditional: null },
+    ]);
+    expect(stats.reposAdditional).toBe(1);
+    expect(stats.reposExpected).toBe(0);
+    expect(stats.matched).toBe(1);
+  });
+
+  it('dedupes repeated headManifest failures into one issue per repo', async () => {
+    const scanClient: ScanClientLike = {
+      listTags: async () => ['a', 'b', 'c'],
+      headManifest: async () => {
+        throw new RegistryRequestError('bad-response', 'HEAD went wrong');
+      },
+    };
+    const { errors } = await executeScan([target({})], scanClient);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('HEAD went wrong');
+    expect(errors[0].message).toContain('3 tags affected');
+  });
+});
+
 describe('buildOperatorContent', () => {
   it('groups matched tags per package and lists unknown tags', () => {
     const snapshot: RegistryScanSnapshot = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       registryId: 'r1',
       host: 'reg.example',
       pathPrefix: 'mirror',
       scannedAt: '2026-07-07T12:00:00.000Z',
       partial: false,
+      walkOk: true,
       catalogs: [CATALOG],
       repos: [
         {
           repo: 'mirror/rhacm2/acm-operator-bundle',
           present: true,
+          origin: 'operator',
+          sourceHost: null,
+          hostAmbiguous: false,
           tags: [
             {
               tag: 't2',
@@ -269,6 +413,7 @@ describe('buildOperatorContent', () => {
                 version: '2.16.0',
                 catalog: CATALOG,
               },
+              matchedAdditional: null,
             },
             {
               tag: 't1',
@@ -279,8 +424,9 @@ describe('buildOperatorContent', () => {
                 version: '2.15.0',
                 catalog: CATALOG,
               },
+              matchedAdditional: null,
             },
-            { tag: 'weird', digest: 'sha256:zzz', matched: null },
+            { tag: 'weird', digest: 'sha256:zzz', matched: null, matchedAdditional: null },
           ],
         },
       ],
@@ -291,6 +437,8 @@ describe('buildOperatorContent', () => {
         tagsScanned: 3,
         matched: 2,
         unknown: 1,
+        reposAdditional: 0,
+        reposWalked: 0,
       },
     };
     const report = buildOperatorContent(snapshot);
@@ -304,5 +452,53 @@ describe('buildOperatorContent', () => {
       },
     ]);
     expect(report.stats.unknown).toBe(1);
+  });
+
+  it('ignores additional/walk repos entirely', () => {
+    const snapshot: RegistryScanSnapshot = {
+      schemaVersion: 2,
+      registryId: 'r1',
+      host: 'reg.example',
+      pathPrefix: 'mirror',
+      scannedAt: '2026-07-07T00:00:00.000Z',
+      partial: false,
+      walkOk: true,
+      catalogs: [CATALOG],
+      repos: [
+        {
+          repo: 'mirror/ubi8/ubi',
+          present: true,
+          origin: 'additional',
+          sourceHost: 'registry.redhat.io',
+          hostAmbiguous: false,
+          tags: [
+            { tag: '8.9', digest: 'sha256:x', matched: null, matchedAdditional: null },
+          ],
+        },
+        {
+          repo: 'mirror/orphan',
+          present: true,
+          origin: 'walk',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [
+            { tag: 'v1', digest: null, matched: null, matchedAdditional: null },
+          ],
+        },
+      ],
+      errors: [],
+      stats: {
+        reposExpected: 0,
+        reposPresent: 0,
+        tagsScanned: 2,
+        matched: 0,
+        unknown: 2,
+        reposAdditional: 1,
+        reposWalked: 1,
+      },
+    };
+    const report = buildOperatorContent(snapshot);
+    expect(report.packages).toEqual({});
+    expect(report.unknownTags).toEqual([]);
   });
 });

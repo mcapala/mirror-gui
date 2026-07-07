@@ -1,11 +1,13 @@
 import {
   RegistryRequestError,
+  type AdditionalRepoExpectation,
   type CatalogBundles,
   type ExpectedBundleRef,
   type OperatorContentReport,
   type OperatorContentVersion,
   type RegistryScanSnapshot,
   type RepoExpectation,
+  type RepoOrigin,
   type ScanIssue,
   type ScannedRepo,
   type ScannedTag,
@@ -88,6 +90,105 @@ export function deriveExpectations(
   return expectations;
 }
 
+/** Minimal ISC shape this module needs; the full IscConfig satisfies it. */
+export interface AdditionalImagesSource {
+  mirror?: { additionalImages?: Array<{ name: string }> };
+}
+
+export function deriveAdditionalExpectations(
+  iscs: AdditionalImagesSource[],
+  pathPrefix: string,
+): Map<string, AdditionalRepoExpectation> {
+  const expectations = new Map<string, AdditionalRepoExpectation>();
+  for (const isc of iscs) {
+    for (const entry of isc.mirror?.additionalImages ?? []) {
+      const ref = typeof entry?.name === 'string' ? entry.name : '';
+      const parsed = stripImageRef(ref);
+      if (!parsed) {
+        continue;
+      }
+      const host = ref.slice(0, ref.indexOf('/'));
+      const repo = joinRepoPath(pathPrefix, parsed.path);
+      let expectation = expectations.get(repo);
+      if (!expectation) {
+        expectation = {
+          repo,
+          sourceHosts: new Set(),
+          byDigest: new Map(),
+          byTag: new Map(),
+        };
+        expectations.set(repo, expectation);
+      }
+      expectation.sourceHosts.add(host);
+      if (parsed.digest) {
+        if (!expectation.byDigest.has(parsed.digest)) {
+          expectation.byDigest.set(parsed.digest, ref);
+        }
+      } else {
+        // A ref with neither digest nor tag means :latest.
+        const tag = parsed.tag ?? 'latest';
+        if (!expectation.byTag.has(tag)) {
+          expectation.byTag.set(tag, ref);
+        }
+      }
+    }
+  }
+  return expectations;
+}
+
+export interface ScanTarget {
+  repo: string;
+  origin: RepoOrigin;
+  sourceHost: string | null;
+  hostAmbiguous: boolean;
+  bundleByDigest: Map<string, ExpectedBundleRef>;
+  bundleByTag: Map<string, ExpectedBundleRef>;
+  additionalByDigest: Map<string, string>;
+  additionalByTag: Map<string, string>;
+}
+
+export function buildScanTargets(
+  operator: Map<string, RepoExpectation>,
+  additional: Map<string, AdditionalRepoExpectation>,
+  walkedRepos: string[],
+): ScanTarget[] {
+  const targets = new Map<string, ScanTarget>();
+  const blank = (repo: string, origin: RepoOrigin): ScanTarget => ({
+    repo,
+    origin,
+    sourceHost: null,
+    hostAmbiguous: false,
+    bundleByDigest: new Map(),
+    bundleByTag: new Map(),
+    additionalByDigest: new Map(),
+    additionalByTag: new Map(),
+  });
+  for (const exp of operator.values()) {
+    const target = blank(exp.repo, 'operator');
+    target.bundleByDigest = exp.byDigest;
+    target.bundleByTag = exp.byTag;
+    targets.set(exp.repo, target);
+  }
+  for (const exp of additional.values()) {
+    let target = targets.get(exp.repo);
+    if (!target) {
+      target = blank(exp.repo, 'additional');
+      targets.set(exp.repo, target);
+    }
+    target.additionalByDigest = exp.byDigest;
+    target.additionalByTag = exp.byTag;
+    target.hostAmbiguous = exp.sourceHosts.size > 1;
+    target.sourceHost =
+      exp.sourceHosts.size === 1 ? [...exp.sourceHosts][0] : null;
+  }
+  for (const repo of walkedRepos) {
+    if (!targets.has(repo)) {
+      targets.set(repo, blank(repo, 'walk'));
+    }
+  }
+  return [...targets.values()].sort((a, b) => a.repo.localeCompare(b.repo));
+}
+
 export interface ScanClientLike {
   listTags(repo: string): Promise<string[] | null>;
   headManifest(repo: string, tag: string): Promise<string | null>;
@@ -125,61 +226,81 @@ async function forEachWithConcurrency<T>(
 }
 
 export async function executeScan(
-  expectations: Map<string, RepoExpectation>,
+  targets: ScanTarget[],
   client: ScanClientLike,
   opts: { concurrency?: number } = {},
 ): Promise<{ repos: ScannedRepo[]; errors: ScanIssue[]; stats: ScanStats }> {
   const repos: ScannedRepo[] = [];
   const errors: ScanIssue[] = [];
-  const ordered = [...expectations.values()].sort((a, b) =>
-    a.repo.localeCompare(b.repo),
-  );
+  const ordered = [...targets].sort((a, b) => a.repo.localeCompare(b.repo));
 
   await forEachWithConcurrency(
     ordered,
     opts.concurrency ?? DEFAULT_SCAN_CONCURRENCY,
-    async expectation => {
+    async target => {
       let tagNames: string[] | null;
       try {
-        tagNames = await client.listTags(expectation.repo);
+        tagNames = await client.listTags(target.repo);
       } catch (error) {
-        errors.push(issueFrom(error, expectation.repo));
+        errors.push(issueFrom(error, target.repo));
         return;
       }
+      const base = {
+        repo: target.repo,
+        origin: target.origin,
+        sourceHost: target.sourceHost,
+        hostAmbiguous: target.hostAmbiguous,
+      };
       if (tagNames === null) {
-        repos.push({ repo: expectation.repo, present: false, tags: [] });
+        repos.push({ ...base, present: false, tags: [] });
         return;
       }
       const tags: ScannedTag[] = [];
+      const headIssues: ScanIssue[] = [];
       for (const tag of tagNames) {
         let digest: string | null = null;
         try {
-          digest = await client.headManifest(expectation.repo, tag);
+          digest = await client.headManifest(target.repo, tag);
         } catch (error) {
-          errors.push(issueFrom(error, expectation.repo));
+          headIssues.push(issueFrom(error, target.repo));
         }
         const matched =
-          (digest ? expectation.byDigest.get(digest) : undefined) ??
-          expectation.byTag.get(tag) ??
+          (digest ? target.bundleByDigest.get(digest) : undefined) ??
+          target.bundleByTag.get(tag) ??
           null;
-        tags.push({ tag, digest, matched });
+        const matchedAdditional =
+          (digest ? target.additionalByDigest.get(digest) : undefined) ??
+          target.additionalByTag.get(tag) ??
+          null;
+        tags.push({ tag, digest, matched, matchedAdditional });
       }
-      repos.push({ repo: expectation.repo, present: true, tags });
+      if (headIssues.length === 1) {
+        errors.push(headIssues[0]);
+      } else if (headIssues.length > 1) {
+        errors.push({
+          ...headIssues[0],
+          message: `${headIssues[0].message} (${headIssues.length} tags affected)`,
+        });
+      }
+      repos.push({ ...base, present: true, tags });
     },
   );
 
   repos.sort((a, b) => a.repo.localeCompare(b.repo));
   const allTags = repos.flatMap(r => r.tags);
-  const matched = allTags.filter(t => t.matched).length;
+  const matched = allTags.filter(t => t.matched || t.matchedAdditional).length;
+  const operatorRepos = repos.filter(r => r.origin === 'operator');
   return {
     repos,
     errors,
     stats: {
-      reposExpected: expectations.size,
-      reposPresent: repos.filter(r => r.present).length,
+      reposExpected: targets.filter(t => t.origin === 'operator').length,
+      reposPresent: operatorRepos.filter(r => r.present).length,
       tagsScanned: allTags.length,
       matched,
       unknown: allTags.length - matched,
+      reposAdditional: targets.filter(t => t.origin === 'additional').length,
+      reposWalked: targets.filter(t => t.origin === 'walk').length,
     },
   };
 }
@@ -190,6 +311,9 @@ export function buildOperatorContent(
   const packages: Record<string, OperatorContentVersion[]> = {};
   const unknownTags: OperatorContentReport['unknownTags'] = [];
   for (const repo of snapshot.repos) {
+    if (repo.origin !== 'operator') {
+      continue;
+    }
     for (const tag of repo.tags) {
       if (tag.matched) {
         (packages[tag.matched.package] ??= []).push({
