@@ -11,6 +11,7 @@ import type {
   HubSnapshotStatus,
   PackageDeployment,
 } from '../../server/acm/types.js';
+import { buildAliasLookup, buildCatalogLookup, buildSnapshot, type HubFetchOutcome } from '../../server/acm/aggregate.js';
 
 const OK_HUB: HubSnapshotStatus = {
   id: 'h1', name: 'hub-1', status: 'ok', error: null,
@@ -500,5 +501,65 @@ describe('platform reconciliation', () => {
       new Map(),
     );
     expect(result.warnings.some(w => w.includes('4.17'))).toBe(true);
+  });
+});
+
+describe('M3 alias map end-to-end (cincinnati-operator case)', () => {
+  const catalogData = {
+    operators: {
+      'redhat-operator-index:v4.21': [
+        {
+          name: 'cincinnati-operator',
+          defaultChannel: 'v1',
+          channelVersions: { v1: ['4.3.0', '4.6.0', '4.9.0'] },
+          availableVersions: ['4.3.0', '4.6.0', '4.9.0'],
+          catalog: 'redhat-operator-index',
+          csvNamePrefixes: ['update-service-operator'],
+        },
+      ],
+    },
+  };
+  const outcomes: HubFetchOutcome[] = [
+    {
+      hub: { id: 'h1', name: 'prod', url: 'https://prod.example.com', token: 't' },
+      status: 'ok',
+      truncated: false,
+      items: [
+        { name: 'update-service-operator.v4.9.0', cluster: 'c1', phase: 'Succeeded' },
+      ],
+    },
+  ];
+  const config = {
+    kind: 'ImageSetConfiguration',
+    apiVersion: 'mirror.openshift.io/v2alpha1',
+    mirror: {
+      operators: [
+        {
+          catalog: 'registry.redhat.io/redhat/redhat-operator-index:v4.21',
+          packages: [
+            { name: 'cincinnati-operator', channels: [{ name: 'v1', minVersion: '4.6.0' }] },
+          ],
+        },
+      ],
+    },
+  };
+
+  it('attributes aliased deployments to the catalog package — no spurious suggestions', () => {
+    const snapshot = buildSnapshot(
+      outcomes,
+      buildCatalogLookup(catalogData),
+      '2026-07-07T12:00:00.000Z',
+      buildAliasLookup(catalogData),
+    );
+    const result = reconcile(config, snapshot, buildReconcileCatalog(catalogData));
+
+    // M2's spurious artifacts must be gone:
+    expect(result.suggestions.filter(s => s.kind === 'reset-unused-operator')).toEqual([]);
+    expect(result.warnings.filter(w => w.includes('update-service-operator'))).toEqual([]);
+    expect(result.noData).toEqual([]);
+    // and the deployment drives a real floor suggestion:
+    const raise = result.suggestions.find(s => s.kind === 'raise-min-version');
+    expect(raise?.path).toMatchObject({ package: 'cincinnati-operator', channel: 'v1' });
+    expect(raise?.proposed).toBe('4.9.0');
   });
 });
