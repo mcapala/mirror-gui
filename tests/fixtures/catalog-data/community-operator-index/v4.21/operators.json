@@ -2,14 +2,23 @@
   {
     "name": "argocd-operator",
     "defaultChannel": "alpha",
-    "channels": ["alpha"],
+    "channels": [
+      "alpha"
+    ],
     "channelVersions": {
-      "alpha": ["0.12.0"]
+      "alpha": [
+        "0.12.0"
+      ]
     },
     "channelVersionRanges": {
-      "alpha": { "minVersion": "0.12.0", "maxVersion": "0.12.0" }
+      "alpha": {
+        "minVersion": "0.12.0",
+        "maxVersion": "0.12.0"
+      }
     },
-    "availableVersions": ["0.12.0"],
+    "availableVersions": [
+      "0.12.0"
+    ],
     "minVersion": "0.12.0",
     "maxVersion": "0.12.0",
     "catalog": "community-operator-index",

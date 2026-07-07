@@ -1,0 +1,39 @@
+{
+  "schema": "olm.package",
+  "name": "cincinnati-operator",
+  "defaultChannel": "v1"
+}
+{
+  "schema": "olm.channel",
+  "package": "cincinnati-operator",
+  "name": "v1",
+  "entries": [
+    { "name": "update-service-operator.v4.3.0" },
+    { "name": "update-service-operator.v4.6.0", "replaces": "update-service-operator.v4.3.0" },
+    { "name": "update-service-operator.v4.9.0", "replaces": "update-service-operator.v4.6.0", "skips": ["update-service-operator.v4.7.0"], "skipRange": ">=4.5.0 <4.9.0" }
+  ]
+}
+{
+  "schema": "olm.bundle",
+  "package": "cincinnati-operator",
+  "name": "update-service-operator.v4.6.0",
+  "image": "registry.redhat.io/openshift-update-service/cincinnati-operator-bundle@sha256:4600000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "cincinnati-operator", "version": "4.6.0" } }
+  ],
+  "relatedImages": [
+    { "name": "cincinnati", "image": "registry.redhat.io/openshift-update-service/cincinnati@sha256:f460000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}
+{
+  "schema": "olm.bundle",
+  "package": "cincinnati-operator",
+  "name": "update-service-operator.v4.9.0",
+  "image": "registry.redhat.io/openshift-update-service/cincinnati-operator-bundle@sha256:4900000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "cincinnati-operator", "version": "4.9.0" } }
+  ],
+  "relatedImages": [
+    { "name": "cincinnati", "image": "registry.redhat.io/openshift-update-service/cincinnati@sha256:f490000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

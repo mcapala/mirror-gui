@@ -1,0 +1,38 @@
+{
+  "schema": "olm.package",
+  "name": "openshift-pipelines-operator-rh",
+  "defaultChannel": "latest"
+}
+{
+  "schema": "olm.channel",
+  "package": "openshift-pipelines-operator-rh",
+  "name": "latest",
+  "entries": [
+    { "name": "openshift-pipelines-operator-rh.v1.16.0" },
+    { "name": "openshift-pipelines-operator-rh.v1.16.1", "replaces": "openshift-pipelines-operator-rh.v1.16.0" }
+  ]
+}
+{
+  "schema": "olm.bundle",
+  "package": "openshift-pipelines-operator-rh",
+  "name": "openshift-pipelines-operator-rh.v1.16.0",
+  "image": "registry.redhat.io/openshift-pipelines/pipelines-operator-bundle@sha256:1160000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "openshift-pipelines-operator-rh", "version": "1.16.0" } }
+  ],
+  "relatedImages": [
+    { "name": "pipelines-controller", "image": "registry.redhat.io/openshift-pipelines/pipelines-controller@sha256:d160000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}
+{
+  "schema": "olm.bundle",
+  "package": "openshift-pipelines-operator-rh",
+  "name": "openshift-pipelines-operator-rh.v1.16.1",
+  "image": "registry.redhat.io/openshift-pipelines/pipelines-operator-bundle@sha256:1161000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "openshift-pipelines-operator-rh", "version": "1.16.1" } }
+  ],
+  "relatedImages": [
+    { "name": "pipelines-controller", "image": "registry.redhat.io/openshift-pipelines/pipelines-controller@sha256:d161000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

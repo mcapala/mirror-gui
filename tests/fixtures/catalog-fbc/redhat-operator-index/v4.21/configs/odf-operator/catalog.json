@@ -1,0 +1,27 @@
+{
+  "schema": "olm.package",
+  "name": "odf-operator",
+  "defaultChannel": "stable-4.21"
+}
+{
+  "schema": "olm.channel",
+  "package": "odf-operator",
+  "name": "stable-4.21",
+  "entries": [
+    { "name": "odf-operator.v4.21.0" }
+  ]
+}
+{
+  "schema": "olm.bundle",
+  "package": "odf-operator",
+  "name": "odf-operator.v4.21.0",
+  "image": "registry.redhat.io/odf4/odf-operator-bundle@sha256:4210000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "odf-operator", "version": "4.21.0" } },
+    { "type": "olm.package.required", "value": { "packageName": "mcg-operator", "versionRange": ">=4.17.0" } },
+    { "type": "olm.package.required", "value": { "packageName": "ocs-operator", "versionRange": ">=4.17.0" } }
+  ],
+  "relatedImages": [
+    { "name": "odf-console", "image": "registry.redhat.io/odf4/odf-console@sha256:e210000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

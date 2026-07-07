@@ -1,0 +1,25 @@
+{
+  "schema": "olm.package",
+  "name": "gpu-operator-certified",
+  "defaultChannel": "v24.9"
+}
+{
+  "schema": "olm.channel",
+  "package": "gpu-operator-certified",
+  "name": "v24.9",
+  "entries": [
+    { "name": "gpu-operator-certified.v24.9.0" }
+  ]
+}
+{
+  "schema": "olm.bundle",
+  "package": "gpu-operator-certified",
+  "name": "gpu-operator-certified.v24.9.0",
+  "image": "registry.connect.redhat.com/nvidia/gpu-operator-bundle@sha256:2490000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "gpu-operator-certified", "version": "24.9.0" } }
+  ],
+  "relatedImages": [
+    { "name": "gpu-operator", "image": "registry.connect.redhat.com/nvidia/gpu-operator@sha256:a490000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

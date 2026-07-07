@@ -10,7 +10,7 @@
       "catalog_type": "redhat-operator-index",
       "ocp_version": "v4.21",
       "catalog_url": "registry.redhat.io/redhat/redhat-operator-index:v4.21",
-      "operator_count": 3
+      "operator_count": 4
     },
     {
       "catalog_type": "certified-operator-index",
