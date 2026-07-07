@@ -129,6 +129,9 @@ export interface RegistryClient {
   listTags(repo: string): Promise<string[] | null>;
   /** Returns the manifest(-list) digest, or null on 404 / missing header. */
   headManifest(repo: string, tag: string): Promise<string | null>;
+  /** Returns all repository paths via /v2/_catalog pagination; null when the
+   * registry does not support _catalog (HTTP 404). */
+  listRepositories(): Promise<string[] | null>;
 }
 
 export function createRegistryClient(
@@ -170,6 +173,7 @@ export function createRegistryClient(
     url: string,
     repo: string,
     accept?: string,
+    scope?: string,
   ): Promise<RegistryResponse> {
     const headers: Record<string, string> = {};
     if (accept) {
@@ -203,7 +207,7 @@ export function createRegistryClient(
     if (challenge.service) {
       tokenUrl.searchParams.set('service', challenge.service);
     }
-    tokenUrl.searchParams.set('scope', `repository:${repo}:pull`);
+    tokenUrl.searchParams.set('scope', scope ?? `repository:${repo}:pull`);
     const tokenResponse = await attempt(
       'GET',
       tokenUrl.toString(),
@@ -287,6 +291,62 @@ export function createRegistryClient(
         );
       }
       return response.headers['docker-content-digest'] ?? null;
+    },
+
+    async listRepositories() {
+      const repos: string[] = [];
+      let url: string | null =
+        `${scheme}://${opts.host}/v2/_catalog?n=${TAGS_PAGE_SIZE}`;
+      const registryOrigin = new URL(`${scheme}://${opts.host}`).origin;
+      let pages = 0;
+      while (url) {
+        pages += 1;
+        if (pages > maxTagsPages) {
+          throw new RegistryRequestError(
+            'bad-response',
+            `_catalog pagination exceeded ${maxTagsPages} pages — aborting (possible Link header loop)`,
+          );
+        }
+        const response: RegistryResponse = await send(
+          'GET',
+          url,
+          '_catalog',
+          undefined,
+          'registry:catalog:*',
+        );
+        if (response.status === 404) {
+          return null;
+        }
+        if (response.status !== 200) {
+          throw new RegistryRequestError(
+            'bad-response',
+            `_catalog returned HTTP ${response.status}`,
+          );
+        }
+        const body = response.data as
+          | { repositories?: unknown }
+          | undefined;
+        if (!Array.isArray(body?.repositories)) {
+          throw new RegistryRequestError(
+            'bad-response',
+            '_catalog response is missing a "repositories" array',
+          );
+        }
+        for (const repo of body.repositories) {
+          if (typeof repo === 'string') {
+            repos.push(repo);
+          }
+        }
+        const next = parseLinkNext(response.headers.link, url);
+        if (next && new URL(next).origin !== registryOrigin) {
+          throw new RegistryRequestError(
+            'bad-response',
+            `_catalog Link header pointed at a different origin (${new URL(next).origin}) — refusing to follow`,
+          );
+        }
+        url = next;
+      }
+      return repos;
     },
   };
 }

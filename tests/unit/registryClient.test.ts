@@ -360,3 +360,148 @@ describe('createRegistryClient', () => {
     expect(requests.some(r => r.url.includes('evil.example'))).toBe(false);
   });
 });
+
+describe('listRepositories', () => {
+  it('paginates /v2/_catalog until the Link header is absent', async () => {
+    const { transport, requests } = fakeTransport([
+      {
+        match: (_m, url) => url.includes('/v2/_catalog') && !url.includes('last='),
+        response: ok(
+          { repositories: ['mirror/a', 'mirror/b'] },
+          { link: '</v2/_catalog?last=mirror%2Fb&n=100>; rel="next"' },
+        ),
+      },
+      {
+        match: (_m, url) => url.includes('last='),
+        response: ok({ repositories: ['mirror/c'] }),
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    expect(await client.listRepositories()).toEqual([
+      'mirror/a',
+      'mirror/b',
+      'mirror/c',
+    ]);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('requests a catalog-scoped token on a 401 challenge', async () => {
+    const { transport, requests } = fakeTransport([
+      {
+        match: (_m, url) =>
+          url.includes('/v2/_catalog') && !url.includes('token'),
+        response: {
+          status: 401,
+          headers: {
+            'www-authenticate':
+              'Bearer realm="https://reg.example/token",service="reg"',
+          },
+          data: {},
+        },
+      },
+      {
+        match: (_m, url) => url.includes('/token'),
+        response: ok({ token: 'cat-token' }),
+      },
+    ]);
+    // Second /v2/_catalog attempt (with Bearer) must succeed:
+    const script2 = {
+      match: (_m: string, url: string) => url.includes('/v2/_catalog'),
+      response: ok({ repositories: [] }),
+    };
+    let first = true;
+    const wrapped: RegistryTransport = {
+      async request(method, url, config) {
+        if (url.includes('/v2/_catalog') && !first) {
+          requests.push({ method, url, headers: config.headers });
+          return script2.response;
+        }
+        if (url.includes('/v2/_catalog')) first = false;
+        return transport.request(method, url, config);
+      },
+    };
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'YmFzaWM=',
+      transport: wrapped,
+    });
+    expect(await client.listRepositories()).toEqual([]);
+    const tokenReq = requests.find(r => r.url.includes('/token'));
+    expect(tokenReq?.url).toContain('scope=registry%3Acatalog%3A*');
+  });
+
+  it('returns null when _catalog is unsupported (404)', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: () => true,
+        response: { status: 404, headers: {}, data: {} },
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    expect(await client.listRepositories()).toBeNull();
+  });
+
+  it('throws bad-response on a body without a repositories array', async () => {
+    const { transport } = fakeTransport([
+      { match: () => true, response: ok({ nope: true }) },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    await expect(client.listRepositories()).rejects.toMatchObject({
+      name: 'RegistryRequestError',
+      kind: 'bad-response',
+    });
+  });
+
+  it('throws bad-response when pagination exceeds the page cap', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: () => true,
+        response: ok(
+          { repositories: ['x'] },
+          { link: '</v2/_catalog?last=x&n=100>; rel="next"' },
+        ),
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+      maxTagsPages: 3,
+    });
+    await expect(client.listRepositories()).rejects.toMatchObject({
+      kind: 'bad-response',
+    });
+  });
+
+  it('refuses a cross-origin _catalog Link next URL', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: () => true,
+        response: ok(
+          { repositories: ['x'] },
+          { link: '<https://evil.example/v2/_catalog?last=x>; rel="next"' },
+        ),
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    await expect(client.listRepositories()).rejects.toMatchObject({
+      kind: 'bad-response',
+    });
+  });
+});
