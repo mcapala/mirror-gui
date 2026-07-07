@@ -55,7 +55,9 @@ test.describe('Registry Content tab', () => {
     await page.locator('#registry-prefix').fill('mirror');
     await page.getByRole('button', { name: /save registry/i }).click();
 
-    await expect(page.getByText('Never scanned')).toBeVisible({
+    await expect(
+      page.getByText('Never scanned').filter({ visible: true }),
+    ).toBeVisible({
       timeout: 10000,
     });
 

@@ -64,7 +64,9 @@ test.describe('Registry Cleanup tab', () => {
     ).not.toBeChecked();
 
     await page.getByRole('button', { name: /^generate$/i }).click();
-    await expect(page.getByText('Never scanned')).toBeVisible({
+    await expect(
+      page.getByText('Never scanned').filter({ visible: true }),
+    ).toBeVisible({
       timeout: 10000,
     });
   });
