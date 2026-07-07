@@ -15,8 +15,8 @@ export class BundlesFileMissingError extends Error {
 }
 
 export class BundlesSchemaError extends Error {
-  constructor(found: unknown) {
-    super(`Unsupported bundles.json schemaVersion: ${found}`);
+  constructor(message: string) {
+    super(message);
     this.name = 'BundlesSchemaError';
   }
 }
@@ -56,9 +56,28 @@ export async function loadBundlesFile(
   } catch {
     throw new BundlesFileMissingError(filePath);
   }
-  const parsed = JSON.parse(raw);
-  if (parsed?.schemaVersion !== BUNDLES_SCHEMA_VERSION) {
-    throw new BundlesSchemaError(parsed?.schemaVersion);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Never include file content in the error — bundles.json can contain
+    // data derived from the pull secret / catalog contents.
+    throw new BundlesSchemaError(`bundles.json is not valid JSON at ${filePath}`);
+  }
+  const record = parsed as { schemaVersion?: unknown; packages?: unknown };
+  if (record?.schemaVersion !== BUNDLES_SCHEMA_VERSION) {
+    throw new BundlesSchemaError(
+      `Unsupported bundles.json schemaVersion: ${record?.schemaVersion}`,
+    );
+  }
+  if (
+    typeof record.packages !== 'object' ||
+    record.packages === null ||
+    Array.isArray(record.packages)
+  ) {
+    throw new BundlesSchemaError(
+      `bundles.json at ${filePath} is missing a "packages" object`,
+    );
   }
   return parsed as BundlesFile;
 }

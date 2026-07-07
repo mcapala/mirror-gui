@@ -4,6 +4,11 @@ import { RegistryRequestError } from './types.js';
 
 export const REGISTRY_TIMEOUT_MS = 15000;
 export const TAGS_PAGE_SIZE = 100;
+/** Hard cap on tags/list pagination pages, to bound a registry whose
+ * Link: rel="next" header cycles (accidentally or maliciously) back to an
+ * already-seen URL. Without this a single misbehaving registry loops
+ * forever while holding the per-registry scan single-flight lock. */
+export const MAX_TAGS_PAGES = 1000;
 
 export const MANIFEST_ACCEPT = [
   'application/vnd.docker.distribution.manifest.list.v2+json',
@@ -115,6 +120,8 @@ export interface RegistryClientOptions {
   /** http is for tests against a local stub registry only. */
   scheme?: 'https' | 'http';
   timeoutMs?: number;
+  /** Overrides MAX_TAGS_PAGES; intended for tests only. */
+  maxTagsPages?: number;
 }
 
 export interface RegistryClient {
@@ -130,6 +137,7 @@ export function createRegistryClient(
   const transport = opts.transport ?? axiosTransport;
   const scheme = opts.scheme ?? 'https';
   const timeout = opts.timeoutMs ?? REGISTRY_TIMEOUT_MS;
+  const maxTagsPages = opts.maxTagsPages ?? MAX_TAGS_PAGES;
   const httpsAgent =
     scheme === 'https'
       ? new https.Agent({
@@ -230,7 +238,16 @@ export function createRegistryClient(
       const tags: string[] = [];
       let url: string | null =
         `${scheme}://${opts.host}/v2/${repo}/tags/list?n=${TAGS_PAGE_SIZE}`;
+      const registryOrigin = new URL(`${scheme}://${opts.host}`).origin;
+      let pages = 0;
       while (url) {
+        pages += 1;
+        if (pages > maxTagsPages) {
+          throw new RegistryRequestError(
+            'bad-response',
+            `tags/list pagination for ${repo} exceeded ${maxTagsPages} pages — aborting (possible Link header loop)`,
+          );
+        }
         const response: RegistryResponse = await send('GET', url, repo);
         if (response.status === 404) {
           return null;
@@ -245,7 +262,14 @@ export function createRegistryClient(
         for (const tag of body?.tags ?? []) {
           tags.push(tag);
         }
-        url = parseLinkNext(response.headers.link, url);
+        const next = parseLinkNext(response.headers.link, url);
+        if (next && new URL(next).origin !== registryOrigin) {
+          throw new RegistryRequestError(
+            'bad-response',
+            `tags/list Link header for ${repo} pointed at a different origin (${new URL(next).origin}) — refusing to follow`,
+          );
+        }
+        url = next;
       }
       return tags;
     },

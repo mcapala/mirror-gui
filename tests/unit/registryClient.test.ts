@@ -311,4 +311,52 @@ describe('createRegistryClient', () => {
       kind: 'bad-response',
     });
   });
+
+  it('rejects with bad-response when tags/list Link header loops back on itself', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: (_m, url) => url.includes('tags/list'),
+        response: ok(
+          { name: 'foo', tags: ['a'] },
+          { link: '</v2/foo/tags/list?last=b&n=100>; rel="next"' },
+        ),
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'dXNlcjpwYXNz',
+      transport,
+      maxTagsPages: 3,
+    });
+    await expect(client.listTags('foo')).rejects.toMatchObject({
+      name: 'RegistryRequestError',
+      kind: 'bad-response',
+    });
+  });
+
+  it('rejects and never sends a request when tags/list Link points at a different origin', async () => {
+    const { transport, requests } = fakeTransport([
+      {
+        match: (_m, url) => url.includes('reg.example') && url.includes('tags/list'),
+        response: ok(
+          { name: 'foo', tags: ['a'] },
+          { link: '<https://evil.example/v2/foo/tags/list?last=b>; rel="next"' },
+        ),
+      },
+      {
+        match: (_m, url) => url.includes('evil.example'),
+        response: ok({ name: 'foo', tags: ['b'] }),
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'dXNlcjpwYXNz',
+      transport,
+    });
+    await expect(client.listTags('foo')).rejects.toMatchObject({
+      name: 'RegistryRequestError',
+      kind: 'bad-response',
+    });
+    expect(requests.some(r => r.url.includes('evil.example'))).toBe(false);
+  });
 });

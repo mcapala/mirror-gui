@@ -2291,7 +2291,14 @@ app.use(
         return null;
       }
       const content = await fsp.readFile(pullSecretPath, 'utf8');
-      return JSON.parse(content).auths ?? null;
+      try {
+        return JSON.parse(content).auths ?? null;
+      } catch {
+        // A SyntaxError from JSON.parse embeds a snippet of the input in
+        // its message on Node >= 20; pull-secret auth values must never
+        // reach logs, so degrade gracefully like a missing pull secret.
+        return null;
+      }
     },
     resolveCatalogDir: resolveCatalogDataDir,
     listIscConfigs: async () => {

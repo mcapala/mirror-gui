@@ -57,4 +57,42 @@ describe('loadBundlesFile', () => {
       ).rejects.toBeInstanceOf(BundlesSchemaError);
     });
   });
+
+  describe('corrupt / malformed files', () => {
+    let dir: string;
+
+    beforeEach(async () => {
+      dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bundles-'));
+    });
+
+    afterEach(async () => {
+      await fs.promises.rm(dir, { recursive: true, force: true });
+    });
+
+    it('throws BundlesSchemaError (not a raw SyntaxError) for non-JSON content', async () => {
+      await fs.promises.mkdir(path.join(dir, 'some-index', 'v1'), {
+        recursive: true,
+      });
+      await fs.promises.writeFile(
+        path.join(dir, 'some-index', 'v1', 'bundles.json'),
+        '{ this is not json',
+      );
+      await expect(
+        loadBundlesFile(dir, 'some-index', 'v1'),
+      ).rejects.toBeInstanceOf(BundlesSchemaError);
+    });
+
+    it('throws BundlesSchemaError when schemaVersion is valid but packages is missing', async () => {
+      await fs.promises.mkdir(path.join(dir, 'some-index', 'v1'), {
+        recursive: true,
+      });
+      await fs.promises.writeFile(
+        path.join(dir, 'some-index', 'v1', 'bundles.json'),
+        JSON.stringify({ schemaVersion: 1 }),
+      );
+      await expect(
+        loadBundlesFile(dir, 'some-index', 'v1'),
+      ).rejects.toBeInstanceOf(BundlesSchemaError);
+    });
+  });
 });
