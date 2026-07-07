@@ -1,12 +1,14 @@
 import express, { type Request, type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { catalogKeyFromUrl, type IscConfig } from '../acm/reconcile.js';
+import type { DeployedOperatorSnapshot } from '../acm/types.js';
 import {
   BundlesFileMissingError,
   BundlesSchemaError,
   loadBundlesFile,
 } from '../bundlesLoader.js';
 import { createRegistryClient } from './client.js';
+import { generateDisc, type OrphanPick } from './disc.js';
 import {
   buildOperatorContent,
   buildScanTargets,
@@ -35,6 +37,7 @@ export interface RegistryRouterDeps {
   > | null>;
   resolveCatalogDir: () => Promise<string>;
   listIscConfigs: () => Promise<IscConfig[]>;
+  readAcmSnapshot: () => Promise<DeployedOperatorSnapshot | null>;
   createClient?: typeof createRegistryClient;
   now?: () => string;
 }
@@ -78,6 +81,40 @@ function wrap(handler: Handler): Handler {
       res.status(500).json({ error: 'internal server error' });
     }
   };
+}
+
+async function loadCatalogBundles(
+  catalogDir: string,
+  keys: string[],
+): Promise<{ catalogBundles: CatalogBundles[]; catalogIssues: ScanIssue[] }> {
+  const catalogBundles: CatalogBundles[] = [];
+  const catalogIssues: ScanIssue[] = [];
+  for (const key of [...keys].sort()) {
+    const sep = key.lastIndexOf(':');
+    const catalogType = key.slice(0, sep);
+    const version = key.slice(sep + 1);
+    try {
+      catalogBundles.push({
+        catalog: key,
+        bundles: await loadBundlesFile(catalogDir, catalogType, version),
+      });
+    } catch (error) {
+      if (
+        error instanceof BundlesFileMissingError ||
+        error instanceof BundlesSchemaError
+      ) {
+        catalogIssues.push({
+          repo: null,
+          catalog: key,
+          kind: 'catalog-data',
+          message: error.message,
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+  return { catalogBundles, catalogIssues };
 }
 
 export function createRegistryRouter(deps: RegistryRouterDeps): Router {
@@ -259,33 +296,10 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         }
 
         const catalogDir = await deps.resolveCatalogDir();
-        const catalogBundles: CatalogBundles[] = [];
-        const catalogIssues: ScanIssue[] = [];
-        for (const key of [...catalogKeys].sort()) {
-          const sep = key.lastIndexOf(':');
-          const catalogType = key.slice(0, sep);
-          const version = key.slice(sep + 1);
-          try {
-            catalogBundles.push({
-              catalog: key,
-              bundles: await loadBundlesFile(catalogDir, catalogType, version),
-            });
-          } catch (error) {
-            if (
-              error instanceof BundlesFileMissingError ||
-              error instanceof BundlesSchemaError
-            ) {
-              catalogIssues.push({
-                repo: null,
-                catalog: key,
-                kind: 'catalog-data',
-                message: error.message,
-              });
-            } else {
-              throw error;
-            }
-          }
-        }
+        const { catalogBundles, catalogIssues } = await loadCatalogBundles(
+          catalogDir,
+          Array.from(catalogKeys),
+        );
 
         const expectations = deriveExpectations(
           catalogBundles,
@@ -409,6 +423,91 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         return;
       }
       res.json(buildOperatorContent(snapshot));
+    }),
+  );
+
+  router.post(
+    '/:id/generate-disc',
+    wrap(async (req, res) => {
+      const registries = await store.readRegistries();
+      const registry = registries.find(r => r.id === req.params.id);
+      if (!registry) {
+        res.status(404).json({ error: 'registry not found' });
+        return;
+      }
+      const body = (req.body ?? {}) as {
+        strict?: unknown;
+        includeAdditionalImages?: unknown;
+        includeOrphans?: unknown;
+      };
+      if (body.strict !== undefined && typeof body.strict !== 'boolean') {
+        res.status(400).json({ error: 'strict must be a boolean' });
+        return;
+      }
+      if (
+        body.includeAdditionalImages !== undefined &&
+        typeof body.includeAdditionalImages !== 'boolean'
+      ) {
+        res.status(400).json({ error: 'includeAdditionalImages must be a boolean' });
+        return;
+      }
+      const rawPicks = body.includeOrphans ?? [];
+      if (
+        !Array.isArray(rawPicks) ||
+        rawPicks.some(
+          p =>
+            typeof p?.repo !== 'string' ||
+            typeof p?.tag !== 'string' ||
+            typeof p?.sourceRef !== 'string',
+        )
+      ) {
+        res.status(400).json({
+          error:
+            'includeOrphans must be an array of { repo, tag, sourceRef } strings',
+        });
+        return;
+      }
+      let snapshot: RegistryScanSnapshot | null;
+      try {
+        snapshot = await store.readScan(registry.id);
+      } catch (error) {
+        if (error instanceof ScanSnapshotSchemaError) {
+          res.status(422).json({
+            error:
+              'stored scan was written by an incompatible version — scan again to rebuild it',
+          });
+          return;
+        }
+        throw error;
+      }
+      if (!snapshot) {
+        res.status(404).json({ error: 'never scanned' });
+        return;
+      }
+      const catalogDir = await deps.resolveCatalogDir();
+      const { catalogBundles } = await loadCatalogBundles(
+        catalogDir,
+        snapshot.catalogs,
+      );
+      const acm = await deps.readAcmSnapshot();
+      const iscs = await deps.listIscConfigs();
+      const result = generateDisc(
+        { snapshot, catalogs: catalogBundles, acm, iscs },
+        {
+          strict: body.strict === true,
+          includeAdditionalImages: body.includeAdditionalImages !== false,
+          includeOrphans: rawPicks as OrphanPick[],
+        },
+      );
+      if (result.strictViolation) {
+        res.status(422).json({
+          error:
+            'strict mode: candidates were held back by the fleet gate — see report',
+          report: result.report,
+        });
+        return;
+      }
+      res.json({ discYaml: result.discYaml, report: result.report });
     }),
   );
 

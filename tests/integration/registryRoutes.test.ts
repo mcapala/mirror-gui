@@ -42,6 +42,7 @@ function makeApp(overrides: Partial<RegistryRouterDeps> = {}) {
       resolveCatalogDir:
         overrides.resolveCatalogDir ?? (async () => FIXTURE_CATALOG_DIR),
       listIscConfigs: overrides.listIscConfigs ?? (async () => [ISC]),
+      readAcmSnapshot: overrides.readAcmSnapshot ?? (async () => null),
       createClient: overrides.createClient,
       now: () => '2026-07-07T12:00:00.000Z',
     }),

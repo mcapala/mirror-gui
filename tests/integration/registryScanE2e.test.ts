@@ -182,6 +182,7 @@ describe('registry scan against a live stub registry', () => {
         }),
         resolveCatalogDir: async () => FIXTURE_CATALOG_DIR,
         listIscConfigs: async () => [ISC],
+        readAcmSnapshot: async () => null,
         // The stub registry is plain HTTP; production default stays https.
         createClient: opts => createRegistryClient({ ...opts, scheme: 'http' }),
         now: () => '2026-07-07T12:00:00.000Z',
@@ -245,6 +246,7 @@ describe('registry scan against a live stub registry', () => {
         }),
         resolveCatalogDir: async () => FIXTURE_CATALOG_DIR,
         listIscConfigs: async () => [ISC],
+        readAcmSnapshot: async () => null,
         createClient: opts => createRegistryClient({ ...opts, scheme: 'http' }),
         now: () => '2026-07-07T12:00:00.000Z',
       }),

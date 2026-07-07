@@ -21,6 +21,7 @@ import {
   normalizeChannels,
 } from './utils.js';
 import { createAcmRouter } from './acm/routes.js';
+import { AcmStore, SnapshotSchemaError } from './acm/snapshotStore.js';
 import { createRegistryRouter } from './registry/routes.js';
 import type { IscConfig } from './acm/reconcile.js';
 
@@ -2320,6 +2321,16 @@ app.use(
         }
       }
       return configs;
+    },
+    readAcmSnapshot: async () => {
+      try {
+        return await new AcmStore(ACM_DIR).readSnapshot();
+      } catch (error) {
+        if (error instanceof SnapshotSchemaError) {
+          return null; // incompatible snapshot ⇒ fleet gate treats it as missing
+        }
+        throw error;
+      }
     },
   }),
 );
