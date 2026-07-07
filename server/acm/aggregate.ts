@@ -127,9 +127,11 @@ export function buildSnapshot(
   outcomes: HubFetchOutcome[],
   catalog: CatalogLookup,
   refreshedAt: string,
+  aliases: AliasLookup = new Map(),
 ): DeployedOperatorSnapshot {
   const hubs: HubSnapshotStatus[] = [];
   const packages: Record<string, PackageSnapshot> = {};
+  const aliasedPrefixes = new Map<string, Set<string>>();
   const allClusters: ClusterInfo[] = [];
 
   for (const outcome of outcomes) {
@@ -174,7 +176,8 @@ export function buildSnapshot(
         continue;
       }
       clusters.add(item.cluster);
-      let pkg = packages[parsed.packageName];
+      const pkgName = aliases.get(parsed.packageName) ?? parsed.packageName;
+      let pkg = packages[pkgName];
       if (!pkg) {
         pkg = {
           deployments: [],
@@ -184,7 +187,12 @@ export function buildSnapshot(
           catalogSource: null,
           status: 'unknown',
         };
-        packages[parsed.packageName] = pkg;
+        packages[pkgName] = pkg;
+      }
+      if (pkgName !== parsed.packageName) {
+        const prefixes = aliasedPrefixes.get(pkgName) ?? new Set<string>();
+        prefixes.add(parsed.packageName);
+        aliasedPrefixes.set(pkgName, prefixes);
       }
       pkg.deployments.push({
         cluster: item.cluster,
@@ -251,6 +259,10 @@ export function buildSnapshot(
       }
     }
     pkg.status = status;
+  }
+
+  for (const [name, prefixes] of aliasedPrefixes) {
+    packages[name].csvNamePrefixes = [...prefixes].sort();
   }
 
   allClusters.sort(

@@ -90,6 +90,8 @@ export interface PackageSnapshot {
   latestAvailable: string | null;
   catalogSource: string | null;
   status: PackageStatus;
+  /** CSV-name prefixes that contributed deployments via the alias map (M3). */
+  csvNamePrefixes?: string[];
 }
 
 export interface DeployedOperatorSnapshot {

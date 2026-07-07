@@ -2,6 +2,7 @@ import express, { type Request, type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { AcmStore, SnapshotSchemaError } from './snapshotStore.js';
 import {
+  buildAliasLookup,
   buildCatalogLookup,
   buildSnapshot,
   type CatalogDataLike,
@@ -226,7 +227,8 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
           return null;
         });
         const catalog = buildCatalogLookup(catalogData);
-        const snapshot = buildSnapshot(outcomes, catalog, now());
+        const aliases = buildAliasLookup(catalogData);
+        const snapshot = buildSnapshot(outcomes, catalog, now(), aliases);
         await store.writeSnapshot(snapshot);
         res.json(snapshot);
       } finally {

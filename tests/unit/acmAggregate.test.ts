@@ -207,6 +207,62 @@ describe('buildSnapshot', () => {
     expect(snap.packages['op'].status).toBe('unknown');
     expect(snap.packages['op'].latestAvailable).toBeNull();
   });
+
+  it('canonicalizes aliased CSV prefixes and records them on the package', () => {
+    const catalog: CatalogLookup = new Map([
+      [
+        'cincinnati-operator',
+        { latestAvailable: '4.9.0', catalogSource: 'redhat-operator-index' },
+      ],
+    ]);
+    const aliases = new Map([['update-service-operator', 'cincinnati-operator']]);
+    const outcomes: HubFetchOutcome[] = [
+      {
+        hub: hub('h1', 'prod'),
+        status: 'ok',
+        items: [
+          { name: 'update-service-operator.v4.6.0', cluster: 'c1', phase: 'Succeeded' },
+          { name: 'update-service-operator.v4.9.0', cluster: 'c2', phase: 'Succeeded' },
+        ],
+      },
+    ];
+    const snap = buildSnapshot(outcomes, catalog, NOW, aliases);
+    expect(snap.packages['update-service-operator']).toBeUndefined();
+    const pkg = snap.packages['cincinnati-operator'];
+    expect(pkg.minDeployed).toBe('4.6.0');
+    expect(pkg.latestAvailable).toBe('4.9.0');
+    expect(pkg.status).toBe('behind');
+    expect(pkg.csvNamePrefixes).toEqual(['update-service-operator']);
+  });
+
+  it('does not set csvNamePrefixes when no aliasing occurred', () => {
+    const outcomes: HubFetchOutcome[] = [
+      {
+        hub: hub('h1', 'prod'),
+        status: 'ok',
+        items: [{ name: 'acm.v2.10.3', cluster: 'c1', phase: 'Succeeded' }],
+      },
+    ];
+    const snap = buildSnapshot(outcomes, emptyCatalog, NOW, new Map());
+    expect(snap.packages['acm'].csvNamePrefixes).toBeUndefined();
+  });
+
+  it('merges aliased and canonical CSV names into one package', () => {
+    const aliases = new Map([['update-service-operator', 'cincinnati-operator']]);
+    const outcomes: HubFetchOutcome[] = [
+      {
+        hub: hub('h1', 'prod'),
+        status: 'ok',
+        items: [
+          { name: 'update-service-operator.v4.6.0', cluster: 'c1', phase: 'Succeeded' },
+          { name: 'cincinnati-operator.v4.9.0', cluster: 'c2', phase: 'Succeeded' },
+        ],
+      },
+    ];
+    const snap = buildSnapshot(outcomes, emptyCatalog, NOW, aliases);
+    expect(Object.keys(snap.packages)).toEqual(['cincinnati-operator']);
+    expect(snap.packages['cincinnati-operator'].deployments).toHaveLength(2);
+  });
 });
 
 describe('buildCatalogLookup', () => {
