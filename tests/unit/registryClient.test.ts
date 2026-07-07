@@ -159,6 +159,64 @@ describe('createRegistryClient', () => {
     expect(retry.headers.Authorization).toBe('Bearer tok123');
   });
 
+  it('throws an auth error when the token endpoint fails', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: (_m, url) => url.includes('tags/list'),
+        response: {
+          status: 401,
+          headers: {
+            'www-authenticate':
+              'Bearer realm="https://reg.example/token",service="reg.example"',
+          },
+          data: null,
+        },
+      },
+      {
+        match: (_m, url) => url.includes('/token'),
+        response: { status: 500, headers: {}, data: null },
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'dXNlcjpwYXNz',
+      transport,
+    });
+    await expect(client.listTags('foo')).rejects.toMatchObject({
+      name: 'RegistryRequestError',
+      kind: 'auth',
+    });
+  });
+
+  it('throws an auth error when the token response has no token field', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: (_m, url) => url.includes('tags/list'),
+        response: {
+          status: 401,
+          headers: {
+            'www-authenticate':
+              'Bearer realm="https://reg.example/token",service="reg.example"',
+          },
+          data: null,
+        },
+      },
+      {
+        match: (_m, url) => url.includes('/token'),
+        response: ok({ issued_at: '2026-07-07T00:00:00Z' }),
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'dXNlcjpwYXNz',
+      transport,
+    });
+    await expect(client.listTags('foo')).rejects.toMatchObject({
+      name: 'RegistryRequestError',
+      kind: 'auth',
+    });
+  });
+
   it('throws an auth error on 401 without a Bearer challenge', async () => {
     const { transport } = fakeTransport([
       { match: () => true, response: { status: 401, headers: {}, data: null } },
