@@ -456,6 +456,74 @@ describe('buildOperatorContent', () => {
     expect(report.stats.unknown).toBe(1);
   });
 
+  it('scopes stats to operator repos — badge matches its own tables', () => {
+    const snapshot: RegistryScanSnapshot = {
+      schemaVersion: 2,
+      registryId: 'r1',
+      host: 'reg.example',
+      pathPrefix: 'mirror',
+      scannedAt: '2026-07-07T12:00:00.000Z',
+      partial: false,
+      walkOk: true,
+      catalogs: [CATALOG],
+      repos: [
+        {
+          repo: 'mirror/rhacm2/acm-operator-bundle',
+          present: true,
+          origin: 'operator',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [
+            {
+              tag: 't1',
+              digest: 'sha256:aaa',
+              matched: {
+                package: 'advanced-cluster-management',
+                bundleName: 'advanced-cluster-management.v2.16.0',
+                version: '2.16.0',
+                catalog: CATALOG,
+              },
+              matchedAdditional: null,
+            },
+            { tag: 'weird', digest: 'sha256:zzz', matched: null, matchedAdditional: null },
+          ],
+        },
+        {
+          repo: 'mirror/orphan',
+          present: true,
+          origin: 'walk',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [
+            { tag: 'w1', digest: null, matched: null, matchedAdditional: null },
+            { tag: 'w2', digest: null, matched: null, matchedAdditional: null },
+          ],
+        },
+      ],
+      errors: [],
+      // Global stats (as executeScan would produce them) count the walk
+      // repo's unknown tags too — the operator-only report must not.
+      stats: {
+        reposExpected: 1,
+        reposPresent: 1,
+        tagsScanned: 4,
+        matched: 1,
+        unknown: 3,
+        reposAdditional: 0,
+        reposWalked: 1,
+      },
+    };
+    const report = buildOperatorContent(snapshot);
+    expect(report.unknownTags).toHaveLength(1);
+    expect(report.stats.unknown).toBe(1);
+    expect(report.stats.tagsScanned).toBe(2);
+    expect(report.stats.matched).toBe(1);
+    // Repo-level counts still pass through from the global snapshot stats.
+    expect(report.stats.reposExpected).toBe(1);
+    expect(report.stats.reposPresent).toBe(1);
+    expect(report.stats.reposWalked).toBe(1);
+  });
+
   it('ignores additional/walk repos entirely', () => {
     const snapshot: RegistryScanSnapshot = {
       schemaVersion: 2,

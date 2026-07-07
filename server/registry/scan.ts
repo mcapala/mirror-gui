@@ -313,12 +313,16 @@ export function buildOperatorContent(
 ): OperatorContentReport {
   const packages: Record<string, OperatorContentVersion[]> = {};
   const unknownTags: OperatorContentReport['unknownTags'] = [];
+  let tagsScanned = 0;
+  let matched = 0;
   for (const repo of snapshot.repos) {
     if (repo.origin !== 'operator') {
       continue;
     }
     for (const tag of repo.tags) {
+      tagsScanned += 1;
       if (tag.matched) {
+        matched += 1;
         (packages[tag.matched.package] ??= []).push({
           version: tag.matched.version,
           bundleName: tag.matched.bundleName,
@@ -349,6 +353,14 @@ export function buildOperatorContent(
     packages,
     unknownTags,
     errors: snapshot.errors,
-    stats: snapshot.stats,
+    // Tag-level counts are scoped to operator repos so the badge matches this
+    // report's own tables; repo-level counts pass through unchanged — other
+    // consumers (e.g. Registry Content's repo summary) see global truth.
+    stats: {
+      ...snapshot.stats,
+      tagsScanned,
+      matched,
+      unknown: tagsScanned - matched,
+    },
   };
 }
