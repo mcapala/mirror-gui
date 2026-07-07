@@ -39,6 +39,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     generate_parser.add_argument("--ocp-version", required=True, help="Catalog version, e.g. v4.20.")
     generate_parser.add_argument("--operators-file", required=True, help="Output path for operators.json.")
     generate_parser.add_argument("--dependencies-file", required=True, help="Output path for dependencies.json.")
+    generate_parser.add_argument("--bundles-file", required=True, help="Output path for bundles.json.")
 
     audit_parser = subparsers.add_parser("audit", help="Audit generated metadata against extracted configs.")
     audit_parser.add_argument(
@@ -287,7 +288,7 @@ def choose_docs(records: list[dict[str, Any]], preferred_category: str, doc_type
     return fallback
 
 
-def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: str) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[str]]:
+def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: str) -> tuple[dict[str, Any] | None, list[dict[str, Any]], dict[str, Any] | None, list[str]]:
     records: list[dict[str, Any]] = []
     warnings: list[str] = []
 
@@ -316,7 +317,7 @@ def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: 
     bundle_records = choose_docs(records, "bundle_explicit", "bundle")
 
     if not package_records and not channel_records and not bundle_records:
-        return None, [], warnings
+        return None, [], None, warnings
 
     package_doc = package_records[0]["doc"] if package_records else {}
     operator_name = (
@@ -384,6 +385,56 @@ def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: 
         for prefix in (extract_csv_prefix(name) for name in sorted(entry_names))
         if prefix and prefix != operator_name
     })
+
+    bundles_detail: dict[str, dict[str, Any]] = {}
+    for bundle_name in sorted(bundle_by_name):
+        info = bundle_by_name[bundle_name]
+        bundle_doc = info["doc"]
+        related_raw = bundle_doc.get("relatedImages")
+        related_images = sorted({
+            normalize_string(item.get("image"))
+            for item in (related_raw if isinstance(related_raw, list) else [])
+            if is_dict(item) and normalize_string(item.get("image"))
+        })
+        bundles_detail[bundle_name] = {
+            "version": info.get("version"),
+            "image": normalize_string(bundle_doc.get("image")) or None,
+            "relatedImages": related_images,
+        }
+
+    channel_entries_detail: dict[str, list[dict[str, Any]]] = {}
+    for channel_name in sorted(channel_docs_by_name):
+        entries_detail: list[dict[str, Any]] = []
+        seen_entry_names: set[str] = set()
+        for document in channel_docs_by_name[channel_name]:
+            for entry in document.get("entries", []) if isinstance(document.get("entries"), list) else []:
+                if not is_dict(entry):
+                    continue
+                entry_name = normalize_string(entry.get("name"))
+                if not entry_name or entry_name in seen_entry_names:
+                    continue
+                seen_entry_names.add(entry_name)
+                entry_detail: dict[str, Any] = {"name": entry_name}
+                replaces = normalize_string(entry.get("replaces"))
+                if replaces:
+                    entry_detail["replaces"] = replaces
+                skips_raw = entry.get("skips")
+                skips = sorted({
+                    normalize_string(skip)
+                    for skip in (skips_raw if isinstance(skips_raw, list) else [])
+                    if normalize_string(skip)
+                })
+                if skips:
+                    entry_detail["skips"] = skips
+                skip_range = normalize_string(entry.get("skipRange"))
+                if skip_range:
+                    entry_detail["skipRange"] = skip_range
+                entries_detail.append(entry_detail)
+        channel_entries_detail[channel_name] = entries_detail
+
+    bundle_package_detail: dict[str, Any] | None = None
+    if bundles_detail or any(channel_entries_detail.values()):
+        bundle_package_detail = {"bundles": bundles_detail, "channels": channel_entries_detail}
 
     available_versions = sort_versions(
         [version for versions in channel_versions.values() for version in versions] or all_bundle_versions
@@ -457,29 +508,32 @@ def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: 
     if csv_name_prefixes:
         metadata["csvNamePrefixes"] = csv_name_prefixes
 
-    return metadata, dependencies, warnings
+    return metadata, dependencies, bundle_package_detail, warnings
 
 
-def generate_snapshot_metadata(catalog_dir: Path, catalog_type: str, ocp_version: str) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], list[str]]:
+def generate_snapshot_metadata(catalog_dir: Path, catalog_type: str, ocp_version: str) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, Any], list[str]]:
     configs_dir = catalog_dir / "configs"
     operators: list[dict[str, Any]] = []
     dependencies: dict[str, list[dict[str, Any]]] = {}
+    bundles: dict[str, Any] = {}
     warnings: list[str] = []
 
     if not configs_dir.is_dir():
-        return operators, dependencies, [f"Missing configs directory: {configs_dir}"]
+        return operators, dependencies, bundles, [f"Missing configs directory: {configs_dir}"]
 
     for operator_dir in sorted(path for path in configs_dir.iterdir() if path.is_dir()):
-        metadata, operator_dependencies, operator_warnings = build_operator_metadata(operator_dir, catalog_type, ocp_version)
+        metadata, operator_dependencies, bundle_package_detail, operator_warnings = build_operator_metadata(operator_dir, catalog_type, ocp_version)
         warnings.extend(operator_warnings)
         if metadata is None:
             continue
         operators.append(metadata)
         if operator_dependencies:
             dependencies[metadata["name"]] = operator_dependencies
+        if bundle_package_detail is not None:
+            bundles[metadata["name"]] = bundle_package_detail
 
     operators.sort(key=lambda item: item["name"])
-    return operators, dependencies, warnings
+    return operators, dependencies, {name: bundles[name] for name in sorted(bundles)}, warnings
 
 
 def write_json(file_path: Path, content: Any) -> None:
@@ -600,7 +654,7 @@ def audit_catalog_data(catalog_data_dir: Path, output_dir: Path) -> dict[str, An
             catalog_type = catalog_dir.name
             ocp_version = version_dir.name
             catalog_key = f"{catalog_type}:{ocp_version}"
-            expected_operators, expected_dependencies, warnings = generate_snapshot_metadata(version_dir, catalog_type, ocp_version)
+            expected_operators, expected_dependencies, expected_bundles, warnings = generate_snapshot_metadata(version_dir, catalog_type, ocp_version)
             generated_operators = json.loads(operators_path.read_text(encoding="utf-8"))
             generated_dependencies = (
                 json.loads(dependencies_path.read_text(encoding="utf-8"))
@@ -764,6 +818,22 @@ def audit_catalog_data(catalog_data_dir: Path, output_dir: Path) -> dict[str, An
                 )
                 summary_counter["master_dependencies_mismatch"] += 1
 
+            bundles_path = version_dir / "bundles.json"
+            if not bundles_path.is_file():
+                issues.append({"category": "bundles_file_missing", "details": {"path": str(bundles_path)}})
+                summary_counter["bundles_file_missing"] += 1
+            elif (version_dir / "configs").is_dir():
+                # Content comparison only makes sense when the source configs are
+                # still present to recompute the expected bundle detail from; once
+                # configs are pruned (post-sync production state, and this fixture
+                # tree), generate_snapshot_metadata early-bails with expected_bundles
+                # == {} and a parse_warning, matching how operator-level comparisons
+                # are already skipped in that scenario (see generated_operator_unexpected).
+                generated_bundles = json.loads(bundles_path.read_text(encoding="utf-8"))
+                if generated_bundles != {"schemaVersion": 1, "packages": expected_bundles}:
+                    issues.append({"category": "bundles_mismatch", "details": {"path": str(bundles_path)}})
+                    summary_counter["bundles_mismatch"] += 1
+
             snapshots.append(
                 {
                     "catalogKey": catalog_key,
@@ -819,10 +889,12 @@ def run_generate(args: argparse.Namespace) -> int:
     catalog_dir = Path(args.catalog_dir)
     operators_file = Path(args.operators_file)
     dependencies_file = Path(args.dependencies_file)
-    operators, dependencies, warnings = generate_snapshot_metadata(catalog_dir, args.catalog_type, args.ocp_version)
+    bundles_file = Path(args.bundles_file)
+    operators, dependencies, bundles, warnings = generate_snapshot_metadata(catalog_dir, args.catalog_type, args.ocp_version)
 
     write_json(operators_file, operators)
     write_json(dependencies_file, dependencies)
+    write_json(bundles_file, {"schemaVersion": 1, "packages": bundles})
 
     if warnings:
         for warning in warnings:
@@ -830,6 +902,7 @@ def run_generate(args: argparse.Namespace) -> int:
 
     print(f"Generated metadata for {len(operators)} operators", file=sys.stderr)
     print(f"Generated dependencies for {len(dependencies)} operators", file=sys.stderr)
+    print(f"Generated bundle detail for {len(bundles)} operators", file=sys.stderr)
     return 0
 
 

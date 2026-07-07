@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "argocd-operator": {
+      "bundles": {
+        "argocd-operator.v0.12.0": {
+          "version": "0.12.0",
+          "image": "quay.io/argoprojlabs/argocd-operator-bundle:v0.12.0",
+          "relatedImages": [
+            "quay.io/argoprojlabs/argocd-operator:v0.12.0"
+          ]
+        }
+      },
+      "channels": {
+        "alpha": [
+          {
+            "name": "argocd-operator.v0.12.0"
+          }
+        ]
+      }
+    }
+  }
+}

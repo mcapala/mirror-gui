@@ -80,12 +80,14 @@ RUN set -euo pipefail && \
         fi; \
         operators_file="${catalog_dir}/operators.json"; \
         dependencies_file="${catalog_dir}/dependencies.json"; \
+        bundles_file="${catalog_dir}/bundles.json"; \
         if python3 ./scripts/catalog_metadata.py generate \
             --catalog-dir "$catalog_dir" \
             --catalog-type "$catalog_type" \
             --ocp-version "v${ocp_version}" \
             --operators-file "$operators_file" \
-            --dependencies-file "$dependencies_file"; then \
+            --dependencies-file "$dependencies_file" \
+            --bundles-file "$bundles_file"; then \
           operator_count=$(jq '. | length' "$operators_file" 2>/dev/null || echo "0"); \
           synced_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
           printf '{"catalog_type":"%s","ocp_version":"v%s","catalog_url":"registry.redhat.io/redhat/%s:v%s","operator_count":%s,"digest":"from-build","synced_at":"%s"}\n' \

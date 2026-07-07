@@ -20,7 +20,8 @@ for catalog_dir in "${FBC_ROOT}"/*/; do
             --catalog-type "${catalog_type}" \
             --ocp-version "${ocp_version}" \
             --operators-file "${out_dir}/operators.json" \
-            --dependencies-file "${out_dir}/dependencies.json"
+            --dependencies-file "${out_dir}/dependencies.json" \
+            --bundles-file "${out_dir}/bundles.json"
     done
 done
 echo "Done. Remember: tests/fixtures/catalog-data/catalog-index.json is hand-maintained."

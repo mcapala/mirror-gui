@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "advanced-cluster-management": {
+      "bundles": {
+        "advanced-cluster-management.v2.15.0": {
+          "version": "2.15.0",
+          "image": "registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2150000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/rhacm2/acm-controller@sha256:c150000000000000000000000000000000000000000000000000000000000000"
+          ]
+        },
+        "advanced-cluster-management.v2.15.1": {
+          "version": "2.15.1",
+          "image": "registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2151000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/rhacm2/acm-controller@sha256:c151000000000000000000000000000000000000000000000000000000000000"
+          ]
+        },
+        "advanced-cluster-management.v2.16.0": {
+          "version": "2.16.0",
+          "image": "registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2160000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/rhacm2/acm-controller@sha256:c160000000000000000000000000000000000000000000000000000000000000"
+          ]
+        }
+      },
+      "channels": {
+        "release-2.15": [
+          {
+            "name": "advanced-cluster-management.v2.15.0"
+          },
+          {
+            "name": "advanced-cluster-management.v2.15.1",
+            "replaces": "advanced-cluster-management.v2.15.0"
+          }
+        ],
+        "release-2.16": [
+          {
+            "name": "advanced-cluster-management.v2.16.0",
+            "replaces": "advanced-cluster-management.v2.15.1",
+            "skipRange": ">=2.15.0 <2.16.0"
+          }
+        ]
+      }
+    },
+    "cincinnati-operator": {
+      "bundles": {
+        "update-service-operator.v4.6.0": {
+          "version": "4.6.0",
+          "image": "registry.redhat.io/openshift-update-service/cincinnati-operator-bundle@sha256:4600000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/openshift-update-service/cincinnati@sha256:f460000000000000000000000000000000000000000000000000000000000000"
+          ]
+        },
+        "update-service-operator.v4.9.0": {
+          "version": "4.9.0",
+          "image": "registry.redhat.io/openshift-update-service/cincinnati-operator-bundle@sha256:4900000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/openshift-update-service/cincinnati@sha256:f490000000000000000000000000000000000000000000000000000000000000"
+          ]
+        }
+      },
+      "channels": {
+        "v1": [
+          {
+            "name": "update-service-operator.v4.3.0"
+          },
+          {
+            "name": "update-service-operator.v4.6.0",
+            "replaces": "update-service-operator.v4.3.0"
+          },
+          {
+            "name": "update-service-operator.v4.9.0",
+            "replaces": "update-service-operator.v4.6.0",
+            "skips": [
+              "update-service-operator.v4.7.0"
+            ],
+            "skipRange": ">=4.5.0 <4.9.0"
+          }
+        ]
+      }
+    },
+    "odf-operator": {
+      "bundles": {
+        "odf-operator.v4.21.0": {
+          "version": "4.21.0",
+          "image": "registry.redhat.io/odf4/odf-operator-bundle@sha256:4210000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/odf4/odf-console@sha256:e210000000000000000000000000000000000000000000000000000000000000"
+          ]
+        }
+      },
+      "channels": {
+        "stable-4.21": [
+          {
+            "name": "odf-operator.v4.21.0"
+          }
+        ]
+      }
+    },
+    "openshift-pipelines-operator-rh": {
+      "bundles": {
+        "openshift-pipelines-operator-rh.v1.16.0": {
+          "version": "1.16.0",
+          "image": "registry.redhat.io/openshift-pipelines/pipelines-operator-bundle@sha256:1160000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/openshift-pipelines/pipelines-controller@sha256:d160000000000000000000000000000000000000000000000000000000000000"
+          ]
+        },
+        "openshift-pipelines-operator-rh.v1.16.1": {
+          "version": "1.16.1",
+          "image": "registry.redhat.io/openshift-pipelines/pipelines-operator-bundle@sha256:1161000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/openshift-pipelines/pipelines-controller@sha256:d161000000000000000000000000000000000000000000000000000000000000"
+          ]
+        }
+      },
+      "channels": {
+        "latest": [
+          {
+            "name": "openshift-pipelines-operator-rh.v1.16.0"
+          },
+          {
+            "name": "openshift-pipelines-operator-rh.v1.16.1",
+            "replaces": "openshift-pipelines-operator-rh.v1.16.0"
+          }
+        ]
+      }
+    }
+  }
+}

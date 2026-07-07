@@ -97,6 +97,7 @@ process_catalog_data() {
     local catalog_dir="${CATALOG_DATA_DIR}/${catalog_type}/v${ocp_version}"
     local operators_file="${catalog_dir}/operators.json"
     local dependencies_file="${catalog_dir}/dependencies.json"
+    local bundles_file="${catalog_dir}/bundles.json"
 
     if [ ! -d "${catalog_dir}/configs" ]; then
         echo "ERROR: No configs directory for ${catalog_type} v${ocp_version}" >&2
@@ -108,7 +109,8 @@ process_catalog_data() {
         --catalog-type "$catalog_type" \
         --ocp-version "v${ocp_version}" \
         --operators-file "$operators_file" \
-        --dependencies-file "$dependencies_file"; then
+        --dependencies-file "$dependencies_file" \
+        --bundles-file "$bundles_file"; then
         echo "ERROR: Failed to generate metadata for ${catalog_type} v${ocp_version}" >&2
         return 1
     fi
