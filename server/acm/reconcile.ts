@@ -53,11 +53,11 @@ export interface CatalogOperatorDetail {
 
 export type ReconcileCatalog = Map<string, Map<string, CatalogOperatorDetail>>;
 
-export interface IscOperatorChannel { name: string; minVersion?: string }
+export interface IscOperatorChannel { name: string; minVersion?: string; maxVersion?: string }
 
 export interface IscOperatorPackage { name: string; channels?: IscOperatorChannel[] }
 
-export interface IscOperatorCatalog { catalog: string; packages?: IscOperatorPackage[] }
+export interface IscOperatorCatalog { catalog: string; packages?: IscOperatorPackage[]; full?: boolean }
 
 export interface IscPlatformChannel { name: string; minVersion?: string; maxVersion?: string }
 
@@ -67,6 +67,7 @@ export interface IscConfig {
   mirror?: {
     platform?: { channels?: IscPlatformChannel[] };
     operators?: IscOperatorCatalog[];
+    additionalImages?: Array<{ name: string }>;
   };
 }
 

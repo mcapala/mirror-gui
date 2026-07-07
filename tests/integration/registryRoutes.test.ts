@@ -145,6 +145,7 @@ describe('mirror-registries routes', () => {
     const fakeClient = (impl: {
       listTags: (repo: string) => Promise<string[] | null>;
       headManifest: (repo: string, tag: string) => Promise<string | null>;
+      listRepositories?: () => Promise<string[] | null>;
     }) =>
       ((() => impl) as unknown) as typeof createRegistryClient;
 
@@ -174,12 +175,14 @@ describe('mirror-registries routes', () => {
             repo === mirroredRepo ? ['known-tag', 'drift-tag'] : null,
           headManifest: async (_repo, tag) =>
             tag === 'known-tag' ? digest : 'sha256:0000',
+          listRepositories: async () => [],
         }),
       });
       const id = await createRegistry(app);
       const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
       expect(scan.status).toBe(200);
-      expect(scan.body.schemaVersion).toBe(1);
+      expect(scan.body.schemaVersion).toBe(2);
+      expect(scan.body.walkOk).toBe(true);
       expect(scan.body.scannedAt).toBe('2026-07-07T12:00:00.000Z');
       expect(scan.body.partial).toBe(false);
       expect(scan.body.catalogs).toEqual(['redhat-operator-index:v4.21']);
@@ -212,6 +215,7 @@ describe('mirror-registries routes', () => {
             return null;
           },
           headManifest: async () => null,
+          listRepositories: async () => [],
         }),
       });
       const id = await createRegistry(app);
@@ -259,6 +263,7 @@ describe('mirror-registries routes', () => {
         createClient: fakeClient({
           listTags: async () => null,
           headManifest: async () => null,
+          listRepositories: async () => [],
         }),
       });
       const id = await createRegistry(app);

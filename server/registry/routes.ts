@@ -9,6 +9,8 @@ import {
 import { createRegistryClient } from './client.js';
 import {
   buildOperatorContent,
+  buildScanTargets,
+  deriveAdditionalExpectations,
   deriveExpectations,
   executeScan,
 } from './scan.js';
@@ -17,6 +19,7 @@ import {
   SCAN_SCHEMA_VERSION,
   ScanSnapshotSchemaError,
 } from './store.js';
+import { RegistryRequestError } from './types.js';
 import type {
   CatalogBundles,
   MirrorRegistryConfig,
@@ -296,6 +299,10 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           });
           return;
         }
+        const additionalExpectations = deriveAdditionalExpectations(
+          iscs,
+          registry.pathPrefix,
+        );
 
         const client = createClient({
           host: registry.host,
@@ -303,8 +310,57 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           caBundle: registry.caBundle,
           insecureSkipVerify: registry.insecureSkipVerify,
         });
-        const result = await executeScan(expectations, client);
-        const errors = [...catalogIssues, ...result.errors];
+
+        let walkedRepos: string[] = [];
+        let walkOk = true;
+        const walkIssues: ScanIssue[] = [];
+        try {
+          const listed = await client.listRepositories();
+          if (listed === null) {
+            walkOk = false;
+            walkIssues.push({
+              repo: null,
+              catalog: null,
+              kind: 'bad-response',
+              message:
+                '_catalog is unsupported on this registry (HTTP 404) — orphan discovery skipped',
+            });
+          } else {
+            const prefix = registry.pathPrefix
+              ? `${registry.pathPrefix}/`
+              : '';
+            walkedRepos = prefix
+              ? listed.filter(r => r.startsWith(prefix))
+              : listed;
+          }
+        } catch (error) {
+          walkOk = false;
+          walkIssues.push(
+            error instanceof RegistryRequestError
+              ? {
+                  repo: null,
+                  catalog: null,
+                  kind: error.kind,
+                  message: `_catalog walk failed: ${error.message}`,
+                }
+              : {
+                  repo: null,
+                  catalog: null,
+                  kind: 'unreachable',
+                  message: `_catalog walk failed: ${
+                    error instanceof Error ? error.message : String(error)
+                  }`,
+                },
+          );
+        }
+
+        const targets = buildScanTargets(
+          expectations,
+          additionalExpectations,
+          walkedRepos,
+        );
+        const result = await executeScan(targets, client);
+        const errors = [...catalogIssues, ...walkIssues, ...result.errors];
         const snapshot: RegistryScanSnapshot = {
           schemaVersion: SCAN_SCHEMA_VERSION,
           registryId: registry.id,
@@ -312,6 +368,7 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           pathPrefix: registry.pathPrefix,
           scannedAt: now(),
           partial: errors.length > 0,
+          walkOk,
           catalogs: catalogBundles.map(c => c.catalog),
           repos: result.repos,
           errors,

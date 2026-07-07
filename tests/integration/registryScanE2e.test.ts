@@ -21,6 +21,7 @@ const ISC: IscConfig = {
     operators: [
       { catalog: 'registry.redhat.io/redhat/redhat-operator-index:v4.21' },
     ],
+    additionalImages: [{ name: 'registry.redhat.io/ubi8/ubi:8.10' }],
   },
 };
 
@@ -28,6 +29,7 @@ let registryServer: http.Server;
 let registryHost: string;
 let knownDigest: string;
 let mirroredRepo: string;
+let catalogWalkDisabled = false;
 
 beforeAll(async () => {
   const fixture = JSON.parse(
@@ -73,8 +75,41 @@ beforeAll(async () => {
       return;
     }
 
+    // /v2/_catalog: two pages to exercise Link pagination.
+    if (url.pathname === '/v2/_catalog') {
+      if (catalogWalkDisabled) {
+        res.writeHead(404).end(JSON.stringify({ errors: [] }));
+        return;
+      }
+      if (!url.searchParams.has('last')) {
+        res
+          .writeHead(200, {
+            'Content-Type': 'application/json',
+            Link: `</v2/_catalog?last=x&n=100>; rel="next"`,
+          })
+          .end(JSON.stringify({ repositories: [mirroredRepo, 'mirror/ubi8/ubi'] }));
+      } else {
+        res
+          .writeHead(200, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ repositories: ['mirror/orphan/tool', 'outside/prefix'] }));
+      }
+      return;
+    }
+
     const tagsMatch = url.pathname.match(/^\/v2\/(.+)\/tags\/list$/);
     if (tagsMatch) {
+      if (tagsMatch[1] === 'mirror/ubi8/ubi') {
+        res
+          .writeHead(200, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ name: tagsMatch[1], tags: ['8.10', '8.9'] }));
+        return;
+      }
+      if (tagsMatch[1] === 'mirror/orphan/tool') {
+        res
+          .writeHead(200, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ name: tagsMatch[1], tags: ['v1'] }));
+        return;
+      }
       if (tagsMatch[1] !== mirroredRepo) {
         res.writeHead(404).end(JSON.stringify({ errors: [] }));
         return;
@@ -132,6 +167,7 @@ describe('registry scan against a live stub registry', () => {
 
   afterEach(async () => {
     await fs.promises.rm(dir, { recursive: true, force: true });
+    catalogWalkDisabled = false;
   });
 
   it('runs the full scan flow: token auth, pagination, digest join', async () => {
@@ -160,11 +196,30 @@ describe('registry scan against a live stub registry', () => {
 
     const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
     expect(scan.status).toBe(200);
+    expect(scan.body.schemaVersion).toBe(2);
+    expect(scan.body.walkOk).toBe(true);
+    const byRepo = Object.fromEntries(
+      scan.body.repos.map((r: { repo: string }) => [r.repo, r]),
+    );
+    expect(byRepo[mirroredRepo].origin).toBe('operator');
+    const ubi = byRepo['mirror/ubi8/ubi'];
+    expect(ubi.origin).toBe('additional');
+    expect(ubi.sourceHost).toBe('registry.redhat.io');
+    expect(
+      ubi.tags.find((t: { tag: string }) => t.tag === '8.10').matchedAdditional,
+    ).toBe('registry.redhat.io/ubi8/ubi:8.10');
+    expect(
+      ubi.tags.find((t: { tag: string }) => t.tag === '8.9').matchedAdditional,
+    ).toBeNull();
+    expect(byRepo['mirror/orphan/tool'].origin).toBe('walk');
+    expect(byRepo['outside/prefix']).toBeUndefined();
+    expect(scan.body.stats.reposWalked).toBe(1);
+    expect(scan.body.stats.reposAdditional).toBe(1);
     expect(scan.body.partial).toBe(false);
     expect(scan.body.stats.reposPresent).toBe(1);
-    expect(scan.body.stats.tagsScanned).toBe(2);
-    expect(scan.body.stats.matched).toBe(1);
-    expect(scan.body.stats.unknown).toBe(1);
+    expect(scan.body.stats.tagsScanned).toBe(5);
+    expect(scan.body.stats.matched).toBe(2);
+    expect(scan.body.stats.unknown).toBe(3);
 
     const content = await request(app).get(
       `/api/mirror-registries/${id}/operator-content`,
@@ -176,5 +231,43 @@ describe('registry scan against a live stub registry', () => {
     expect(content.body.unknownTags).toEqual([
       { repo: mirroredRepo, tag: 'drift-tag', digest: 'sha256:feedface' },
     ]);
+  });
+
+  it('records walkOk=false and keeps scanning when _catalog is unsupported', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use(
+      '/api/mirror-registries',
+      createRegistryRouter({
+        storageDir: dir,
+        readPullSecretAuths: async () => ({
+          [registryHost]: { auth: Buffer.from('user:pass').toString('base64') },
+        }),
+        resolveCatalogDir: async () => FIXTURE_CATALOG_DIR,
+        listIscConfigs: async () => [ISC],
+        createClient: opts => createRegistryClient({ ...opts, scheme: 'http' }),
+        now: () => '2026-07-07T12:00:00.000Z',
+      }),
+    );
+
+    const created = await request(app)
+      .post('/api/mirror-registries')
+      .send({ host: registryHost, pathPrefix: 'mirror' });
+    expect(created.status).toBe(201);
+    const id = created.body.registry.id;
+
+    catalogWalkDisabled = true;
+    const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+    expect(scan.status).toBe(200);
+    expect(scan.body.walkOk).toBe(false);
+    expect(scan.body.partial).toBe(true);
+    expect(
+      scan.body.errors.some((e: { message: string }) =>
+        e.message.includes('_catalog'),
+      ),
+    ).toBe(true);
+    expect(
+      scan.body.repos.some((r: { origin: string }) => r.origin === 'walk'),
+    ).toBe(false);
   });
 });

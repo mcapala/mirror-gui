@@ -4,7 +4,7 @@ import type { MirrorRegistryConfig, RegistryScanSnapshot } from './types.js';
 
 const fsp = fs.promises;
 
-export const SCAN_SCHEMA_VERSION = 1;
+export const SCAN_SCHEMA_VERSION = 2;
 
 export class ScanSnapshotSchemaError extends Error {
   constructor(found: unknown) {
