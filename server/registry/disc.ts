@@ -200,6 +200,24 @@ function buildKeepSets(iscs: IscConfig[], catalogs: CatalogBundles[]): KeepSets 
       if (!existingRef || entry.catalog.localeCompare(existingRef) < 0) {
         sets.catalogRefs.set(key, entry.catalog);
       }
+      // oc-mirror mirrors the catalog index itself; it must never be
+      // deletable (spec §7.2/§9) — join it into the kept-images indexes so
+      // the shared-image guard holds/rejects any candidate or orphan pick
+      // that collides with it.
+      const parsedCatalog = stripImageRef(entry.catalog ?? '');
+      if (parsedCatalog) {
+        const owner = `catalog ${entry.catalog}`;
+        if (parsedCatalog.digest) {
+          if (!sets.keptDigests.has(parsedCatalog.digest)) {
+            sets.keptDigests.set(parsedCatalog.digest, owner);
+          }
+        } else {
+          const pathTag = `${parsedCatalog.path}:${parsedCatalog.tag ?? 'latest'}`;
+          if (!sets.keptPathTags.has(pathTag)) {
+            sets.keptPathTags.set(pathTag, owner);
+          }
+        }
+      }
       const bundles = bundlesByKey.get(key);
       if (!bundles) {
         if (!missingWarned.has(key)) {
@@ -619,6 +637,15 @@ export function generateDisc(
       }
       // Class 2: walk orphans + host-ambiguous downgrades (spec §6.3).
       if (snapshot.walkOk || repo.origin === 'additional') {
+        const pathTag = `${suffix}:${tag.tag}`;
+        if (
+          sets.keptPathTags.has(pathTag) ||
+          (tag.digest && sets.keptDigests.has(tag.digest))
+        ) {
+          // Matches a kept image (e.g. the mirrored catalog index) — never
+          // offered as a pickable orphan (spec §7.2/§9).
+          continue;
+        }
         additionalImages.orphans.push({
           repo: repo.repo,
           tag: tag.tag,

@@ -614,3 +614,87 @@ describe('generateDisc — report hygiene', () => {
     expect(report.stats.discOperatorEntries).toBe(1);
   });
 });
+
+describe('generateDisc — catalog index protection', () => {
+  // oc-mirror mirrors the catalog index itself; the registry walk discovers
+  // it as a walk-origin repo. The DISC must never contain (or offer to
+  // delete) the mirrored catalog index (spec §7.2/§9).
+  const indexRepo = (): ScannedRepo => ({
+    repo: 'mirror/redhat/redhat-operator-index',
+    present: true,
+    origin: 'walk',
+    sourceHost: null,
+    hostAmbiguous: false,
+    tags: [
+      { tag: 'v4.21', digest: 'sha256:idx', matched: null, matchedAdditional: null },
+    ],
+  });
+
+  it('a walk-origin repo holding the mirrored index tag never appears as an orphan', () => {
+    const snap = snapshot({ repos: [operatorRepo(), indexRepo()] });
+    const { report } = generateDisc(inputs({ snapshot: snap }), OPTS);
+    expect(
+      report.additionalImages.orphans.some(o => o.repo === indexRepo().repo),
+    ).toBe(false);
+  });
+
+  it('an explicit orphan pick targeting the index repo:tag is rejected, never in the DISC', () => {
+    const snap = snapshot({ repos: [operatorRepo(), indexRepo()] });
+    const { report, discYaml } = generateDisc(inputs({ snapshot: snap }), {
+      ...OPTS,
+      includeOrphans: [
+        { repo: indexRepo().repo, tag: 'v4.21', sourceRef: REF },
+      ],
+    });
+    expect(report.additionalImages.rejectedPicks).toHaveLength(1);
+    expect(report.additionalImages.rejectedPicks[0]).toMatchObject({
+      repo: indexRepo().repo,
+      tag: 'v4.21',
+    });
+    expect(report.additionalImages.rejectedPicks[0].reason).toMatch(/catalog/);
+    expect(YAML.parse(discYaml).delete.additionalImages).toBeUndefined();
+  });
+
+  it('Class 1: a stale additional tag sharing only a DIGEST with a kept image is held', () => {
+    // op-a.v3.0.0's related image is kept (sha256:r3); an unrelated
+    // additional repo's stale tag happens to share that digest even though
+    // its host/path:tag does not match any kept ref.
+    const repo = additionalRepo({
+      tags: [
+        { tag: '8.9', digest: 'sha256:r3', matched: null, matchedAdditional: null },
+      ],
+    });
+    const snap = snapshot({ repos: [operatorRepo(), repo] });
+    const { report } = generateDisc(inputs({ snapshot: snap }), OPTS);
+    expect(report.additionalImages.class1).toEqual([]);
+    expect(report.additionalImages.held).toHaveLength(1);
+    expect(report.additionalImages.held[0]).toMatchObject({
+      reason: 'shared-image',
+      repo: 'mirror/ubi8/ubi',
+      tag: '8.9',
+    });
+    expect(report.additionalImages.held[0].detail).toContain('sha256:r3');
+  });
+
+  it('orphan pick: a walk tag sharing only a DIGEST with a kept image is rejected', () => {
+    const walkRepo: ScannedRepo = {
+      repo: 'mirror/legacy/tool',
+      present: true,
+      origin: 'walk',
+      sourceHost: null,
+      hostAmbiguous: false,
+      tags: [
+        { tag: 'v1', digest: 'sha256:r3', matched: null, matchedAdditional: null },
+      ],
+    };
+    const snap = snapshot({ repos: [operatorRepo(), walkRepo] });
+    const { report } = generateDisc(inputs({ snapshot: snap }), {
+      ...OPTS,
+      includeOrphans: [
+        { repo: 'mirror/legacy/tool', tag: 'v1', sourceRef: 'quay.io/legacy/tool:v1' },
+      ],
+    });
+    expect(report.additionalImages.rejectedPicks).toHaveLength(1);
+    expect(report.additionalImages.rejectedPicks[0].reason).toContain('sha256:r3');
+  });
+});
