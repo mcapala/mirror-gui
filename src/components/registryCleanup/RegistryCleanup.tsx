@@ -72,24 +72,24 @@ const RegistryCleanup: React.FC = () => {
     setStrictReport(null);
     setOrphanRows([]);
     setIssue('none');
+    requestSeq.current += 1;
   }, [selectedId]);
 
   const generate = useCallback(
     async (picks: Array<{ repo: string; tag: string; sourceRef: string }>) => {
       const seq = ++requestSeq.current;
-      const id = selectedId;
       setGenerating(true);
       setStrictReport(null);
       try {
         const response = await axios.post<GenerateResponse>(
-          `/api/mirror-registries/${id}/generate-disc`,
+          `/api/mirror-registries/${selectedId}/generate-disc`,
           {
             strict,
             includeAdditionalImages: includeAdditional,
             includeOrphans: picks,
           },
         );
-        if (seq !== requestSeq.current || id !== selectedId) return;
+        if (seq !== requestSeq.current) return;
         setResult(response.data);
         setIssue('none');
         setOrphanRows(prev =>
@@ -105,7 +105,7 @@ const RegistryCleanup: React.FC = () => {
           }),
         );
       } catch (error) {
-        if (seq !== requestSeq.current || id !== selectedId) return;
+        if (seq !== requestSeq.current) return;
         setResult(null);
         if (axios.isAxiosError(error) && error.response?.status === 404) {
           setIssue('never-scanned');
@@ -410,6 +410,7 @@ const RegistryCleanup: React.FC = () => {
                       <Td>
                         <Checkbox
                           id={`orphan-${i}`}
+                          aria-label={`Include ${row.repo}:${row.tag}`}
                           isChecked={row.include}
                           onChange={(_e, checked) =>
                             setOrphanRows(rows =>
