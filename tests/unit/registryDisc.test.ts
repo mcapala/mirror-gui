@@ -255,7 +255,7 @@ describe('generateDisc — keep set', () => {
     ]);
   });
 
-  it('an unknown ISC channel is reported and contributes nothing', () => {
+  it('an unknown ISC channel is reported and keeps the whole package (shrink-only invariant)', () => {
     const config = isc();
     config.mirror!.operators![0].packages![0].channels = [
       { name: 'nope', minVersion: '1.0.0' },
@@ -264,6 +264,14 @@ describe('generateDisc — keep set', () => {
     expect(report.operators.unknownChannels).toEqual([
       { catalog: KEY, package: 'op-a', channel: 'nope' },
     ]);
+    // A data gap (unknown channel) may only shrink the DISC (spec §8) — the
+    // whole package is kept, never emptied into delete candidates.
+    expect(report.operators.candidates).toEqual([]);
+    expect(
+      report.warnings.some(
+        w => w.includes('channel "nope"') && w.includes('op-a'),
+      ),
+    ).toBe(true);
   });
 
   it('unions keep sets across ISCs', () => {

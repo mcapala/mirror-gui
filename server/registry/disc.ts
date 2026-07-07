@@ -248,6 +248,15 @@ function buildKeepSets(iscs: IscConfig[], catalogs: CatalogBundles[]): KeepSets 
               package: pkg.name,
               channel: ch.name,
             });
+            // Unknown channel is a data gap — keep the whole package rather
+            // than emptying the keep set (shrink-only invariant, spec §8).
+            sets.fullyKept.add(k);
+            for (const name of Object.keys(detail.bundles)) {
+              keep(k, name);
+            }
+            sets.warnings.push(
+              `channel "${ch.name}" of ${key}/${pkg.name} not found in catalog metadata — keeping the whole package`,
+            );
             continue;
           }
           const headName = resolveChannelHead(entries, detail.bundles);
