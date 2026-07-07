@@ -1,0 +1,49 @@
+export interface MirrorRegistry {
+  id: string;
+  host: string;
+  pathPrefix: string;
+  insecureSkipVerify: boolean;
+  caBundle?: string;
+  hasPullSecretAuth: boolean;
+}
+
+export interface PullSecretRegistry {
+  registry: string;
+  username: string;
+  hasAuth: boolean;
+}
+
+export interface OperatorContentVersion {
+  version: string | null;
+  bundleName: string;
+  repo: string;
+  tag: string;
+  digest: string | null;
+  catalog: string;
+}
+
+export interface ScanIssue {
+  repo: string | null;
+  catalog: string | null;
+  kind: string;
+  message: string;
+}
+
+export interface OperatorContentReport {
+  registryId: string;
+  host: string;
+  pathPrefix: string;
+  scannedAt: string;
+  partial: boolean;
+  catalogs: string[];
+  packages: Record<string, OperatorContentVersion[]>;
+  unknownTags: Array<{ repo: string; tag: string; digest: string | null }>;
+  errors: ScanIssue[];
+  stats: {
+    reposExpected: number;
+    reposPresent: number;
+    tagsScanned: number;
+    matched: number;
+    unknown: number;
+  };
+}
