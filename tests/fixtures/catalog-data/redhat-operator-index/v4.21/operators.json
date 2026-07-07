@@ -64,7 +64,10 @@
     "maxVersion": "4.9.0",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
-    "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"
+    "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21",
+    "csvNamePrefixes": [
+      "update-service-operator"
+    ]
   },
   {
     "name": "odf-operator",

@@ -141,6 +141,16 @@ def extract_version_from_name(name: str) -> str | None:
     return None
 
 
+# Mirrors server/acm/csvName.ts CSV_NAME_PATTERN: the package prefix stops at
+# the first dot followed by an (optionally v-prefixed) numeric x.y... version.
+CSV_ENTRY_NAME_PATTERN = re.compile(r"^(.+?)\.v?(\d+(?:\.\d+)+(?:[-+.][0-9A-Za-z.+-]*)?)$")
+
+
+def extract_csv_prefix(entry_name: str) -> str | None:
+    match = CSV_ENTRY_NAME_PATTERN.match(entry_name)
+    return match.group(1) if match else None
+
+
 def parse_json_documents(text: str) -> list[Any]:
     decoder = json.JSONDecoder()
     documents: list[Any] = []
@@ -360,6 +370,21 @@ def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: 
                     versions.append(version)
         channel_versions[channel_name] = sort_versions(versions)
 
+    entry_names: set[str] = set()
+    for docs in channel_docs_by_name.values():
+        for document in docs:
+            for entry in document.get("entries", []) if isinstance(document.get("entries"), list) else []:
+                if not is_dict(entry):
+                    continue
+                entry_name = normalize_string(entry.get("name"))
+                if entry_name:
+                    entry_names.add(entry_name)
+    csv_name_prefixes = sorted({
+        prefix
+        for prefix in (extract_csv_prefix(name) for name in sorted(entry_names))
+        if prefix and prefix != operator_name
+    })
+
     available_versions = sort_versions(
         [version for versions in channel_versions.values() for version in versions] or all_bundle_versions
     )
@@ -429,6 +454,9 @@ def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: 
         "catalogUrl": f"registry.redhat.io/redhat/{catalog_type}:{ocp_version}",
     }
 
+    if csv_name_prefixes:
+        metadata["csvNamePrefixes"] = csv_name_prefixes
+
     return metadata, dependencies, warnings
 
 
@@ -486,6 +514,7 @@ def normalize_operator_for_compare(operator: dict[str, Any]) -> dict[str, Any]:
         "catalog": operator.get("catalog"),
         "ocpVersion": operator.get("ocpVersion"),
         "catalogUrl": operator.get("catalogUrl"),
+        "csvNamePrefixes": unique_strings(operator.get("csvNamePrefixes") or []),
     }
 
 
@@ -668,6 +697,16 @@ def audit_catalog_data(catalog_data_dir: Path, output_dir: Path) -> dict[str, An
                                 "details": {
                                     "expected": expected_operator["channelVersionRanges"],
                                     "generated": generated_operator["channelVersionRanges"],
+                                },
+                            }
+                        )
+                    if generated_operator["csvNamePrefixes"] != expected_operator["csvNamePrefixes"]:
+                        operator_issues.append(
+                            {
+                                "category": "csv_name_prefixes_mismatch",
+                                "details": {
+                                    "expected": expected_operator["csvNamePrefixes"],
+                                    "generated": generated_operator["csvNamePrefixes"],
                                 },
                             }
                         )
