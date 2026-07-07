@@ -177,9 +177,12 @@ export function buildScanTargets(
     }
     target.additionalByDigest = exp.byDigest;
     target.additionalByTag = exp.byTag;
-    target.hostAmbiguous = exp.sourceHosts.size > 1;
-    target.sourceHost =
-      exp.sourceHosts.size === 1 ? [...exp.sourceHosts][0] : null;
+    // Only assign sourceHost/hostAmbiguous for 'additional' origin (not for merged operator repos)
+    if (target.origin === 'additional') {
+      target.hostAmbiguous = exp.sourceHosts.size > 1;
+      target.sourceHost =
+        exp.sourceHosts.size === 1 ? [...exp.sourceHosts][0] : null;
+    }
   }
   for (const repo of walkedRepos) {
     if (!targets.has(repo)) {

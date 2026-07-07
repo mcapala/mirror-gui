@@ -322,6 +322,8 @@ describe('buildScanTargets', () => {
     const byRepo = new Map(targets.map(t => [t.repo, t]));
     expect(byRepo.get(opRepo)?.origin).toBe('operator');
     expect(byRepo.get(opRepo)?.additionalByTag.get('extra')).toBeDefined();
+    expect(byRepo.get(opRepo)?.sourceHost).toBeNull();
+    expect(byRepo.get(opRepo)?.hostAmbiguous).toBe(false);
     const ubi = byRepo.get('mirror/ubi8/ubi');
     expect(ubi?.origin).toBe('additional');
     expect(ubi?.hostAmbiguous).toBe(true);
