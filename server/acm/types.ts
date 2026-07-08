@@ -16,6 +16,7 @@ export interface RedactedAcmHub {
   hasToken: boolean;
   hasCaBundle: boolean;
   insecureSkipVerify: boolean;
+  clusters: string[];
 }
 
 export function redactHub(hub: AcmHub): RedactedAcmHub {
@@ -26,6 +27,7 @@ export function redactHub(hub: AcmHub): RedactedAcmHub {
     hasToken: Boolean(hub.token),
     hasCaBundle: Boolean(hub.caBundle),
     insecureSkipVerify: Boolean(hub.insecureSkipVerify),
+    clusters: hub.clusters ?? [],
   };
 }
 

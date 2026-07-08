@@ -25,6 +25,7 @@ interface HubInput {
   token?: unknown;
   caBundle?: unknown;
   insecureSkipVerify?: unknown;
+  clusters?: unknown;
 }
 
 function validateHubInput(
@@ -45,6 +46,23 @@ function validateHubInput(
     return 'token is required';
   }
   return null;
+}
+
+type ClustersParse =
+  | { ok: true; clusters: string[] | undefined }
+  | { ok: false; error: string };
+
+function parseClustersInput(value: unknown): ClustersParse {
+  if (value === undefined) {
+    return { ok: true, clusters: undefined };
+  }
+  if (
+    !Array.isArray(value) ||
+    value.some(entry => typeof entry !== 'string' || !entry)
+  ) {
+    return { ok: false, error: 'clusters must be an array of cluster names' };
+  }
+  return { ok: true, clusters: [...new Set(value as string[])].sort() };
 }
 
 type Handler = (req: Request, res: Response) => Promise<void>;
@@ -89,6 +107,11 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         res.status(400).json({ error });
         return;
       }
+      const clustersParse = parseClustersInput(input.clusters);
+      if (!clustersParse.ok) {
+        res.status(400).json({ error: clustersParse.error });
+        return;
+      }
       const hubs = await store.readHubs();
       if (hubs.some(h => h.name === (input.name as string))) {
         res
@@ -103,6 +126,7 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         token: input.token as string,
         caBundle: (input.caBundle as string) || undefined,
         insecureSkipVerify: Boolean(input.insecureSkipVerify),
+        clusters: clustersParse.clusters ?? [],
       };
       hubs.push(hub);
       await store.writeHubs(hubs);
@@ -125,6 +149,11 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         res.status(400).json({ error });
         return;
       }
+      const clustersParse = parseClustersInput(input.clusters);
+      if (!clustersParse.ok) {
+        res.status(400).json({ error: clustersParse.error });
+        return;
+      }
       if (
         hubs.some(
           h => h.id !== req.params.id && h.name === (input.name as string),
@@ -145,6 +174,10 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         hub.caBundle = (input.caBundle as string) || undefined;
       }
       hub.insecureSkipVerify = Boolean(input.insecureSkipVerify);
+      if (clustersParse.clusters !== undefined) {
+        // present replaces (empty array clears); omitted keeps
+        hub.clusters = clustersParse.clusters;
+      }
       await store.writeHubs(hubs);
       res.json({ hub: redactHub(hub) });
     }),

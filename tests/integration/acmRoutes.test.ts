@@ -175,6 +175,58 @@ describe('ACM routes', () => {
       });
       expect(cleared.body.hub.hasCaBundle).toBe(false);
     });
+
+    it('stores, redacts, dedupes and sorts the cluster selection', async () => {
+      const app = makeApp({ acmDir: dir });
+      const created = await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['zeta', 'alpha', 'zeta'] });
+      expect(created.status).toBe(201);
+      expect(created.body.hub.clusters).toEqual(['alpha', 'zeta']);
+
+      const list = await request(app).get('/api/acm/hubs');
+      expect(list.body.hubs[0].clusters).toEqual(['alpha', 'zeta']);
+    });
+
+    it('defaults clusters to [] when omitted on create', async () => {
+      const app = makeApp({ acmDir: dir });
+      const created = await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      expect(created.body.hub.clusters).toEqual([]);
+    });
+
+    it('rejects a malformed clusters payload', async () => {
+      const app = makeApp({ acmDir: dir });
+      for (const clusters of ['c1', [1, 2], ['ok', '']]) {
+        const res = await request(app)
+          .post('/api/acm/hubs')
+          .send({ ...HUB_INPUT, clusters });
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/clusters must be an array/);
+      }
+    });
+
+    it('PUT replaces, clears, or keeps the selection', async () => {
+      const app = makeApp({ acmDir: dir });
+      const created = await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
+      const id = created.body.hub.id;
+
+      const replaced = await request(app)
+        .put(`/api/acm/hubs/${id}`)
+        .send({ ...HUB_INPUT, clusters: ['c2', 'c1'] });
+      expect(replaced.body.hub.clusters).toEqual(['c1', 'c2']);
+
+      const kept = await request(app)
+        .put(`/api/acm/hubs/${id}`)
+        .send(HUB_INPUT);
+      expect(kept.body.hub.clusters).toEqual(['c1', 'c2']);
+
+      const cleared = await request(app)
+        .put(`/api/acm/hubs/${id}`)
+        .send({ ...HUB_INPUT, clusters: [] });
+      expect(cleared.body.hub.clusters).toEqual([]);
+    });
   });
 
   describe('POST /hubs/:id/test', () => {
