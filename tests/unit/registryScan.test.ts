@@ -4,6 +4,8 @@ import {
   buildScanTargets,
   deriveAdditionalExpectations,
   deriveExpectations,
+  derivePlatformRepos,
+  deriveSupportRepos,
   executeScan,
   joinRepoPath,
   stripImageRef,
@@ -358,6 +360,99 @@ describe('deriveAdditionalExpectations', () => {
       'quay.io/other/tool',
     );
     expect(exp.size).toBe(2); // 'not-a-ref' skipped
+  });
+});
+
+describe('deriveSupportRepos', () => {
+  it('collects relatedImages repo paths and catalog index repos, prefix-joined', () => {
+    const catalogs: CatalogBundles[] = [
+      {
+        catalog: CATALOG,
+        bundles: {
+          schemaVersion: 1,
+          packages: {
+            'op-a': {
+              bundles: {
+                'op-a.v1': {
+                  version: '1.0.0',
+                  image: 'registry.redhat.io/ops/op-a-bundle@sha256:a1',
+                  relatedImages: [
+                    'registry.redhat.io/ops/op-a-operand@sha256:r1',
+                    'registry.redhat.io/ops/op-a-operand@sha256:r2',
+                    'quay.io/other/helper:v1',
+                  ],
+                },
+              },
+              channels: {},
+            },
+          },
+        },
+      },
+    ];
+    const iscs = [
+      {
+        mirror: {
+          operators: [
+            { catalog: 'registry.redhat.io/redhat/redhat-operator-index:v4.21' },
+          ],
+        },
+      },
+    ];
+    expect(deriveSupportRepos(catalogs, iscs, 'mirror')).toEqual(
+      new Set([
+        'mirror/ops/op-a-operand',
+        'mirror/other/helper',
+        'mirror/redhat/redhat-operator-index',
+      ]),
+    );
+  });
+
+  it('handles empty prefix, missing operators, and unparsable refs', () => {
+    expect(
+      deriveSupportRepos(
+        [
+          {
+            catalog: CATALOG,
+            bundles: {
+              schemaVersion: 1,
+              packages: {
+                p: {
+                  bundles: {
+                    b: { version: null, image: 'x', relatedImages: ['no-slash'] },
+                  },
+                  channels: {},
+                },
+              },
+            },
+          },
+        ],
+        [{}, { mirror: {} }],
+        '',
+      ),
+    ).toEqual(new Set());
+  });
+});
+
+describe('derivePlatformRepos', () => {
+  it('returns the well-known platform repos when an ISC mirrors platform', () => {
+    expect(
+      derivePlatformRepos(
+        [{ mirror: {} }, { mirror: { platform: { channels: [{ name: 'stable-4.21' }] } } }],
+        'mirror',
+      ),
+    ).toEqual(
+      new Set([
+        'mirror/openshift-release-dev/ocp-release',
+        'mirror/openshift-release-dev/ocp-v4.0-art-dev',
+        'mirror/openshift/graph-image',
+      ]),
+    );
+  });
+
+  it('returns an empty set when no ISC has a platform section', () => {
+    expect(derivePlatformRepos([{ mirror: { operators: [] } }], 'mirror')).toEqual(
+      new Set(),
+    );
   });
 });
 

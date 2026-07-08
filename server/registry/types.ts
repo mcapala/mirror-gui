@@ -45,7 +45,12 @@ export interface RepoExpectation {
   byTag: Map<string, ExpectedBundleRef>;
 }
 
-export type RepoOrigin = 'operator' | 'additional' | 'walk';
+export type RepoOrigin =
+  | 'operator'
+  | 'additional'
+  | 'support'
+  | 'platform'
+  | 'walk';
 
 export interface ScannedTag {
   tag: string;

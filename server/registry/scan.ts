@@ -136,6 +136,65 @@ export function deriveAdditionalExpectations(
   return expectations;
 }
 
+/** Minimal ISC shape for catalog-index derivation. */
+export interface OperatorCatalogSource {
+  mirror?: { operators?: Array<{ catalog?: string }> };
+}
+
+/** Support images: operands/related images of catalog bundles, plus the
+ * mirrored catalog index repos themselves. Repo-level only (spec §2). */
+export function deriveSupportRepos(
+  catalogs: CatalogBundles[],
+  iscs: OperatorCatalogSource[],
+  pathPrefix: string,
+): Set<string> {
+  const repos = new Set<string>();
+  for (const { bundles } of catalogs) {
+    for (const detail of Object.values(bundles.packages)) {
+      for (const bundle of Object.values(detail.bundles)) {
+        for (const ref of bundle.relatedImages ?? []) {
+          const parsed = stripImageRef(ref);
+          if (parsed) {
+            repos.add(joinRepoPath(pathPrefix, parsed.path));
+          }
+        }
+      }
+    }
+  }
+  for (const isc of iscs) {
+    for (const entry of isc.mirror?.operators ?? []) {
+      const parsed = stripImageRef(entry.catalog ?? '');
+      if (parsed) {
+        repos.add(joinRepoPath(pathPrefix, parsed.path));
+      }
+    }
+  }
+  return repos;
+}
+
+/** OpenShift release payload repos, identifiable only by well-known names —
+ * there is no local digest data for platform content (spec §2). */
+export const PLATFORM_REPOS = [
+  'openshift-release-dev/ocp-release',
+  'openshift-release-dev/ocp-v4.0-art-dev',
+  'openshift/graph-image',
+] as const;
+
+/** Minimal ISC shape for platform detection. */
+export interface PlatformSource {
+  mirror?: { platform?: unknown };
+}
+
+export function derivePlatformRepos(
+  iscs: PlatformSource[],
+  pathPrefix: string,
+): Set<string> {
+  if (!iscs.some(isc => isc.mirror?.platform)) {
+    return new Set();
+  }
+  return new Set(PLATFORM_REPOS.map(repo => joinRepoPath(pathPrefix, repo)));
+}
+
 export interface ScanTarget {
   repo: string;
   origin: RepoOrigin;
