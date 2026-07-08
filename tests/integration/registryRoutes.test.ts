@@ -243,6 +243,92 @@ describe('mirror-registries routes', () => {
     });
   });
 
+  describe('POST /:id/verify', () => {
+    let lastClientOpts: { basicAuth: string | null } | undefined;
+
+    function fakeClientForPing(ping: () => Promise<void>) {
+      return ((opts: { basicAuth: string | null }) => {
+        lastClientOpts = opts;
+        return {
+          listTags: async () => null,
+          headManifest: async () => null,
+          listRepositories: async () => null,
+          ping,
+        };
+      }) as unknown as typeof createRegistryClient;
+    }
+
+    it('404s on unknown id', async () => {
+      const app = makeApp({ storageDir: dir });
+      const res = await request(app)
+        .post('/api/mirror-registries/nope/verify')
+        .send();
+      expect(res.status).toBe(404);
+    });
+
+    it('ok:true with source local, using stored credentials', async () => {
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClientForPing(async () => {}),
+      });
+      const created = await request(app)
+        .post('/api/mirror-registries')
+        .send({
+          host: 'internal.example:5000',
+          pathPrefix: '',
+          username: 'svc',
+          password: 'hunter2',
+        });
+      const res = await request(app)
+        .post(`/api/mirror-registries/${created.body.registry.id}/verify`)
+        .send();
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ ok: true, source: 'local' });
+      expect(lastClientOpts!.basicAuth).toBe(
+        Buffer.from('svc:hunter2').toString('base64'),
+      );
+    });
+
+    it('ok:false carries kind and message, source pull-secret; no secrets leak', async () => {
+      const { RegistryRequestError } = await import(
+        '../../server/registry/types.js'
+      );
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClientForPing(async () => {
+          throw new RegistryRequestError('auth', 'authentication failed (HTTP 401)');
+        }),
+      });
+      const id = await createRegistry(app); // quay.local:8443 — in AUTHS
+      const res = await request(app)
+        .post(`/api/mirror-registries/${id}/verify`)
+        .send();
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        ok: false,
+        source: 'pull-secret',
+        kind: 'auth',
+      });
+      expect(JSON.stringify(res.body)).not.toContain('dXNlcjpwYXNz');
+    });
+
+    it('source none when nothing resolves (anonymous probe)', async () => {
+      const app = makeApp({
+        storageDir: dir,
+        readPullSecretAuths: async () => null,
+        createClient: fakeClientForPing(async () => {}),
+      });
+      const created = await request(app)
+        .post('/api/mirror-registries')
+        .send({ host: 'internal.example:5000', pathPrefix: '' });
+      const res = await request(app)
+        .post(`/api/mirror-registries/${created.body.registry.id}/verify`)
+        .send();
+      expect(res.body).toEqual({ ok: true, source: 'none' });
+      expect(lastClientOpts!.basicAuth).toBeNull();
+    });
+  });
+
   describe('scan', () => {
     const fakeClient = (impl: {
       listTags: (repo: string) => Promise<string[] | null>;
@@ -378,6 +464,38 @@ describe('mirror-registries routes', () => {
         catalog: 'redhat-operator-index:v9.99',
         kind: 'catalog-data',
       });
+    });
+
+    it('scans with stored credentials when the pull secret has none', async () => {
+      let capturedBasicAuth: string | null | undefined;
+      const app = makeApp({
+        storageDir: dir,
+        readPullSecretAuths: async () => null,
+        createClient: ((opts: { basicAuth: string | null }) => {
+          capturedBasicAuth = opts.basicAuth;
+          return {
+            listTags: async () => null,
+            headManifest: async () => null,
+            listRepositories: async () => [],
+            ping: async () => {},
+          };
+        }) as unknown as typeof createRegistryClient,
+      });
+      const created = await request(app)
+        .post('/api/mirror-registries')
+        .send({
+          host: 'internal.example:5000',
+          pathPrefix: 'mirror',
+          username: 'svc',
+          password: 'hunter2',
+        });
+      const scan = await request(app).post(
+        `/api/mirror-registries/${created.body.registry.id}/scan`,
+      );
+      expect(scan.status).toBe(200);
+      expect(capturedBasicAuth).toBe(
+        Buffer.from('svc:hunter2').toString('base64'),
+      );
     });
 
     it('400s when every catalog fails to load', async () => {

@@ -8,6 +8,7 @@ import {
   loadBundlesFile,
 } from '../bundlesLoader.js';
 import { createRegistryClient } from './client.js';
+import { resolveRegistryCredentials } from './credentials.js';
 import { generateDisc, type OrphanPick } from './disc.js';
 import {
   buildOperatorContent,
@@ -291,6 +292,39 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
   );
 
   router.post(
+    '/:id/verify',
+    wrap(async (req, res) => {
+      const registries = await store.readRegistries();
+      const registry = registries.find(r => r.id === req.params.id);
+      if (!registry) {
+        res.status(404).json({ error: 'registry not found' });
+        return;
+      }
+      const auths = await deps.readPullSecretAuths();
+      const { basicAuth, source } = resolveRegistryCredentials(
+        registry,
+        auths,
+      );
+      const client = createClient({
+        host: registry.host,
+        basicAuth,
+        caBundle: registry.caBundle,
+        insecureSkipVerify: registry.insecureSkipVerify,
+      });
+      try {
+        await client.ping();
+        res.json({ ok: true, source });
+      } catch (error) {
+        if (error instanceof RegistryRequestError) {
+          res.json({ ok: false, source, kind: error.kind, error: error.message });
+          return;
+        }
+        throw error;
+      }
+    }),
+  );
+
+  router.post(
     '/:id/scan',
     wrap(async (req, res) => {
       const registries = await store.readRegistries();
@@ -306,13 +340,7 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
       scansInFlight.add(registry.id);
       try {
         const auths = await deps.readPullSecretAuths();
-        const basicAuth = auths?.[registry.host]?.auth ?? null;
-        if (!basicAuth) {
-          res.status(400).json({
-            error: `no pull-secret credentials for "${registry.host}" — add it to the pull secret first`,
-          });
-          return;
-        }
+        const { basicAuth } = resolveRegistryCredentials(registry, auths);
 
         const iscs = await deps.listIscConfigs();
         const catalogKeys = new Set<string>();
