@@ -4,15 +4,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import request from 'supertest';
-import {
-  createRegistryRouter,
-  type RegistryRouterDeps,
-} from '../../server/registry/routes.js';
-import type { createRegistryClient } from '../../server/registry/client.js';
+import { createRegistryRouter } from '../../server/registry/routes.js';
 import type { IscConfig } from '../../server/acm/reconcile.js';
 import type { DeployedOperatorSnapshot } from '../../server/acm/types.js';
-
-type FakeClient = ReturnType<typeof createRegistryClient>;
 
 const ISC: IscConfig = {
   kind: 'ImageSetConfiguration',

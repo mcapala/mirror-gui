@@ -36,6 +36,28 @@ test.describe('Settings', () => {
     await expect(page.getByText(/run the command above on the host/i)).toBeVisible();
   });
 
+  test('registry tab: add local registry, source column, verify', async ({ page, request }) => {
+    await page.goto('/settings?tab=registry');
+    await page.getByRole('button', { name: /add registry/i }).click();
+    await page.locator('#reg-host').fill('local.e2e-registry.invalid:5000');
+    await page.locator('#reg-username').fill('svc');
+    await page.locator('#reg-password').fill('secret');
+    await page.getByRole('button', { name: /save registry/i }).click();
+
+    const row = page.getByRole('row', { name: /local\.e2e-registry\.invalid/ });
+    await expect(row.getByText('Local')).toBeVisible();
+
+    await row.getByRole('button', { name: /^verify$/i }).click();
+    await expect(row.getByText(/failed/i)).toBeVisible({ timeout: 30000 }); // unreachable host
+
+    // cleanup via API
+    const list = await request.get('/api/mirror-registries');
+    const id = (await list.json()).registries.find(
+      (r: { host: string; id: string }) => r.host === 'local.e2e-registry.invalid:5000',
+    )?.id;
+    if (id) await request.delete(`/api/mirror-registries/${id}`);
+  });
+
   test('Sync Catalogs tab shows sync button and clear button', async ({ page }) => {
     await page.getByText(/sync catalogs/i).first().click();
     await expect(page.getByRole('button', { name: /sync catalogs/i })).toBeVisible({ timeout: 10000 });

@@ -2,24 +2,8 @@ import { test, expect } from '@playwright/test';
 
 const TEST_HOST = 'quay.e2e-registry.local:8443';
 
-test.describe('Registry Content tab', () => {
-  let originalPullSecret: string;
+test.describe('Registry Content page', () => {
   let registryId: string | undefined;
-
-  test.beforeAll(async ({ request }) => {
-    const current = await request.get('/api/pull-secret/content');
-    originalPullSecret = (await current.json()).content ?? '';
-    const auths = originalPullSecret
-      ? JSON.parse(originalPullSecret).auths ?? {}
-      : {};
-    auths[TEST_HOST] = {
-      auth: Buffer.from('e2e-user:e2e-pass').toString('base64'),
-    };
-    const saved = await request.post('/api/pull-secret', {
-      data: { content: JSON.stringify({ auths }) },
-    });
-    expect(saved.ok(), await saved.text()).toBeTruthy();
-  });
 
   test.afterAll(async ({ request }) => {
     if (registryId) {
@@ -27,54 +11,61 @@ test.describe('Registry Content tab', () => {
         .delete(`/api/mirror-registries/${registryId}`)
         .catch(() => undefined);
     }
-    if (originalPullSecret) {
-      await request.post('/api/pull-secret', {
-        data: { content: originalPullSecret },
-      });
-    } else {
-      await request.delete('/api/pull-secret').catch(() => undefined);
-    }
   });
 
-  test('empty state, add registry, never-scanned state, delete', async ({
+  test('sidebar Fleet State group navigates to Registry Content', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    // NavExpandable renders a toggle button; expanded by default, so tolerate
+    // the already-open state.
+    await page
+      .getByRole('button', { name: /fleet state/i })
+      .click()
+      .catch(() => undefined);
+    await page.getByRole('link', { name: /registry content/i }).click();
+    await expect(page).toHaveURL(/\/registry-content$/);
+  });
+
+  test('empty state links to Settings, API-created registry shows never-scanned', async ({
     page,
     request,
   }) => {
-    await page.goto('/config');
-    await page.getByRole('tab', { name: /registry content/i }).click();
+    await page.goto('/registry-content');
     await expect(
       page
         .getByText('No mirror registries configured')
         .filter({ visible: true }),
     ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /settings/i }),
+    ).toBeVisible();
 
-    await page.getByRole('button', { name: /add registry/i }).click();
-    await page
-      .locator('#registry-host')
-      .selectOption({ label: TEST_HOST });
-    await page.locator('#registry-prefix').fill('mirror');
-    await page.getByRole('button', { name: /save registry/i }).click();
+    const created = await request.post('/api/mirror-registries', {
+      data: { host: TEST_HOST, pathPrefix: 'mirror' },
+    });
+    expect(created.ok(), await created.text()).toBeTruthy();
+    registryId = (await created.json()).registry.id;
+    await page.reload();
 
     await expect(
       page.getByText('Never scanned').filter({ visible: true }),
-    ).toBeVisible({
-      timeout: 10000,
-    });
+    ).toBeVisible({ timeout: 10000 });
+    // CRUD moved to Settings — no add/delete controls on this page.
+    await expect(
+      page.getByRole('button', { name: /add registry/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: /^delete$/i }),
+    ).toHaveCount(0);
 
-    const list = await request.get('/api/mirror-registries');
-    const registries = (await list.json()).registries;
-    registryId = registries.find(
-      (r: { host: string }) => r.host === TEST_HOST,
-    )?.id;
-    expect(registryId).toBeTruthy();
-
-    await page.getByRole('button', { name: /^delete$/i }).click();
-    await page.getByRole('button', { name: /confirm delete/i }).click();
+    await request.delete(`/api/mirror-registries/${registryId}`);
+    registryId = undefined;
+    await page.reload();
     await expect(
       page
         .getByText('No mirror registries configured')
         .filter({ visible: true }),
     ).toBeVisible({ timeout: 10000 });
-    registryId = undefined;
   });
 });
