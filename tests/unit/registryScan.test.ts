@@ -862,4 +862,67 @@ describe('buildOperatorContent additional images', () => {
     expect(report.packages).toEqual({});
     expect(report.unknownTags).toEqual([]);
   });
+
+  it('groups support and platform repos out of additionalImages', () => {
+    const snap: RegistryScanSnapshot = {
+      schemaVersion: 2,
+      registryId: 'r1',
+      host: 'reg.example',
+      pathPrefix: 'mirror',
+      scannedAt: '2026-07-08T00:00:00.000Z',
+      partial: false,
+      walkOk: true,
+      catalogs: [CATALOG],
+      repos: [
+        {
+          repo: 'mirror/redhat/redhat-operator-index',
+          present: true,
+          origin: 'support',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [{ tag: 'v4.21', digest: 'sha256:idx', matched: null, matchedAdditional: null }],
+        },
+        {
+          repo: 'mirror/openshift-release-dev/ocp-release',
+          present: true,
+          origin: 'platform',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [{ tag: '4.21.0-x86_64', digest: 'sha256:rel', matched: null, matchedAdditional: null }],
+        },
+        {
+          repo: 'mirror/fedora/httpd-24',
+          present: true,
+          origin: 'walk',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [{ tag: '20260422', digest: 'sha256:f', matched: null, matchedAdditional: null }],
+        },
+      ],
+      errors: [],
+      stats: {
+        reposExpected: 0,
+        reposPresent: 0,
+        tagsScanned: 3,
+        matched: 0,
+        unknown: 3,
+        reposAdditional: 0,
+        reposWalked: 1,
+        reposSupport: 1,
+        reposPlatform: 1,
+      },
+    };
+    const report = buildOperatorContent(snap);
+    expect(report.supportImages).toEqual([
+      { repo: 'mirror/redhat/redhat-operator-index', tag: 'v4.21', digest: 'sha256:idx' },
+    ]);
+    expect(report.platformImages).toEqual([
+      { repo: 'mirror/openshift-release-dev/ocp-release', tag: '4.21.0-x86_64', digest: 'sha256:rel' },
+    ]);
+    expect(report.additionalImages).toEqual([
+      { repo: 'mirror/fedora/httpd-24', tag: '20260422', digest: 'sha256:f', source: null },
+    ]);
+    expect(report.stats.reposSupport).toBe(1);
+    expect(report.stats.reposPlatform).toBe(1);
+  });
 });

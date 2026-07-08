@@ -134,13 +134,17 @@ export interface OperatorContentReport {
   unknownTags: Array<{ repo: string; tag: string; digest: string | null }>;
   /** True when the /v2/_catalog walk completed for this scan. */
   walkOk: boolean;
-  /** Tags of non-operator repos (origins 'additional' and 'walk'). */
+  /** Tags of repos with origin 'additional' or 'walk' only. */
   additionalImages: Array<{
     repo: string;
     tag: string;
     digest: string | null;
     source: string | null;
   }>;
+  /** Operands/related images and mirrored catalog indexes (origin 'support'). */
+  supportImages: Array<{ repo: string; tag: string; digest: string | null }>;
+  /** OpenShift release payload (origin 'platform'). */
+  platformImages: Array<{ repo: string; tag: string; digest: string | null }>;
   errors: ScanIssue[];
   stats: ScanStats;
 }

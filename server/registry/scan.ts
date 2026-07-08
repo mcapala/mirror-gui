@@ -435,22 +435,34 @@ export function buildOperatorContent(
     );
   }
   const additionalImages: OperatorContentReport['additionalImages'] = [];
+  const supportImages: OperatorContentReport['supportImages'] = [];
+  const platformImages: OperatorContentReport['platformImages'] = [];
   for (const repo of snapshot.repos) {
     if (repo.origin === 'operator') {
       continue;
     }
     for (const tag of repo.tags) {
-      additionalImages.push({
-        repo: repo.repo,
-        tag: tag.tag,
-        digest: tag.digest,
-        source: tag.matchedAdditional,
-      });
+      if (repo.origin === 'support') {
+        supportImages.push({ repo: repo.repo, tag: tag.tag, digest: tag.digest });
+      } else if (repo.origin === 'platform') {
+        platformImages.push({ repo: repo.repo, tag: tag.tag, digest: tag.digest });
+      } else {
+        additionalImages.push({
+          repo: repo.repo,
+          tag: tag.tag,
+          digest: tag.digest,
+          source: tag.matchedAdditional,
+        });
+      }
     }
   }
-  additionalImages.sort(
-    (a, b) => a.repo.localeCompare(b.repo) || a.tag.localeCompare(b.tag),
-  );
+  const byRepoTag = (
+    a: { repo: string; tag: string },
+    b: { repo: string; tag: string },
+  ) => a.repo.localeCompare(b.repo) || a.tag.localeCompare(b.tag);
+  additionalImages.sort(byRepoTag);
+  supportImages.sort(byRepoTag);
+  platformImages.sort(byRepoTag);
   return {
     registryId: snapshot.registryId,
     host: snapshot.host,
@@ -462,15 +474,21 @@ export function buildOperatorContent(
     unknownTags,
     walkOk: snapshot.walkOk,
     additionalImages,
+    supportImages,
+    platformImages,
     errors: snapshot.errors,
     // Tag-level counts are scoped to operator repos so the badge matches this
     // report's own tables; repo-level counts pass through unchanged — other
     // consumers (e.g. Registry Content's repo summary) see global truth.
+    // Support/platform counters come from repos, not stored stats — old
+    // snapshots predate the fields.
     stats: {
       ...snapshot.stats,
       tagsScanned,
       matched,
       unknown: tagsScanned - matched,
+      reposSupport: snapshot.repos.filter(r => r.origin === 'support').length,
+      reposPlatform: snapshot.repos.filter(r => r.origin === 'platform').length,
     },
   };
 }
