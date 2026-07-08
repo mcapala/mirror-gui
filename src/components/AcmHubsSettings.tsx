@@ -560,6 +560,7 @@ const AcmHubsSettings: React.FC = () => {
                 <Button
                   variant="link"
                   isInline
+                  className="pf-v6-u-mr-md"
                   onClick={() =>
                     setChecked(
                       new Set([...discovered, ...(pickerHub?.clusters ?? [])]),
