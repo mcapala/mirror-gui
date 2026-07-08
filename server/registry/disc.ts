@@ -603,7 +603,11 @@ export function generateDisc(
   // additionalImages (spec §6.2/§6.3).
   const discAdditional: string[] = [];
   for (const repo of snapshot.repos) {
-    if (repo.origin === 'operator') {
+    if (
+      repo.origin === 'operator' ||
+      repo.origin === 'support' ||
+      repo.origin === 'platform'
+    ) {
       continue;
     }
     const suffix = repoSuffix(repo.repo, snapshot.pathPrefix);
@@ -678,6 +682,8 @@ export function generateDisc(
     }
     if (
       repo.origin === 'operator' ||
+      repo.origin === 'support' ||
+      repo.origin === 'platform' ||
       (repo.origin === 'additional' && !repo.hostAmbiguous)
     ) {
       reject('not an orphan repo — only walk or host-ambiguous repos are pickable');

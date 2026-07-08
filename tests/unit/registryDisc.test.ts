@@ -554,6 +554,62 @@ describe('generateDisc — additionalImages', () => {
     expect(report.warnings.some(w => w.includes('Orphan discovery incomplete'))).toBe(true);
   });
 
+  it('support and platform repos contribute no candidates and no orphans', () => {
+    const snap = snapshot({
+      repos: [
+        operatorRepo(),
+        {
+          repo: 'mirror/ops/op-a-operand',
+          present: true,
+          origin: 'support',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [{ tag: 'v9', digest: 'sha256:zzz', matched: null, matchedAdditional: null }],
+        },
+        {
+          repo: 'mirror/openshift-release-dev/ocp-release',
+          present: true,
+          origin: 'platform',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [{ tag: '4.20.0', digest: 'sha256:old', matched: null, matchedAdditional: null }],
+        },
+      ],
+    });
+    const { report } = generateDisc(inputs({ snapshot: snap }), OPTS);
+    expect(report.additionalImages.class1).toEqual([]);
+    expect(report.additionalImages.orphans).toEqual([]);
+  });
+
+  it('rejects orphan picks on support repos', () => {
+    const snap = snapshot({
+      repos: [
+        operatorRepo(),
+        {
+          repo: 'mirror/ops/op-a-operand',
+          present: true,
+          origin: 'support',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [{ tag: 'v9', digest: 'sha256:zzz', matched: null, matchedAdditional: null }],
+        },
+      ],
+    });
+    const { report } = generateDisc(inputs({ snapshot: snap }), {
+      ...OPTS,
+      includeOrphans: [
+        { repo: 'mirror/ops/op-a-operand', tag: 'v9', sourceRef: 'registry.redhat.io/ops/op-a-operand:v9' },
+      ],
+    });
+    expect(report.additionalImages.rejectedPicks).toEqual([
+      {
+        repo: 'mirror/ops/op-a-operand',
+        tag: 'v9',
+        reason: 'not an orphan repo — only walk or host-ambiguous repos are pickable',
+      },
+    ]);
+  });
+
   it('includeAdditionalImages=false omits the section but keeps the analysis', () => {
     const snap = snapshot({ repos: [operatorRepo(), additionalRepo()] });
     const { report, discYaml } = generateDisc(
