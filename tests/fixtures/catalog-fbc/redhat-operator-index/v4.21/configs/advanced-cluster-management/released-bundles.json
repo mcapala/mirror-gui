@@ -1,0 +1,12 @@
+{
+  "schema": "olm.bundle",
+  "package": "advanced-cluster-management",
+  "name": "advanced-cluster-management.v2.16.1",
+  "image": "registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2161000000000000000000000000000000000000000000000000000000000000",
+  "properties": [
+    { "type": "olm.package", "value": { "packageName": "advanced-cluster-management", "version": "2.16.1" } }
+  ],
+  "relatedImages": [
+    { "name": "acm-controller", "image": "registry.redhat.io/rhacm2/acm-controller@sha256:c161000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

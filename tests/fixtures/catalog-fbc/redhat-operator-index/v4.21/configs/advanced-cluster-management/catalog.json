@@ -17,7 +17,8 @@
   "package": "advanced-cluster-management",
   "name": "release-2.16",
   "entries": [
-    { "name": "advanced-cluster-management.v2.16.0", "replaces": "advanced-cluster-management.v2.15.1", "skipRange": ">=2.15.0 <2.16.0" }
+    { "name": "advanced-cluster-management.v2.16.0", "replaces": "advanced-cluster-management.v2.15.1", "skipRange": ">=2.15.0 <2.16.0" },
+    { "name": "advanced-cluster-management.v2.16.1", "replaces": "advanced-cluster-management.v2.16.0" }
   ]
 }
 {

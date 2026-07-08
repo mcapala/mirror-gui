@@ -27,6 +27,25 @@ describe('loadBundlesFile', () => {
     expect(Object.keys(acm.channels).length).toBeGreaterThan(0);
   });
 
+  it('includes bundles whose blobs live only in released-bundles.json', async () => {
+    // Real indexes (e.g. quay-operator) reference channel entries whose
+    // olm.bundle blobs sit in released-bundles.json, not catalog.json.
+    const bundles = await loadBundlesFile(
+      FIXTURE_DIR,
+      'redhat-operator-index',
+      'v4.21',
+    );
+    const acm = bundles.packages['advanced-cluster-management'];
+    const released = acm.bundles['advanced-cluster-management.v2.16.1'];
+    expect(released).toBeDefined();
+    expect(released.version).toBe('2.16.1');
+    expect(released.relatedImages).toEqual([
+      'registry.redhat.io/rhacm2/acm-controller@sha256:c161000000000000000000000000000000000000000000000000000000000000',
+    ]);
+    // Inline catalog.json bundles must survive the merge.
+    expect(acm.bundles['advanced-cluster-management.v2.16.0']).toBeDefined();
+  });
+
   it('throws BundlesFileMissingError when the file is absent', async () => {
     await expect(
       loadBundlesFile(FIXTURE_DIR, 'redhat-operator-index', 'v9.99'),

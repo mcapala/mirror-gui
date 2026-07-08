@@ -23,6 +23,13 @@
           "relatedImages": [
             "registry.redhat.io/rhacm2/acm-controller@sha256:c160000000000000000000000000000000000000000000000000000000000000"
           ]
+        },
+        "advanced-cluster-management.v2.16.1": {
+          "version": "2.16.1",
+          "image": "registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2161000000000000000000000000000000000000000000000000000000000000",
+          "relatedImages": [
+            "registry.redhat.io/rhacm2/acm-controller@sha256:c161000000000000000000000000000000000000000000000000000000000000"
+          ]
         }
       },
       "channels": {
@@ -40,6 +47,10 @@
             "name": "advanced-cluster-management.v2.16.0",
             "replaces": "advanced-cluster-management.v2.15.1",
             "skipRange": ">=2.15.0 <2.16.0"
+          },
+          {
+            "name": "advanced-cluster-management.v2.16.1",
+            "replaces": "advanced-cluster-management.v2.16.0"
           }
         ]
       }

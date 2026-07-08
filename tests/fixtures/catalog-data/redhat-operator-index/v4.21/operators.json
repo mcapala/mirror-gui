@@ -12,7 +12,8 @@
         "2.15.1"
       ],
       "release-2.16": [
-        "2.16.0"
+        "2.16.0",
+        "2.16.1"
       ]
     },
     "channelVersionRanges": {
@@ -22,16 +23,17 @@
       },
       "release-2.16": {
         "minVersion": "2.16.0",
-        "maxVersion": "2.16.0"
+        "maxVersion": "2.16.1"
       }
     },
     "availableVersions": [
       "2.15.0",
       "2.15.1",
-      "2.16.0"
+      "2.16.0",
+      "2.16.1"
     ],
     "minVersion": "2.15.0",
-    "maxVersion": "2.16.0",
+    "maxVersion": "2.16.1",
     "catalog": "redhat-operator-index",
     "ocpVersion": "v4.21",
     "catalogUrl": "registry.redhat.io/redhat/redhat-operator-index:v4.21"

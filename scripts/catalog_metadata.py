@@ -24,7 +24,9 @@ CATALOG_INLINE_FILES = {
     "index.yaml",
     "index.yml",
 }
-IGNORED_FILES = {"released-bundles.json"}
+# Konflux-style indexes park released olm.bundle blobs here; channels in
+# catalog.json reference them, so they must join the bundle pool.
+RELEASED_BUNDLE_FILES = {"released-bundles.json"}
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -203,6 +205,8 @@ def source_category(relative_path: Path) -> str:
 
     if name in PACKAGE_FILES:
         return "package_explicit"
+    if name in RELEASED_BUNDLE_FILES:
+        return "bundle_released"
     if "channels" in parts or name.startswith("channel") or name.startswith("channels"):
         return "channel_explicit"
     if "bundles" in parts or name.startswith("bundle") or name.startswith("bundles"):
@@ -229,7 +233,7 @@ def is_bundle_doc(document: dict[str, Any], relative_path: Path) -> bool:
     if document.get("schema") == "olm.bundle":
         return True
     category = source_category(relative_path)
-    return category == "bundle_explicit" and bool(normalize_string(document.get("name"))) and isinstance(document.get("properties"), list)
+    return category in {"bundle_explicit", "bundle_released"} and bool(normalize_string(document.get("name"))) and isinstance(document.get("properties"), list)
 
 
 def collect_structured_files(operator_dir: Path) -> list[Path]:
@@ -238,8 +242,6 @@ def collect_structured_files(operator_dir: Path) -> list[Path]:
         if not file_path.is_file():
             continue
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            continue
-        if file_path.name in IGNORED_FILES:
             continue
         files.append(file_path)
     return files
@@ -315,6 +317,16 @@ def build_operator_metadata(operator_dir: Path, catalog_type: str, ocp_version: 
     package_records = choose_docs(records, "package_explicit", "package")
     channel_records = choose_docs(records, "channel_explicit", "channel")
     bundle_records = choose_docs(records, "bundle_explicit", "bundle")
+    # Released-bundle blobs supplement whichever pool won above: when a
+    # bundles/-explicit layout exists, choose_docs drops everything else,
+    # yet channel entries may still resolve only via released-bundles.json.
+    bundle_records += [
+        record
+        for record in records
+        if record["kind"] == "bundle"
+        and record["category"] == "bundle_released"
+        and record not in bundle_records
+    ]
 
     if not package_records and not channel_records and not bundle_records:
         return None, [], None, warnings
