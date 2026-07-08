@@ -361,6 +361,80 @@ describe('createRegistryClient', () => {
   });
 });
 
+describe('ping', () => {
+  it('resolves on HTTP 200 with basic auth', async () => {
+    const { transport, requests } = fakeTransport([
+      { match: (_m, url) => url.endsWith('/v2/'), response: ok({}) },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'dXNlcjpwYXNz',
+      transport,
+    });
+    await expect(client.ping()).resolves.toBeUndefined();
+    expect(requests[0].headers.Authorization).toBe('Basic dXNlcjpwYXNz');
+  });
+
+  it('follows a bearer challenge without a repository scope', async () => {
+    const { transport, requests } = fakeTransport([
+      {
+        match: (_m, url) =>
+          url.endsWith('/v2/') &&
+          !requests.some(r => r.url.includes('/token')),
+        response: {
+          status: 401,
+          headers: {
+            'www-authenticate':
+              'Bearer realm="https://reg.example/token",service="reg"',
+          },
+          data: {},
+        },
+      },
+      {
+        match: (_m, url) => url.includes('/token'),
+        response: ok({ token: 'tok' }),
+      },
+      { match: (_m, url) => url.endsWith('/v2/'), response: ok({}) },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'dXNlcjpwYXNz',
+      transport,
+    });
+    await expect(client.ping()).resolves.toBeUndefined();
+    const tokenCall = requests.find(r => r.url.includes('/token'));
+    expect(tokenCall!.url).not.toContain('scope=');
+    const retry = requests[requests.length - 1];
+    expect(retry.headers.Authorization).toBe('Bearer tok');
+  });
+
+  it('throws kind auth on 401 without a challenge', async () => {
+    const { transport } = fakeTransport([
+      { match: () => true, response: { status: 401, headers: {}, data: {} } },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    await expect(client.ping()).rejects.toMatchObject({ kind: 'auth' });
+  });
+
+  it('throws kind bad-response on unexpected status', async () => {
+    const { transport } = fakeTransport([
+      { match: () => true, response: { status: 500, headers: {}, data: {} } },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    await expect(client.ping()).rejects.toMatchObject({
+      kind: 'bad-response',
+    });
+  });
+});
+
 describe('listRepositories', () => {
   it('paginates /v2/_catalog until the Link header is absent', async () => {
     const { transport, requests } = fakeTransport([

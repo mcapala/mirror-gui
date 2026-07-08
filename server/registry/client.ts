@@ -132,6 +132,9 @@ export interface RegistryClient {
   /** Returns all repository paths via /v2/_catalog pagination; null when the
    * registry does not support _catalog (HTTP 404). */
   listRepositories(): Promise<string[] | null>;
+  /** Auth probe: GET /v2/ with challenge handling. Resolves on HTTP 200,
+   * throws RegistryRequestError otherwise. */
+  ping(): Promise<void>;
 }
 
 export function createRegistryClient(
@@ -237,7 +240,69 @@ export function createRegistryClient(
     return response;
   }
 
+  async function ping(): Promise<void> {
+    const url = `${scheme}://${opts.host}/v2/`;
+    const headers: Record<string, string> = {};
+    if (opts.basicAuth) {
+      headers.Authorization = `Basic ${opts.basicAuth}`;
+    }
+    let response = await attempt('GET', url, headers);
+    if (response.status === 200) {
+      return;
+    }
+    if (response.status === 403) {
+      throw new RegistryRequestError(
+        'auth',
+        'access denied (HTTP 403) — check the credentials',
+      );
+    }
+    if (response.status !== 401) {
+      throw new RegistryRequestError(
+        'bad-response',
+        `unexpected response (HTTP ${response.status}) from /v2/`,
+      );
+    }
+    const challenge = parseAuthChallenge(response.headers['www-authenticate']);
+    if (!challenge) {
+      throw new RegistryRequestError(
+        'auth',
+        'authentication failed (HTTP 401) — check the credentials',
+      );
+    }
+    // The bearer exchange for /v2/ carries no repository scope.
+    const tokenUrl = new URL(challenge.realm);
+    if (challenge.service) {
+      tokenUrl.searchParams.set('service', challenge.service);
+    }
+    const tokenResponse = await attempt(
+      'GET',
+      tokenUrl.toString(),
+      opts.basicAuth ? { Authorization: `Basic ${opts.basicAuth}` } : {},
+    );
+    const tokenData = tokenResponse.data as
+      | { token?: string; access_token?: string }
+      | undefined;
+    const bearer = tokenData?.token || tokenData?.access_token;
+    if (tokenResponse.status !== 200 || !bearer) {
+      throw new RegistryRequestError(
+        'auth',
+        `token exchange failed (HTTP ${tokenResponse.status}) — check the credentials`,
+      );
+    }
+    response = await attempt('GET', url, {
+      Authorization: `Bearer ${bearer}`,
+    });
+    if (response.status !== 200) {
+      throw new RegistryRequestError(
+        'auth',
+        `authentication failed (HTTP ${response.status})`,
+      );
+    }
+  }
+
   return {
+    ping,
+
     async listTags(repo) {
       const tags: string[] = [];
       let url: string | null =
