@@ -261,25 +261,43 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
           res.status(400).json({ error: 'no ACM hubs configured' });
           return;
         }
-        const settled = await Promise.allSettled(hubs.map(h => queryHub(h)));
-        const outcomes: HubFetchOutcome[] = settled.map((result, i) =>
-          result.status === 'fulfilled'
+        const configured = hubs.filter(h => (h.clusters ?? []).length > 0);
+        const settled = await Promise.allSettled(
+          configured.map(h => queryHub(h)),
+        );
+        const resultsById = new Map(
+          configured.map((h, i) => [h.id, settled[i]]),
+        );
+        const outcomes: HubFetchOutcome[] = hubs.map(hub => {
+          const result = resultsById.get(hub.id);
+          if (!result) {
+            // No cluster selection — hub is inactive, never queried.
+            return {
+              hub,
+              status: 'ok',
+              items: [],
+              clusterItems: [],
+              truncated: false,
+              unconfigured: true,
+            };
+          }
+          return result.status === 'fulfilled'
             ? {
-                hub: hubs[i],
+                hub,
                 status: 'ok',
                 items: result.value.csvItems,
                 clusterItems: result.value.clusterItems,
                 truncated: result.value.truncated,
               }
             : {
-                hub: hubs[i],
+                hub,
                 status: 'error',
                 error:
                   result.reason instanceof Error
                     ? result.reason.message
                     : String(result.reason),
-              },
-        );
+              };
+        });
         const catalogData = await deps.loadCatalogData().catch((error: unknown) => {
           console.warn(
             `ACM refresh: catalog data load failed, statuses will be 'unknown': ${

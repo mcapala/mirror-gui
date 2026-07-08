@@ -19,6 +19,37 @@ const NOW = '2026-07-06T12:00:00.000Z';
 const emptyCatalog: CatalogLookup = new Map();
 
 describe('buildSnapshot', () => {
+  it('marks unconfigured hubs in the status without contributing data', () => {
+    const snapshot = buildSnapshot(
+      [
+        {
+          hub: { id: 'h9', name: 'idle', url: 'https://h', token: 't' },
+          status: 'ok',
+          items: [],
+          clusterItems: [],
+          truncated: false,
+          unconfigured: true,
+        },
+      ],
+      new Map(),
+      '2026-07-08T00:00:00.000Z',
+    );
+    expect(snapshot.hubs).toEqual([
+      {
+        id: 'h9',
+        name: 'idle',
+        status: 'ok',
+        error: null,
+        truncated: false,
+        skippedItems: 0,
+        clusterCount: 0,
+        unconfigured: true,
+      },
+    ]);
+    expect(snapshot.packages).toEqual({});
+    expect(snapshot.clusters).toEqual([]);
+  });
+
   it('filters non-Succeeded CSVs and dedups namespace copies', () => {
     const outcomes: HubFetchOutcome[] = [
       {

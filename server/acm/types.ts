@@ -76,6 +76,8 @@ export interface HubSnapshotStatus {
   truncated: boolean;
   skippedItems: number;
   clusterCount: number;
+  /** True when the hub was skipped because it has no cluster selection. */
+  unconfigured?: boolean;
 }
 
 export interface PackageDeployment {

@@ -21,6 +21,7 @@ export interface HubFetchOutcome {
   items?: CsvSearchItem[];
   clusterItems?: ClusterSearchItem[];
   truncated?: boolean;
+  unconfigured?: boolean;
 }
 
 export interface CatalogOperatorLike {
@@ -234,6 +235,7 @@ export function buildSnapshot(
       truncated: Boolean(outcome.truncated),
       skippedItems: skipped,
       clusterCount: clusters.size,
+      ...(outcome.unconfigured ? { unconfigured: true } : {}),
     });
   }
 

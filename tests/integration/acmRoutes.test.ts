@@ -358,10 +358,12 @@ describe('ACM routes', () => {
           };
         },
       });
-      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
       await request(app)
         .post('/api/acm/hubs')
-        .send({ ...HUB_INPUT, name: 'down' });
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, name: 'down', clusters: ['c1'] });
 
       const res = await request(app).post('/api/acm/refresh');
       expect(res.status).toBe(200);
@@ -392,7 +394,9 @@ describe('ACM routes', () => {
           truncated: false,
         }),
       });
-      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
 
       const res = await request(app).post('/api/acm/refresh');
       expect(res.status).toBe(200);
@@ -408,7 +412,9 @@ describe('ACM routes', () => {
           truncated: false,
         }),
       });
-      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
 
       const res = await request(app).post('/api/acm/refresh');
       expect(res.status).toBe(200);
@@ -416,6 +422,66 @@ describe('ACM routes', () => {
       expect(res.body.clusters).toEqual([
         expect.objectContaining({ cluster: 'c1', openshiftVersion: '4.16.8' }),
       ]);
+    });
+
+    it('skips hubs with no cluster selection and flags them unconfigured', async () => {
+      const queried: string[] = [];
+      const app = makeApp({
+        acmDir: dir,
+        queryHub: async hub => {
+          queried.push(hub.name);
+          expect(hub.clusters).toEqual(['edge-1']);
+          return {
+            csvItems: [
+              { name: 'op.v1.0.0', cluster: 'edge-1', phase: 'Succeeded' },
+            ],
+            clusterItems: [{ name: 'edge-1', openshiftVersion: '4.16.8' }],
+            truncated: false,
+          };
+        },
+      });
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['edge-1'] });
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, name: 'connected-only' });
+
+      const res = await request(app).post('/api/acm/refresh');
+      expect(res.status).toBe(200);
+      expect(queried).toEqual(['prod']);
+      const statuses = res.body.hubs as Array<{
+        name: string;
+        status: string;
+        unconfigured?: boolean;
+        clusterCount: number;
+      }>;
+      expect(statuses).toHaveLength(2);
+      const idle = statuses.find(h => h.name === 'connected-only');
+      expect(idle).toMatchObject({
+        status: 'ok',
+        unconfigured: true,
+        clusterCount: 0,
+      });
+      expect(statuses.find(h => h.name === 'prod')).toMatchObject({
+        status: 'ok',
+        clusterCount: 1,
+      });
+      expect(res.body.packages.op).toBeDefined();
+    });
+
+    it('refresh succeeds when every hub is unconfigured', async () => {
+      const app = makeApp({
+        acmDir: dir,
+        queryHub: async () => {
+          throw new Error('must not be called');
+        },
+      });
+      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      const res = await request(app).post('/api/acm/refresh');
+      expect(res.status).toBe(200);
+      expect(res.body.hubs[0].unconfigured).toBe(true);
+      expect(res.body.packages).toEqual({});
     });
 
     it('409s a concurrent refresh', async () => {
@@ -430,7 +496,9 @@ describe('ACM routes', () => {
           return { csvItems: [], clusterItems: [], truncated: false };
         },
       });
-      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
 
       const first = request(app).post('/api/acm/refresh');
       // supertest/superagent requests are dispatched lazily on the first
@@ -523,7 +591,9 @@ describe('ACM routes', () => {
           truncated: false,
         }),
       });
-      await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
       await request(app).post('/api/acm/refresh').expect(200);
       const res = await request(app)
         .post('/api/acm/suggest-update')
