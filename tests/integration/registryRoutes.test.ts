@@ -557,6 +557,34 @@ describe('mirror-registries routes', () => {
       ).toBe(true);
     });
 
+    it('classifies walked catalog-index repos as support, not additional', async () => {
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClient({
+          listTags: async repo =>
+            repo === 'mirror/redhat/redhat-operator-index' ? ['v4.21'] : null,
+          headManifest: async () => 'sha256:idx',
+          listRepositories: async () => ['mirror/redhat/redhat-operator-index'],
+        }),
+      });
+      const id = await createRegistry(app);
+      const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+      expect(scan.status).toBe(200);
+      expect(scan.body.stats.reposSupport).toBe(1);
+      const indexRepo = scan.body.repos.find(
+        (r: { repo: string }) => r.repo === 'mirror/redhat/redhat-operator-index',
+      );
+      expect(indexRepo.origin).toBe('support');
+
+      const content = await request(app).get(
+        `/api/mirror-registries/${id}/operator-content`,
+      );
+      expect(content.body.supportImages).toEqual([
+        { repo: 'mirror/redhat/redhat-operator-index', tag: 'v4.21', digest: 'sha256:idx' },
+      ]);
+      expect(content.body.additionalImages).toEqual([]);
+    });
+
     it('scans with stored credentials when the pull secret has none', async () => {
       let capturedBasicAuth: string | null | undefined;
       const app = makeApp({

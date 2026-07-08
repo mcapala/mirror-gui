@@ -110,7 +110,14 @@ beforeAll(async () => {
       } else {
         res
           .writeHead(200, { 'Content-Type': 'application/json' })
-          .end(JSON.stringify({ repositories: ['mirror/orphan/tool', 'outside/prefix'] }));
+          .end(JSON.stringify({
+            repositories: [
+              'mirror/orphan/tool',
+              'mirror/rhacm2/acm-controller',
+              'mirror/redhat/redhat-operator-index',
+              'outside/prefix',
+            ],
+          }));
       }
       return;
     }
@@ -128,6 +135,18 @@ beforeAll(async () => {
         res
           .writeHead(200, { 'Content-Type': 'application/json' })
           .end(JSON.stringify({ name: tagsMatch[1], tags: ['v1'] }));
+        return;
+      }
+      if (tagsMatch[1] === 'mirror/rhacm2/acm-controller') {
+        res
+          .writeHead(200, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ name: tagsMatch[1], tags: ['v2.15'] }));
+        return;
+      }
+      if (tagsMatch[1] === 'mirror/redhat/redhat-operator-index') {
+        res
+          .writeHead(200, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ name: tagsMatch[1], tags: ['v4.21'] }));
         return;
       }
       if (tagsMatch[1] !== mirroredRepo) {
@@ -238,15 +257,25 @@ describe('registry scan against a live stub registry', () => {
     expect(byRepo['outside/prefix']).toBeUndefined();
     expect(scan.body.stats.reposWalked).toBe(1);
     expect(scan.body.stats.reposAdditional).toBe(1);
+    expect(scan.body.stats.reposSupport).toBe(2);
+    expect(scan.body.stats.reposPlatform).toBe(0);
+    expect(byRepo['mirror/rhacm2/acm-controller'].origin).toBe('support');
+    expect(byRepo['mirror/redhat/redhat-operator-index'].origin).toBe('support');
     expect(scan.body.partial).toBe(false);
     expect(scan.body.stats.reposPresent).toBe(1);
-    expect(scan.body.stats.tagsScanned).toBe(5);
+    expect(scan.body.stats.tagsScanned).toBe(7);
     expect(scan.body.stats.matched).toBe(2);
-    expect(scan.body.stats.unknown).toBe(3);
+    expect(scan.body.stats.unknown).toBe(5);
     // Walk intersection: only repos the walk listed get tags/list probes;
     // expected-but-unmirrored repos cost zero HTTP calls.
     expect([...new Set(tagListRequests)].sort()).toEqual(
-      ['mirror/orphan/tool', 'mirror/ubi8/ubi', mirroredRepo].sort(),
+      [
+        'mirror/orphan/tool',
+        'mirror/redhat/redhat-operator-index',
+        'mirror/rhacm2/acm-controller',
+        'mirror/ubi8/ubi',
+        mirroredRepo,
+      ].sort(),
     );
 
     const content = await request(app).get(
@@ -259,6 +288,24 @@ describe('registry scan against a live stub registry', () => {
     expect(content.body.unknownTags).toEqual([
       { repo: mirroredRepo, tag: 'drift-tag', digest: 'sha256:feedface' },
     ]);
+    expect(content.body.supportImages).toEqual([
+      {
+        repo: 'mirror/redhat/redhat-operator-index',
+        tag: 'v4.21',
+        digest: 'sha256:feedface',
+      },
+      {
+        repo: 'mirror/rhacm2/acm-controller',
+        tag: 'v2.15',
+        digest: 'sha256:feedface',
+      },
+    ]);
+    expect(content.body.platformImages).toEqual([]);
+    expect(
+      content.body.additionalImages.some(
+        (a: { repo: string }) => a.repo.includes('acm-controller') || a.repo.includes('operator-index'),
+      ),
+    ).toBe(false);
   });
 
   it('records walkOk=false and keeps scanning when _catalog is unsupported', async () => {

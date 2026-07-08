@@ -15,6 +15,8 @@ import {
   buildScanTargets,
   deriveAdditionalExpectations,
   deriveExpectations,
+  derivePlatformRepos,
+  deriveSupportRepos,
   executeScan,
 } from './scan.js';
 import {
@@ -388,6 +390,12 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           iscs,
           registry.pathPrefix,
         );
+        const supportRepos = deriveSupportRepos(
+          catalogBundles,
+          iscs,
+          registry.pathPrefix,
+        );
+        const platformRepos = derivePlatformRepos(iscs, registry.pathPrefix);
 
         const client = createClient({
           host: registry.host,
@@ -464,6 +472,8 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           expectations,
           additionalExpectations,
           walkedRepos,
+          supportRepos,
+          platformRepos,
         );
         const result = await executeScan(targets, client, {
           knownRepos: walkOk ? new Set(walkedRepos) : undefined,
