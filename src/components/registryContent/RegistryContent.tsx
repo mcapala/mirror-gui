@@ -6,6 +6,7 @@ import {
   Button,
   EmptyState,
   EmptyStateBody,
+  ExpandableSection,
   FormSelect,
   FormSelectOption,
   Label,
@@ -278,6 +279,58 @@ const RegistryContent: React.FC = () => {
                 </Tbody>
               </Table>
             </>
+          )}
+
+          {report.supportImages.length > 0 && (
+            <ExpandableSection
+              className="pf-v6-u-mt-md"
+              toggleText={`Operator support images (${report.supportImages.length})`}
+            >
+              <Table aria-label="Operator support images" variant="compact">
+                <Thead>
+                  <Tr>
+                    <Th>Repository</Th>
+                    <Th>Tag</Th>
+                    <Th>Digest</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {report.supportImages.map(s => (
+                    <Tr key={`${s.repo}:${s.tag}`}>
+                      <Td>{s.repo}</Td>
+                      <Td>{s.tag}</Td>
+                      <Td>{shortDigest(s.digest)}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </ExpandableSection>
+          )}
+
+          {report.platformImages.length > 0 && (
+            <ExpandableSection
+              className="pf-v6-u-mt-md"
+              toggleText={`Platform images (${report.platformImages.length})`}
+            >
+              <Table aria-label="Platform images" variant="compact">
+                <Thead>
+                  <Tr>
+                    <Th>Repository</Th>
+                    <Th>Tag</Th>
+                    <Th>Digest</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {report.platformImages.map(p => (
+                    <Tr key={`${p.repo}:${p.tag}`}>
+                      <Td>{p.repo}</Td>
+                      <Td>{p.tag}</Td>
+                      <Td>{shortDigest(p.digest)}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </ExpandableSection>
           )}
 
           <Title headingLevel="h4" className="pf-v6-u-mt-md pf-v6-u-mb-sm">

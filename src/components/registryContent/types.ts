@@ -41,6 +41,8 @@ export interface OperatorContentReport {
     digest: string | null;
     source: string | null;
   }>;
+  supportImages: Array<{ repo: string; tag: string; digest: string | null }>;
+  platformImages: Array<{ repo: string; tag: string; digest: string | null }>;
   errors: ScanIssue[];
   stats: {
     reposExpected: number;
@@ -48,5 +50,7 @@ export interface OperatorContentReport {
     tagsScanned: number;
     matched: number;
     unknown: number;
+    reposSupport: number;
+    reposPlatform: number;
   };
 }
