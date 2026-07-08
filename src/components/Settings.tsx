@@ -4,10 +4,13 @@ import axios from 'axios';
 import {
   Card,
   CardBody,
+  Checkbox,
   Tabs,
   Tab,
   TabTitleText,
+  Form,
   FormGroup,
+  TextArea,
   Button,
   ActionGroup,
   FileUpload,
@@ -34,6 +37,7 @@ import {
   CogIcon,
   DatabaseIcon,
   KeyIcon,
+  PlusCircleIcon,
   RegistryIcon,
   SaveIcon,
   SearchIcon,
@@ -57,6 +61,34 @@ interface RegistryEntry {
   hasAuth: boolean;
   status?: 'authenticated' | 'failed' | 'verifying' | 'not_verified';
   error?: string;
+}
+
+interface MirrorRegistryRow {
+  id: string;
+  host: string;
+  pathPrefix: string;
+  insecureSkipVerify: boolean;
+  caBundle?: string;
+  username?: string;
+  hasCredentials: boolean;
+  hasPullSecretAuth: boolean;
+  status?: 'authenticated' | 'failed' | 'verifying' | 'not_verified';
+  error?: string;
+}
+
+function renderRegistryStatus(
+  status: 'authenticated' | 'failed' | 'verifying' | 'not_verified' | undefined,
+  error: string | undefined,
+) {
+  if (status === 'authenticated') return <Label status="success">Authenticated</Label>;
+  if (status === 'failed')
+    return (
+      <Popover bodyContent={error || 'Authentication failed'} position="left">
+        <Label status="danger" style={{ cursor: 'pointer' }}>Failed</Label>
+      </Popover>
+    );
+  if (status === 'verifying') return <Label status="info">Verifying...</Label>;
+  return <Label color="grey">Not verified</Label>;
 }
 
 interface SystemInfo {
@@ -256,6 +288,103 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const [mirrorRegistries, setMirrorRegistries] = useState<MirrorRegistryRow[]>([]);
+  const [regFormId, setRegFormId] = useState<string | 'new' | null>(null);
+  const [regHost, setRegHost] = useState('');
+  const [regPrefix, setRegPrefix] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regSkipVerify, setRegSkipVerify] = useState(false);
+  const [regCaBundle, setRegCaBundle] = useState('');
+  const [regConfirmDeleteId, setRegConfirmDeleteId] = useState<string | null>(null);
+
+  const fetchMirrorRegistries = async () => {
+    try {
+      const response = await axios.get('/api/mirror-registries');
+      setMirrorRegistries(response.data.registries || []);
+    } catch (error) {
+      console.error('Error fetching mirror registries:', error);
+    }
+  };
+
+  const openRegForm = (row: MirrorRegistryRow | null) => {
+    setRegFormId(row ? row.id : 'new');
+    setRegHost(row?.host ?? '');
+    setRegPrefix(row?.pathPrefix ?? '');
+    setRegUsername(row?.username ?? '');
+    setRegPassword('');
+    setRegSkipVerify(row?.insecureSkipVerify ?? false);
+    setRegCaBundle(row?.caBundle ?? '');
+  };
+
+  const saveMirrorRegistry = async () => {
+    const body: Record<string, unknown> = {
+      host: regHost,
+      pathPrefix: regPrefix,
+      insecureSkipVerify: regSkipVerify,
+      caBundle: regCaBundle || undefined,
+    };
+    if (regUsername) {
+      body.username = regUsername;
+      // On edit, an untouched password field means "keep the stored one".
+      if (regPassword || regFormId === 'new') body.password = regPassword;
+    }
+    try {
+      if (regFormId === 'new') {
+        await axios.post('/api/mirror-registries', body);
+        addSuccessAlert(`Registry ${regHost} added`);
+      } else {
+        await axios.put(`/api/mirror-registries/${regFormId}`, body);
+        addSuccessAlert(`Registry ${regHost} updated`);
+      }
+      setRegFormId(null);
+      await fetchMirrorRegistries();
+    } catch (error: any) {
+      addDangerAlert(error.response?.data?.error || 'Failed to save registry');
+    }
+  };
+
+  const deleteMirrorRegistry = async (id: string) => {
+    if (regConfirmDeleteId !== id) {
+      setRegConfirmDeleteId(id);
+      return;
+    }
+    try {
+      await axios.delete(`/api/mirror-registries/${id}`);
+      addSuccessAlert('Registry removed');
+      setRegConfirmDeleteId(null);
+      await fetchMirrorRegistries();
+    } catch {
+      addDangerAlert('Failed to remove registry');
+    }
+  };
+
+  const verifyMirrorRegistry = async (id: string) => {
+    setMirrorRegistries(prev => prev.map(r =>
+      r.id === id ? { ...r, status: 'verifying' as const } : r,
+    ));
+    try {
+      const response = await axios.post(`/api/mirror-registries/${id}/verify`);
+      setMirrorRegistries(prev => prev.map(r =>
+        r.id === id
+          ? {
+              ...r,
+              status: response.data.ok
+                ? ('authenticated' as const)
+                : ('failed' as const),
+              error: response.data.error,
+            }
+          : r,
+      ));
+    } catch {
+      setMirrorRegistries(prev => prev.map(r =>
+        r.id === id
+          ? { ...r, status: 'failed' as const, error: 'Verification request failed' }
+          : r,
+      ));
+    }
+  };
+
   const verifyRegistry = async (registry: string) => {
     setRegistries(prev => prev.map(r =>
       r.registry === registry ? { ...r, status: 'verifying' as const } : r,
@@ -275,6 +404,9 @@ const SettingsPage: React.FC = () => {
   const verifyAllRegistries = async () => {
     for (const r of registries) {
       await verifyRegistry(r.registry);
+    }
+    for (const r of mirrorRegistries) {
+      await verifyMirrorRegistry(r.id);
     }
   };
 
@@ -318,6 +450,7 @@ const SettingsPage: React.FC = () => {
     fetchSystemInfo();
     fetchPullSecretStatus();
     fetchRegistries();
+    fetchMirrorRegistries();
     fetchSyncStatus();
     fetchCatalogDigests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -477,9 +610,96 @@ const SettingsPage: React.FC = () => {
               title={<TabTitleText><RegistryIcon /> Registry</TabTitleText>}
             >
               <div className="pf-v6-u-py-lg">
-                <Title headingLevel="h3" className="pf-v6-u-mb-md">Registry Authentication</Title>
+                <Title headingLevel="h3" className="pf-v6-u-mb-md">Registries</Title>
+                <p className="pf-v6-u-mb-md">
+                  Pull-secret entries are managed in the Pull Secret tab. Local
+                  registries (with their own credentials) can be added here and
+                  are used by Fleet State → Registry Content scans.
+                </p>
 
-                {registries.length === 0 ? (
+                <ActionGroup className="pf-v6-u-mb-md">
+                  <Button
+                    variant="primary"
+                    icon={<PlusCircleIcon />}
+                    onClick={() => openRegForm(null)}
+                  >
+                    Add registry
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={<SearchIcon />}
+                    onClick={verifyAllRegistries}
+                    isDisabled={loading}
+                  >
+                    Verify All
+                  </Button>
+                </ActionGroup>
+
+                {regFormId !== null && (
+                  <Form isHorizontal className="pf-v6-u-mb-md" style={{ maxWidth: 640 }}>
+                    <FormGroup label="Registry host" isRequired fieldId="reg-host">
+                      <TextInput
+                        id="reg-host"
+                        value={regHost}
+                        onChange={(_e, v) => setRegHost(v)}
+                        placeholder="registry.internal.example:5000"
+                      />
+                    </FormGroup>
+                    <FormGroup label="Path prefix" fieldId="reg-prefix">
+                      <TextInput
+                        id="reg-prefix"
+                        value={regPrefix}
+                        onChange={(_e, v) => setRegPrefix(v)}
+                        placeholder="e.g. mirror — empty for registry root"
+                      />
+                    </FormGroup>
+                    <FormGroup label="Username" fieldId="reg-username">
+                      <TextInput
+                        id="reg-username"
+                        value={regUsername}
+                        onChange={(_e, v) => setRegUsername(v)}
+                        placeholder="empty = use pull-secret / anonymous"
+                      />
+                    </FormGroup>
+                    <FormGroup label="Password or token" fieldId="reg-password">
+                      <TextInput
+                        id="reg-password"
+                        type="password"
+                        value={regPassword}
+                        onChange={(_e, v) => setRegPassword(v)}
+                        placeholder={
+                          regFormId !== 'new' ? 'unchanged if left empty' : ''
+                        }
+                      />
+                    </FormGroup>
+                    <FormGroup fieldId="reg-skip-verify">
+                      <Checkbox
+                        id="reg-skip-verify"
+                        label="Skip TLS verification (insecure)"
+                        isChecked={regSkipVerify}
+                        onChange={(_e, c) => setRegSkipVerify(c)}
+                      />
+                    </FormGroup>
+                    <FormGroup label="CA bundle (PEM)" fieldId="reg-ca">
+                      <TextArea
+                        id="reg-ca"
+                        value={regCaBundle}
+                        onChange={(_e, v) => setRegCaBundle(v)}
+                        rows={3}
+                      />
+                    </FormGroup>
+                    <ActionGroup>
+                      <Button variant="primary" onClick={saveMirrorRegistry} isDisabled={!regHost}>
+                        Save registry
+                      </Button>
+                      <Button variant="link" onClick={() => setRegFormId(null)}>
+                        Cancel
+                      </Button>
+                    </ActionGroup>
+                  </Form>
+                )}
+
+                {registries.length === 0 && mirrorRegistries.length === 0 ? (
                   <Alert
                     variant="warning"
                     isInline
@@ -487,54 +707,80 @@ const SettingsPage: React.FC = () => {
                     title="No registries found"
                     className="pf-v6-u-mb-md"
                   >
-                    Add a pull secret in the Pull Secret tab to see registry authentication status.
+                    Add a pull secret in the Pull Secret tab, or add a local
+                    registry above.
                   </Alert>
                 ) : (
-                  <>
-                    <Table aria-label="Registry authentication status" variant="compact">
-                      <Thead>
-                        <Tr>
-                          <Th>Registry</Th>
-                          <Th>Status</Th>
+                  <Table aria-label="Registry authentication status" variant="compact">
+                    <Thead>
+                      <Tr>
+                        <Th>Host</Th>
+                        <Th>Path prefix</Th>
+                        <Th>Source</Th>
+                        <Th>Status</Th>
+                        <Th screenReaderText="Actions" />
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {registries.map((r) => (
+                        <Tr key={`ps-${r.registry}`}>
+                          <Td>{r.registry}</Td>
+                          <Td>—</Td>
+                          <Td><Label color="blue">Pull secret</Label></Td>
+                          <Td>{renderRegistryStatus(r.status, r.error)}</Td>
+                          <Td>
+                            <Button
+                              variant="link"
+                              isInline
+                              onClick={() => verifyRegistry(r.registry)}
+                            >
+                              Verify
+                            </Button>
+                          </Td>
                         </Tr>
-                      </Thead>
-                      <Tbody>
-                        {registries.map((r) => (
-                          <Tr key={r.registry}>
-                            <Td>{r.registry}</Td>
-                            <Td>
-                              {r.status === 'authenticated' && (
-                                <Label status="success">Authenticated</Label>
-                              )}
-                              {r.status === 'failed' && (
-                                <Popover bodyContent={r.error || 'Authentication failed'} position="left">
-                                  <Label status="danger" style={{ cursor: 'pointer' }}>Failed</Label>
-                                </Popover>
-                              )}
-                              {r.status === 'verifying' && (
-                                <Label status="info">Verifying...</Label>
-                              )}
-                              {r.status === 'not_verified' && (
-                                <Label color="grey">Not verified</Label>
-                              )}
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-
-                    <ActionGroup className="pf-v6-u-mt-md">
-                      <Button
-                        variant="secondary"
-                        icon={<SearchIcon />}
-                        onClick={verifyAllRegistries}
-                        isDisabled={loading}
-                        isLoading={loading}
-                      >
-                        Verify All
-                      </Button>
-                    </ActionGroup>
-                  </>
+                      ))}
+                      {mirrorRegistries.map((r) => (
+                        <Tr key={r.id}>
+                          <Td>{r.host}</Td>
+                          <Td>{r.pathPrefix || '—'}</Td>
+                          <Td>
+                            {r.hasCredentials ? (
+                              <Label color="green">Local</Label>
+                            ) : (
+                              <Label color="blue">Pull secret (fallback)</Label>
+                            )}
+                          </Td>
+                          <Td>{renderRegistryStatus(r.status, r.error)}</Td>
+                          <Td>
+                            <Button
+                              variant="link"
+                              isInline
+                              className="pf-v6-u-mr-sm"
+                              onClick={() => verifyMirrorRegistry(r.id)}
+                            >
+                              Verify
+                            </Button>
+                            <Button
+                              variant="link"
+                              isInline
+                              className="pf-v6-u-mr-sm"
+                              onClick={() => openRegForm(r)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="link"
+                              isInline
+                              isDanger
+                              onClick={() => deleteMirrorRegistry(r.id)}
+                            >
+                              {regConfirmDeleteId === r.id ? 'Confirm delete' : 'Delete'}
+                            </Button>
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
                 )}
               </div>
             </Tab>
