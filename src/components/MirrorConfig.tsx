@@ -61,13 +61,11 @@ import {
   PencilAltIcon,
   CheckIcon,
   ClusterIcon,
-  DatabaseIcon,
   TrashAltIcon,
 } from '@patternfly/react-icons';
 import { FieldBuilder } from '@patternfly/react-component-groups';
 import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 import FleetUpdates from './fleetUpdates/FleetUpdates';
-import RegistryContent from './registryContent/RegistryContent';
 import RegistryCleanup from './registryCleanup/RegistryCleanup';
 
 export interface PlatformChannel {
@@ -2311,17 +2309,6 @@ const MirrorConfig: React.FC = () => {
               }
             >
               <FleetUpdates config={config} setConfig={setConfig} />
-            </Tab>
-            <Tab
-              eventKey="registry-content"
-              title={
-                <>
-                  <TabTitleIcon><DatabaseIcon /></TabTitleIcon>
-                  <TabTitleText>Registry Content</TabTitleText>
-                </>
-              }
-            >
-              <RegistryContent />
             </Tab>
             <Tab
               eventKey="registry-cleanup"

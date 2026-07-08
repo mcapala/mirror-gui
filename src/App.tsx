@@ -14,6 +14,7 @@ import {
   Nav,
   NavList,
   NavItem,
+  NavExpandable,
   Brand,
   Spinner,
   Title,
@@ -30,6 +31,7 @@ import {
   HistoryIcon,
   WrenchIcon,
   ClusterIcon,
+  DatabaseIcon,
 } from '@patternfly/react-icons';
 import { AlertProvider } from './AlertContext';
 import { ThemeProvider, useTheme } from './ThemeContext';
@@ -43,6 +45,9 @@ const MirrorOperations = lazy(() => import('./components/MirrorOperations'));
 const History = lazy(() => import('./components/History'));
 const Settings = lazy(() => import('./components/Settings'));
 const FleetOperators = lazy(() => import('./components/FleetOperators'));
+const RegistryContent = lazy(
+  () => import('./components/registryContent/RegistryContent'),
+);
 
 interface NavRoute {
   path: string;
@@ -56,32 +61,53 @@ const navRoutes: NavRoute[] = [
   { path: '/config', label: 'Mirror Configuration', icon: <CogIcon />, component: MirrorConfig },
   { path: '/operations', label: 'Mirror Operations', icon: <SyncAltIcon />, component: MirrorOperations },
   { path: '/history', label: 'History', icon: <HistoryIcon />, component: History },
-  { path: '/fleet', label: 'Fleet Operators', icon: <ClusterIcon />, component: FleetOperators },
-  { path: '/settings', label: 'Settings', icon: <WrenchIcon />, component: Settings },
 ];
+
+const fleetStateRoutes: NavRoute[] = [
+  { path: '/fleet', label: 'Fleet Operators', icon: <ClusterIcon />, component: FleetOperators },
+  { path: '/registry-content', label: 'Registry Content', icon: <DatabaseIcon />, component: RegistryContent },
+];
+
+const settingsRoute: NavRoute = {
+  path: '/settings', label: 'Settings', icon: <WrenchIcon />, component: Settings,
+};
+
+const allRoutes: NavRoute[] = [...navRoutes, ...fleetStateRoutes, settingsRoute];
 
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { effectiveTheme } = useTheme();
 
+  const renderNavItem = (item: NavRoute) => (
+    <NavItem
+      key={item.path}
+      itemId={item.path}
+      isActive={location.pathname === item.path}
+      onClick={() => navigate(item.path)}
+      icon={item.icon}
+      style={{ fontSize: '1rem' }}
+    >
+      {item.label}
+    </NavItem>
+  );
+
   const sidebar = (
     <PageSidebar>
       <PageSidebarBody>
         <Nav>
           <NavList>
-            {navRoutes.map((item) => (
-              <NavItem
-                key={item.path}
-                itemId={item.path}
-                isActive={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-                icon={item.icon}
-                style={{ fontSize: '1rem' }}
-              >
-                {item.label}
-              </NavItem>
-            ))}
+            {navRoutes.map(renderNavItem)}
+            <NavExpandable
+              title="Fleet State"
+              isExpanded
+              isActive={fleetStateRoutes.some(
+                r => location.pathname === r.path,
+              )}
+            >
+              {fleetStateRoutes.map(renderNavItem)}
+            </NavExpandable>
+            {renderNavItem(settingsRoute)}
           </NavList>
         </Nav>
       </PageSidebarBody>
@@ -142,7 +168,7 @@ const AppLayout: React.FC = () => {
           }
         >
           <Routes>
-            {navRoutes.map((item) => (
+            {allRoutes.map((item) => (
               <Route key={item.path} path={item.path} element={<item.component />} />
             ))}
           </Routes>
