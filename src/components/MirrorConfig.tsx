@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import YAML from 'yaml';
 import { useAlerts } from '../AlertContext';
@@ -587,17 +587,35 @@ const MirrorConfig: React.FC = () => {
     }
   };
 
-  // A draft restored from sessionStorage carries the selected operators, but
-  // detailedOperators (default/available channels) lives only in memory —
-  // refetch catalog metadata for every catalog already present in the draft.
+  // Catalog metadata (detailedOperators, availableOperators) lives only in
+  // memory, but config entries can arrive without it: a draft restored from
+  // sessionStorage, a YAML edit in the Preview tab, or a Fleet Updates apply.
+  // Fetch metadata once per catalog whenever such an entry appears and fill
+  // in availableOperators when the entry has none.
+  const requestedCatalogsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const op of config.mirror.operators) {
-      if (op.catalog) {
-        fetchOperatorsForCatalog(op.catalog);
-      }
+      const catalog = op.catalog;
+      if (!catalog || requestedCatalogsRef.current.has(catalog)) continue;
+      requestedCatalogsRef.current.add(catalog);
+      if (detailedOperators[catalog]) continue;
+      fetchOperatorsForCatalog(catalog).then(ops => {
+        if (ops.length === 0) return;
+        setConfig(prev => ({
+          ...prev,
+          mirror: {
+            ...prev.mirror,
+            operators: prev.mirror.operators.map(o =>
+              o.catalog === catalog && (o.availableOperators?.length ?? 0) === 0
+                ? { ...o, availableOperators: ops }
+                : o,
+            ),
+          },
+        }));
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [config.mirror.operators]);
 
   const fetchOperatorChannels = async (
     operatorName: string,
@@ -1827,7 +1845,14 @@ const MirrorConfig: React.FC = () => {
                             )}
                             <TypeaheadSelect
                               id={`op-pkg-name-${opIndex}-${pkgIndex}`}
-                              initialOptions={(operator.availableOperators || [])
+                              initialOptions={(pkg.name &&
+                              !(operator.availableOperators || []).includes(pkg.name)
+                                ? // a package can predate the catalog metadata fetch
+                                  // (Fleet Updates apply, YAML edit) — keep its name
+                                  // selectable and visible instead of an empty toggle
+                                  [...(operator.availableOperators || []), pkg.name]
+                                : operator.availableOperators || []
+                              )
                                 .slice()
                                 .sort((a, b) => a.localeCompare(b))
                                 .map((name): TypeaheadSelectOption => ({

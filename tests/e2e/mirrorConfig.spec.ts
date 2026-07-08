@@ -64,6 +64,49 @@ test.describe('Mirror Configuration', () => {
     await expect(page.getByText(/Available Channels/)).toBeVisible();
   });
 
+  test('operator added without catalog metadata shows its name and channels', async ({ page }) => {
+    // Mimic a package that predates the catalog metadata fetch (e.g. added
+    // by a Fleet Updates apply or a Preview YAML edit): the draft has the
+    // package but availableOperators is empty.
+    await page.evaluate(() => {
+      sessionStorage.setItem(
+        'mirror-gui.isc-draft',
+        JSON.stringify({
+          kind: 'ImageSetConfiguration',
+          apiVersion: 'mirror.openshift.io/v2alpha1',
+          archiveSize: '',
+          mirror: {
+            platform: { channels: [], graph: true },
+            operators: [
+              {
+                catalog: 'registry.redhat.io/redhat/redhat-operator-index:v4.21',
+                catalogVersion: 'v4.21',
+                availableOperators: [],
+                packages: [
+                  {
+                    name: 'cincinnati-operator',
+                    channels: [{ name: 'v1', minVersion: '' }],
+                  },
+                ],
+              },
+            ],
+            additionalImages: [],
+            helm: { repositories: [] },
+          },
+        }),
+      );
+    });
+    await page.reload();
+    await page.getByRole('tab', { name: /operators/i }).click();
+
+    // Name must be visible immediately, not "Type to search operators...".
+    await expect(
+      page.getByPlaceholder('Type to search operators...').first(),
+    ).toHaveValue('cincinnati-operator', { timeout: 10000 });
+    // Metadata refetch fills the channel details.
+    await expect(page.getByText('Default Channel')).toBeVisible({ timeout: 10000 });
+  });
+
   test('saving empty config shows inline validation error', async ({ page }) => {
     await page.getByRole('button', { name: /save configuration/i }).click();
     await expect(page.getByText('At least one platform channel, operator, or additional image is required')).toBeVisible({ timeout: 5000 });
