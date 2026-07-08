@@ -8,6 +8,10 @@ export interface MirrorRegistryConfig {
   pathPrefix: string;
   insecureSkipVerify?: boolean;
   caBundle?: string;
+  /** Stored registry credentials; when both set they take precedence over the
+   * pull secret. password doubles as a token. NEVER serialized to clients. */
+  username?: string;
+  password?: string;
 }
 
 export type ScanErrorKind =
