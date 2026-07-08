@@ -47,6 +47,21 @@ interface RegistryInput {
   pathPrefix?: unknown;
   insecureSkipVerify?: unknown;
   caBundle?: unknown;
+  username?: unknown;
+  password?: unknown;
+}
+
+type PullSecretAuths = Record<string, { auth?: string }>;
+
+function redactRegistry(r: MirrorRegistryConfig, auths: PullSecretAuths) {
+  const rest: Partial<MirrorRegistryConfig> = { ...r };
+  delete rest.password;
+  return {
+    ...rest,
+    insecureSkipVerify: Boolean(r.insecureSkipVerify),
+    hasCredentials: Boolean(r.username && r.password),
+    hasPullSecretAuth: Boolean(auths[r.host]?.auth),
+  };
 }
 
 export function normalizePathPrefix(input: unknown): string | null {
@@ -125,10 +140,10 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
 
   const router = express.Router();
 
-  async function validateInput(
+  function validateInput(
     input: RegistryInput,
     res: Response,
-  ): Promise<{ host: string; pathPrefix: string } | null> {
+  ): { host: string; pathPrefix: string } | null {
     if (!input.host || typeof input.host !== 'string') {
       res.status(400).json({ error: 'host is required' });
       return null;
@@ -141,11 +156,12 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
       });
       return null;
     }
-    const auths = await deps.readPullSecretAuths();
-    if (!auths?.[input.host]?.auth) {
-      res.status(400).json({
-        error: `no pull-secret credentials for "${input.host}" — add it to the pull secret first`,
-      });
+    if (input.username !== undefined && typeof input.username !== 'string') {
+      res.status(400).json({ error: 'username must be a string' });
+      return null;
+    }
+    if (input.password !== undefined && typeof input.password !== 'string') {
+      res.status(400).json({ error: 'password must be a string' });
       return null;
     }
     return { host: input.host, pathPrefix };
@@ -156,13 +172,7 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
     wrap(async (_req, res) => {
       const registries = await store.readRegistries();
       const auths = (await deps.readPullSecretAuths()) ?? {};
-      res.json({
-        registries: registries.map(r => ({
-          ...r,
-          insecureSkipVerify: Boolean(r.insecureSkipVerify),
-          hasPullSecretAuth: Boolean(auths[r.host]?.auth),
-        })),
-      });
+      res.json({ registries: registries.map(r => redactRegistry(r, auths)) });
     }),
   );
 
@@ -170,7 +180,7 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
     '/',
     wrap(async (req, res) => {
       const input = (req.body ?? {}) as RegistryInput;
-      const validated = await validateInput(input, res);
+      const validated = validateInput(input, res);
       if (!validated) {
         return;
       }
@@ -186,16 +196,26 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         });
         return;
       }
+      const username = typeof input.username === 'string' ? input.username : '';
+      const password = typeof input.password === 'string' ? input.password : '';
+      if ((username === '') !== (password === '')) {
+        res
+          .status(400)
+          .json({ error: 'username and password must be provided together' });
+        return;
+      }
       const registry: MirrorRegistryConfig = {
         id: uuidv4(),
         host: validated.host,
         pathPrefix: validated.pathPrefix,
         insecureSkipVerify: Boolean(input.insecureSkipVerify),
         caBundle: (input.caBundle as string) || undefined,
+        ...(username ? { username, password } : {}),
       };
       registries.push(registry);
       await store.writeRegistries(registries);
-      res.status(201).json({ registry });
+      const auths = (await deps.readPullSecretAuths()) ?? {};
+      res.status(201).json({ registry: redactRegistry(registry, auths) });
     }),
   );
 
@@ -209,7 +229,7 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         return;
       }
       const input = (req.body ?? {}) as RegistryInput;
-      const validated = await validateInput(input, res);
+      const validated = validateInput(input, res);
       if (!validated) {
         return;
       }
@@ -233,8 +253,25 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         // '' clears the stored bundle; omitted keeps it.
         registry.caBundle = (input.caBundle as string) || undefined;
       }
+      const username = typeof input.username === 'string' ? input.username : '';
+      if (!username || input.password === '') {
+        delete registry.username;
+        delete registry.password;
+      } else if (typeof input.password === 'string') {
+        registry.username = username;
+        registry.password = input.password;
+      } else {
+        if (!registry.password) {
+          res.status(400).json({
+            error: 'password is required when setting credentials',
+          });
+          return;
+        }
+        registry.username = username;
+      }
       await store.writeRegistries(registries);
-      res.json({ registry });
+      const auths = (await deps.readPullSecretAuths()) ?? {};
+      res.json({ registry: redactRegistry(registry, auths) });
     }),
   );
 

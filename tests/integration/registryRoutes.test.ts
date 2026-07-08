@@ -29,8 +29,6 @@ const ISC: IscConfig = {
 
 const AUTHS = { 'quay.local:8443': { auth: 'dXNlcjpwYXNz' } };
 
-type FakeClient = ReturnType<typeof createRegistryClient>;
-
 function makeApp(overrides: Partial<RegistryRouterDeps> = {}) {
   const app = express();
   app.use(express.json());
@@ -101,13 +99,17 @@ describe('mirror-registries routes', () => {
       });
     });
 
-    it('rejects a host without pull-secret credentials', async () => {
+    it('accepts a host without pull-secret credentials (anonymous or local creds)', async () => {
       const app = makeApp({ storageDir: dir });
       const res = await request(app)
         .post('/api/mirror-registries')
-        .send({ host: 'unknown.example', pathPrefix: '' });
-      expect(res.status).toBe(400);
-      expect(res.body.error).toMatch(/pull-secret/);
+        .send({ host: 'internal.example:5000', pathPrefix: '' });
+      expect(res.status).toBe(201);
+      expect(res.body.registry).toMatchObject({
+        host: 'internal.example:5000',
+        hasCredentials: false,
+        hasPullSecretAuth: false,
+      });
     });
 
     it('rejects duplicate host+prefix and invalid prefix', async () => {
@@ -139,6 +141,105 @@ describe('mirror-registries routes', () => {
       expect(gone.status).toBe(200);
       const list = await request(app).get('/api/mirror-registries');
       expect(list.body.registries).toEqual([]);
+    });
+  });
+
+  describe('stored credentials', () => {
+    it('stores username/password, never returns password, sets hasCredentials', async () => {
+      const app = makeApp({ storageDir: dir });
+      const created = await request(app)
+        .post('/api/mirror-registries')
+        .send({
+          host: 'internal.example:5000',
+          pathPrefix: 'mirror',
+          username: 'svc',
+          password: 'hunter2',
+        });
+      expect(created.status).toBe(201);
+      expect(created.body.registry.hasCredentials).toBe(true);
+      expect(created.body.registry.username).toBe('svc');
+      expect(created.body.registry).not.toHaveProperty('password');
+      expect(JSON.stringify(created.body)).not.toContain('hunter2');
+
+      const list = await request(app).get('/api/mirror-registries');
+      expect(list.body.registries[0].hasCredentials).toBe(true);
+      expect(JSON.stringify(list.body)).not.toContain('hunter2');
+
+      // password persisted on disk (store file), just not serialized
+      const raw = JSON.parse(
+        await fs.promises.readFile(path.join(dir, 'registries.json'), 'utf8'),
+      );
+      expect(raw.registries[0].password).toBe('hunter2');
+    });
+
+    it('rejects half-set credentials on create', async () => {
+      const app = makeApp({ storageDir: dir });
+      const res = await request(app)
+        .post('/api/mirror-registries')
+        .send({ host: 'internal.example:5000', pathPrefix: '', username: 'svc' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/together/);
+    });
+
+    it('PUT keeps the stored password when the field is absent', async () => {
+      const app = makeApp({ storageDir: dir });
+      const created = await request(app)
+        .post('/api/mirror-registries')
+        .send({
+          host: 'internal.example:5000',
+          pathPrefix: 'mirror',
+          username: 'svc',
+          password: 'hunter2',
+        });
+      const id = created.body.registry.id;
+      const updated = await request(app)
+        .put(`/api/mirror-registries/${id}`)
+        .send({ host: 'internal.example:5000', pathPrefix: 'prod', username: 'svc' });
+      expect(updated.status).toBe(200);
+      expect(updated.body.registry.hasCredentials).toBe(true);
+      const raw = JSON.parse(
+        await fs.promises.readFile(path.join(dir, 'registries.json'), 'utf8'),
+      );
+      expect(raw.registries[0].password).toBe('hunter2');
+      expect(raw.registries[0].pathPrefix).toBe('prod');
+    });
+
+    it('PUT with empty password (or absent username) clears credentials', async () => {
+      const app = makeApp({ storageDir: dir });
+      const created = await request(app)
+        .post('/api/mirror-registries')
+        .send({
+          host: 'internal.example:5000',
+          pathPrefix: 'mirror',
+          username: 'svc',
+          password: 'hunter2',
+        });
+      const id = created.body.registry.id;
+      const cleared = await request(app)
+        .put(`/api/mirror-registries/${id}`)
+        .send({
+          host: 'internal.example:5000',
+          pathPrefix: 'mirror',
+          username: 'svc',
+          password: '',
+        });
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.registry.hasCredentials).toBe(false);
+      const raw = JSON.parse(
+        await fs.promises.readFile(path.join(dir, 'registries.json'), 'utf8'),
+      );
+      expect(raw.registries[0]).not.toHaveProperty('password');
+      expect(raw.registries[0]).not.toHaveProperty('username');
+    });
+
+    it('PUT requires a password when setting credentials on a registry without any', async () => {
+      const app = makeApp({ storageDir: dir });
+      const id = await createRegistry(app);
+      const res = await request(app)
+        .put(`/api/mirror-registries/${id}`)
+        .send({ host: 'quay.local:8443', pathPrefix: 'mirror', username: 'svc' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/password is required/);
     });
   });
 
