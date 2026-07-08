@@ -13,14 +13,16 @@ test.describe('Registry Content page', () => {
     }
   });
 
-  test('sidebar Fleet State group navigates to Registry Content', async ({
+  test('sidebar Fleet State page hosts a Registry Content tab', async ({
     page,
   }) => {
     await page.goto('/');
-    // The Fleet State group is expanded by default; its children are visible.
-    await expect(page.getByText('Fleet State').first()).toBeVisible();
-    await page.getByText('Registry Content').first().click();
-    await expect(page).toHaveURL(/\/registry-content$/);
+    await page.getByText('Fleet State').first().click();
+    await expect(page).toHaveURL(/\/fleet$/);
+    await page.getByRole('tab', { name: /registry content/i }).click();
+    await expect(
+      page.getByText('Scan a mirror registry').filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('empty state links to Settings, API-created registry shows never-scanned', async ({
@@ -34,7 +36,7 @@ test.describe('Registry Content page', () => {
       await request.delete(`/api/mirror-registries/${r.id}`);
     }
 
-    await page.goto('/registry-content');
+    await page.goto('/fleet?tab=registry-content');
     await expect(
       page
         .getByText('No mirror registries configured')

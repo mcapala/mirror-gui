@@ -27,7 +27,7 @@ RUN mkdir -p /app/catalog-data-minimal && \
     fi && \
     (cp "$CATALOG_SRC/catalog-index.json" /app/catalog-data-minimal/ 2>/dev/null || \
      echo '{"ocp_versions":[],"catalog_types":[],"catalogs":[]}' > /app/catalog-data-minimal/catalog-index.json) && \
-    find "$CATALOG_SRC" -type f \( -name "operators.json" -o -name "dependencies.json" -o -name "catalog-info.json" \) ! -path "*/configs/*" 2>/dev/null | while read file; do \
+    find "$CATALOG_SRC" -type f \( -name "operators.json" -o -name "dependencies.json" -o -name "catalog-info.json" -o -name "bundles.json" \) ! -path "*/configs/*" 2>/dev/null | while read file; do \
       rel_path=$(echo "$file" | sed "s|$CATALOG_SRC/||"); \
       mkdir -p "/app/catalog-data-minimal/$(dirname "$rel_path")"; \
       cp "$file" "/app/catalog-data-minimal/$rel_path"; \
