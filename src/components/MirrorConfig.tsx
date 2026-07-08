@@ -431,20 +431,41 @@ const generateDefaultConfigName = (): string => {
   return `imageset-config-${dateStr}-UTC.yaml`;
 };
 
+/** sessionStorage key for the unsaved ISC draft (survives navigation). */
+const CONFIG_DRAFT_KEY = 'mirror-gui.isc-draft';
+
 const MirrorConfig: React.FC = () => {
   const { addSuccessAlert, addDangerAlert, addInfoAlert } = useAlerts();
 
-  const [config, setConfig] = useState<ImageSetConfig>({
-    kind: 'ImageSetConfiguration',
-    apiVersion: 'mirror.openshift.io/v2alpha1',
-    archiveSize: '',
-    mirror: {
-      platform: { channels: [], graph: true },
-      operators: [],
-      additionalImages: [],
-      helm: { repositories: [] },
-    },
+  const [config, setConfig] = useState<ImageSetConfig>(() => {
+    // The whole component unmounts on navigation; keep the draft for the
+    // browser session so visiting another page doesn't wipe unsaved work.
+    try {
+      const draft = sessionStorage.getItem(CONFIG_DRAFT_KEY);
+      if (draft) return JSON.parse(draft) as ImageSetConfig;
+    } catch {
+      // corrupted draft — fall through to the default
+    }
+    return {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      archiveSize: '',
+      mirror: {
+        platform: { channels: [], graph: true },
+        operators: [],
+        additionalImages: [],
+        helm: { repositories: [] },
+      },
+    };
   });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CONFIG_DRAFT_KEY, JSON.stringify(config));
+    } catch {
+      // storage full/unavailable — the draft just won't survive navigation
+    }
+  }, [config]);
 
   const [availableCatalogs, setAvailableCatalogs] = useState<CatalogInfo[]>([]);
   const [detailedOperators, setDetailedOperators] = useState<Record<string, DetailedOperator[]>>({});

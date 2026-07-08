@@ -214,6 +214,51 @@ describe('executeScan', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('treats a per-repo auth failure as an absent repo (registries hide unknown repos behind 401)', async () => {
+    const expectations = deriveExpectations(catalogBundles(), '');
+    const result = await executeScan(
+      buildScanTargets(expectations, new Map(), []),
+      client({
+        listTags: async repo => {
+          if (repo === 'rhacm2/acm-operator-bundle') return ['t1'];
+          throw new RegistryRequestError(
+            'auth',
+            `authentication failed (HTTP 401) for ${repo}`,
+          );
+        },
+        headManifest: async () => 'sha256:aaa',
+      }),
+    );
+    const denied = result.repos.find(r => r.repo === 'community/op-bundle')!;
+    expect(denied.present).toBe(false);
+    expect(denied.tags).toEqual([]);
+    expect(result.errors).toEqual([]);
+    expect(result.stats.reposPresent).toBe(1);
+  });
+
+  it('ignores cosign signature/attestation/sbom tags entirely', async () => {
+    const expectations = deriveExpectations(catalogBundles(), '');
+    const sigTag = `sha256-${'b'.repeat(64)}.sig`;
+    const attTag = `sha256-${'c'.repeat(64)}.att`;
+    const sbomTag = `sha256-${'d'.repeat(64)}.sbom`;
+    const result = await executeScan(
+      buildScanTargets(expectations, new Map(), []),
+      client({
+        listTags: async repo =>
+          repo === 'rhacm2/acm-operator-bundle'
+            ? ['t1', sigTag, attTag, sbomTag]
+            : null,
+        headManifest: async () => 'sha256:aaa',
+      }),
+    );
+    const acm = result.repos.find(
+      r => r.repo === 'rhacm2/acm-operator-bundle',
+    )!;
+    expect(acm.tags.map(t => t.tag)).toEqual(['t1']);
+    expect(result.stats.tagsScanned).toBe(1);
+    expect(result.stats.unknown).toBe(0);
+  });
+
   it('records absent repos without error', async () => {
     const expectations = deriveExpectations(catalogBundles(), '');
     const result = await executeScan(
@@ -232,7 +277,7 @@ describe('executeScan', () => {
       client({
         listTags: async repo => {
           if (repo === 'rhacm2/acm-operator-bundle') {
-            throw new RegistryRequestError('auth', 'denied');
+            throw new RegistryRequestError('bad-response', 'tags/list returned HTTP 500');
           }
           return ['v1.0.0'];
         },
@@ -243,8 +288,8 @@ describe('executeScan', () => {
       {
         repo: 'rhacm2/acm-operator-bundle',
         catalog: null,
-        kind: 'auth',
-        message: 'denied',
+        kind: 'bad-response',
+        message: 'tags/list returned HTTP 500',
       },
     ]);
     expect(

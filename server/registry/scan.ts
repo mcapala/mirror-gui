@@ -197,6 +197,10 @@ export interface ScanClientLike {
   headManifest(repo: string, tag: string): Promise<string | null>;
 }
 
+/** Cosign artifact tags (signatures/attestations/SBOMs) shadow a kept image's
+ * digest; they are registry plumbing, not mirrored content — skip them. */
+const COSIGN_ARTIFACT_TAG = /^sha256-[0-9a-f]{64}\.(sig|att|sbom)$/;
+
 function issueFrom(error: unknown, repo: string): ScanIssue {
   if (error instanceof RegistryRequestError) {
     return { repo, catalog: null, kind: error.kind, message: error.message };
@@ -241,23 +245,32 @@ export async function executeScan(
     ordered,
     opts.concurrency ?? DEFAULT_SCAN_CONCURRENCY,
     async target => {
-      let tagNames: string[] | null;
-      try {
-        tagNames = await client.listTags(target.repo);
-      } catch (error) {
-        errors.push(issueFrom(error, target.repo));
-        return;
-      }
       const base = {
         repo: target.repo,
         origin: target.origin,
         sourceHost: target.sourceHost,
         hostAmbiguous: target.hostAmbiguous,
       };
+      let tagNames: string[] | null;
+      try {
+        tagNames = await client.listTags(target.repo);
+      } catch (error) {
+        // Registries commonly answer 401/403 for repos that don't exist, to
+        // avoid leaking repo existence. The scan route probes /v2/ first, so
+        // credentials are known-good here — treat a per-repo auth denial as
+        // "repo absent", not as a scan error.
+        if (error instanceof RegistryRequestError && error.kind === 'auth') {
+          repos.push({ ...base, present: false, tags: [] });
+          return;
+        }
+        errors.push(issueFrom(error, target.repo));
+        return;
+      }
       if (tagNames === null) {
         repos.push({ ...base, present: false, tags: [] });
         return;
       }
+      tagNames = tagNames.filter(tag => !COSIGN_ARTIFACT_TAG.test(tag));
       const tags: ScannedTag[] = [];
       const headIssues: ScanIssue[] = [];
       for (const tag of tagNames) {

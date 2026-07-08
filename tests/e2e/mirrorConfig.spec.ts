@@ -26,6 +26,24 @@ test.describe('Mirror Configuration', () => {
     await expect(page.getByText('Download YAML').first()).toBeVisible({ timeout: 15000 });
   });
 
+  test('unsaved draft survives navigating away and back', async ({ page }) => {
+    await page.getByRole('tab', { name: /additional images/i }).click();
+    await page.getByRole('button', { name: /add image/i }).first().click();
+    const imageInput = page
+      .getByPlaceholder('registry.redhat.io/example/image:tag')
+      .first();
+    await imageInput.fill('registry.example/keep/me:v1');
+
+    await page.goto('/fleet');
+    await expect(page.getByText('Fleet State').first()).toBeVisible();
+    await page.goto('/config');
+
+    await page.getByRole('tab', { name: /additional images/i }).click();
+    await expect(
+      page.getByPlaceholder('registry.redhat.io/example/image:tag').first(),
+    ).toHaveValue('registry.example/keep/me:v1');
+  });
+
   test('saving empty config shows inline validation error', async ({ page }) => {
     await page.getByRole('button', { name: /save configuration/i }).click();
     await expect(page.getByText('At least one platform channel, operator, or additional image is required')).toBeVisible({ timeout: 5000 });

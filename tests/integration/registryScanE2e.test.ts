@@ -75,6 +75,12 @@ beforeAll(async () => {
       return;
     }
 
+    // /v2/ auth probe (scan pings before scanning).
+    if (url.pathname === '/v2/') {
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
+      return;
+    }
+
     // /v2/_catalog: two pages to exercise Link pagination.
     if (url.pathname === '/v2/_catalog') {
       if (catalogWalkDisabled) {

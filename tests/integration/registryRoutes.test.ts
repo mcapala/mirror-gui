@@ -10,6 +10,7 @@ import {
   type RegistryRouterDeps,
 } from '../../server/registry/routes.js';
 import type { createRegistryClient } from '../../server/registry/client.js';
+import { RegistryRequestError } from '../../server/registry/types.js';
 import type { IscConfig } from '../../server/acm/reconcile.js';
 
 const FIXTURE_CATALOG_DIR = path.resolve(
@@ -347,8 +348,9 @@ describe('mirror-registries routes', () => {
       listTags: (repo: string) => Promise<string[] | null>;
       headManifest: (repo: string, tag: string) => Promise<string | null>;
       listRepositories?: () => Promise<string[] | null>;
+      ping?: () => Promise<void>;
     }) =>
-      ((() => impl) as unknown) as typeof createRegistryClient;
+      ((() => ({ ping: async () => {}, ...impl })) as unknown) as typeof createRegistryClient;
 
     it('scans fixture-derived repos and persists the snapshot', async () => {
       // Digest of an actual bundle image in the redhat fixture bundles.json.
@@ -509,6 +511,27 @@ describe('mirror-registries routes', () => {
       expect(capturedBasicAuth).toBe(
         Buffer.from('svc:hunter2').toString('base64'),
       );
+    });
+
+    it('502s the scan when the registry auth probe fails', async () => {
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClient({
+          listTags: async () => null,
+          headManifest: async () => null,
+          ping: async () => {
+            throw new RegistryRequestError(
+              'auth',
+              'authentication failed (HTTP 401) — check the credentials',
+            );
+          },
+        }),
+      });
+      const id = await createRegistry(app);
+      const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+      expect(scan.status).toBe(502);
+      expect(scan.body.kind).toBe('auth');
+      expect(scan.body.error).toMatch(/registry probe failed/);
     });
 
     it('400s when every catalog fails to load', async () => {

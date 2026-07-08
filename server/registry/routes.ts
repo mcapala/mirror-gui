@@ -396,6 +396,22 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           insecureSkipVerify: registry.insecureSkipVerify,
         });
 
+        // Probe /v2/ first so a credential problem fails the whole scan
+        // loudly; executeScan then safely treats per-repo 401s as "repo
+        // absent" (registries hide unknown repos behind 401).
+        try {
+          await client.ping();
+        } catch (error) {
+          if (error instanceof RegistryRequestError) {
+            res.status(502).json({
+              error: `registry probe failed: ${error.message}`,
+              kind: error.kind,
+            });
+            return;
+          }
+          throw error;
+        }
+
         let walkedRepos: string[] = [];
         let walkOk = true;
         const walkIssues: ScanIssue[] = [];
