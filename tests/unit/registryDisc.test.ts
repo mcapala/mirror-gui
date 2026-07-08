@@ -110,6 +110,8 @@ function snapshot(over: Partial<RegistryScanSnapshot> = {}): RegistryScanSnapsho
       unknown: 0,
       reposAdditional: 0,
       reposWalked: 0,
+      reposSupport: 0,
+      reposPlatform: 0,
     },
     ...over,
   };

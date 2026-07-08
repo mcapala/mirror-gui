@@ -210,6 +210,8 @@ export function buildScanTargets(
   operator: Map<string, RepoExpectation>,
   additional: Map<string, AdditionalRepoExpectation>,
   walkedRepos: string[],
+  supportRepos?: Set<string>,
+  platformRepos?: Set<string>,
 ): ScanTarget[] {
   const targets = new Map<string, ScanTarget>();
   const blank = (repo: string, origin: RepoOrigin): ScanTarget => ({
@@ -245,7 +247,12 @@ export function buildScanTargets(
   }
   for (const repo of walkedRepos) {
     if (!targets.has(repo)) {
-      targets.set(repo, blank(repo, 'walk'));
+      const origin: RepoOrigin = supportRepos?.has(repo)
+        ? 'support'
+        : platformRepos?.has(repo)
+          ? 'platform'
+          : 'walk';
+      targets.set(repo, blank(repo, origin));
     }
   }
   return [...targets.values()].sort((a, b) => a.repo.localeCompare(b.repo));
@@ -386,6 +393,8 @@ export async function executeScan(
       unknown: allTags.length - matched,
       reposAdditional: targets.filter(t => t.origin === 'additional').length,
       reposWalked: targets.filter(t => t.origin === 'walk').length,
+      reposSupport: targets.filter(t => t.origin === 'support').length,
+      reposPlatform: targets.filter(t => t.origin === 'platform').length,
     },
   };
 }

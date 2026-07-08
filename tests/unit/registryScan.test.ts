@@ -212,8 +212,27 @@ describe('executeScan', () => {
       unknown: 1,
       reposAdditional: 0,
       reposWalked: 0,
+      reposSupport: 0,
+      reposPlatform: 0,
     });
     expect(result.errors).toEqual([]);
+  });
+
+  it('counts support and platform targets in stats', async () => {
+    const targets = buildScanTargets(
+      new Map(),
+      new Map(),
+      ['a/support-repo', 'b/platform-repo', 'c/orphan'],
+      new Set(['a/support-repo']),
+      new Set(['b/platform-repo']),
+    );
+    const result = await executeScan(
+      targets,
+      client({ listTags: async () => ['v1'], headManifest: async () => null }),
+    );
+    expect(result.stats.reposSupport).toBe(1);
+    expect(result.stats.reposPlatform).toBe(1);
+    expect(result.stats.reposWalked).toBe(1);
   });
 
   it('treats a per-repo auth failure as an absent repo (registries hide unknown repos behind 401)', async () => {
@@ -496,6 +515,39 @@ describe('buildScanTargets', () => {
     expect(ubi?.sourceHost).toBeNull();
     expect(byRepo.get('mirror/orphan/repo')?.origin).toBe('walk');
   });
+
+  it('classifies walked repos as support or platform; expectations outrank both', () => {
+    const operator = deriveExpectations(catalogBundles(), '');
+    const additional = deriveAdditionalExpectations(
+      [{ mirror: { additionalImages: [{ name: 'quay.io/ops/op-a-operand:v1' }] } }],
+      '',
+    );
+    const targets = buildScanTargets(
+      operator,
+      additional,
+      [
+        'rhacm2/acm-operator-bundle', // in operator expectations
+        'ops/op-a-operand', // in additional AND support → additional wins
+        'ops/other-operand', // support only
+        'openshift-release-dev/ocp-release', // support outranks platform
+        'openshift/graph-image', // platform only
+        'plain/orphan', // nothing → walk
+      ],
+      new Set(['ops/op-a-operand', 'ops/other-operand', 'openshift-release-dev/ocp-release']),
+      new Set([
+        'openshift-release-dev/ocp-release',
+        'openshift-release-dev/ocp-v4.0-art-dev',
+        'openshift/graph-image',
+      ]),
+    );
+    const originOf = (repo: string) => targets.find(t => t.repo === repo)?.origin;
+    expect(originOf('rhacm2/acm-operator-bundle')).toBe('operator');
+    expect(originOf('ops/op-a-operand')).toBe('additional');
+    expect(originOf('ops/other-operand')).toBe('support');
+    expect(originOf('openshift-release-dev/ocp-release')).toBe('support');
+    expect(originOf('openshift/graph-image')).toBe('platform');
+    expect(originOf('plain/orphan')).toBe('walk');
+  });
 });
 
 describe('executeScan v2', () => {
@@ -601,6 +653,8 @@ describe('buildOperatorContent', () => {
         unknown: 1,
         reposAdditional: 0,
         reposWalked: 0,
+        reposSupport: 0,
+        reposPlatform: 0,
       },
     };
     const report = buildOperatorContent(snapshot);
@@ -671,6 +725,8 @@ describe('buildOperatorContent', () => {
         unknown: 3,
         reposAdditional: 0,
         reposWalked: 1,
+        reposSupport: 0,
+        reposPlatform: 0,
       },
     };
     const report = buildOperatorContent(snapshot);
@@ -725,6 +781,8 @@ describe('buildOperatorContent', () => {
         unknown: 2,
         reposAdditional: 1,
         reposWalked: 1,
+        reposSupport: 0,
+        reposPlatform: 0,
       },
     };
     const report = buildOperatorContent(snapshot);
@@ -780,6 +838,8 @@ describe('buildOperatorContent additional images', () => {
         unknown: 2,
         reposAdditional: 1,
         reposWalked: 1,
+        reposSupport: 0,
+        reposPlatform: 0,
       },
     };
     const report = buildOperatorContent(snapshot);

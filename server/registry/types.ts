@@ -87,6 +87,8 @@ export interface ScanStats {
   unknown: number;
   reposAdditional: number;
   reposWalked: number;
+  reposSupport: number;
+  reposPlatform: number;
 }
 
 export interface RegistryScanSnapshot {
