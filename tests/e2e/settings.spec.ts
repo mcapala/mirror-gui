@@ -14,9 +14,10 @@ test.describe('Settings', () => {
     await expect(page.getByText(/cache location|cache size|clean up cache/i).first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('Registry tab shows authentication status', async ({ page }) => {
-    await page.getByText(/registry/i).first().click();
-    await expect(page.getByText(/registry authentication|no registries found|verify all/i).first()).toBeVisible({ timeout: 10000 });
+  test('Registry tab shows unified registry table', async ({ page }) => {
+    await page.getByRole('tab', { name: /^registry$/i }).click();
+    await expect(page.getByRole('button', { name: /add registry/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /verify all/i })).toBeVisible();
   });
 
   test('Pull Secret Save button is present', async ({ page }) => {
@@ -37,6 +38,15 @@ test.describe('Settings', () => {
   });
 
   test('registry tab: add local registry, source column, verify', async ({ page, request }) => {
+    // Remove a leftover row from an earlier failed run (POST would 400 on the
+    // duplicate host+prefix).
+    const existing = await request.get('/api/mirror-registries');
+    for (const r of (await existing.json()).registries as { id: string; host: string }[]) {
+      if (r.host === 'local.e2e-registry.invalid:5000') {
+        await request.delete(`/api/mirror-registries/${r.id}`);
+      }
+    }
+
     await page.goto('/settings?tab=registry');
     await page.getByRole('button', { name: /add registry/i }).click();
     await page.locator('#reg-host').fill('local.e2e-registry.invalid:5000');
@@ -45,7 +55,9 @@ test.describe('Settings', () => {
     await page.getByRole('button', { name: /save registry/i }).click();
 
     const row = page.getByRole('row', { name: /local\.e2e-registry\.invalid/ });
-    await expect(row.getByText('Local')).toBeVisible();
+    // exact: getByText is case-insensitive by default and would also match
+    // the host cell ("local.e2e-registry...").
+    await expect(row.getByText('Local', { exact: true })).toBeVisible();
 
     await row.getByRole('button', { name: /^verify$/i }).click();
     await expect(row.getByText(/failed/i)).toBeVisible({ timeout: 30000 }); // unreachable host

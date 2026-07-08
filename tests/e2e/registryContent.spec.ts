@@ -17,13 +17,9 @@ test.describe('Registry Content page', () => {
     page,
   }) => {
     await page.goto('/');
-    // NavExpandable renders a toggle button; expanded by default, so tolerate
-    // the already-open state.
-    await page
-      .getByRole('button', { name: /fleet state/i })
-      .click()
-      .catch(() => undefined);
-    await page.getByRole('link', { name: /registry content/i }).click();
+    // The Fleet State group is expanded by default; its children are visible.
+    await expect(page.getByText('Fleet State').first()).toBeVisible();
+    await page.getByText('Registry Content').first().click();
     await expect(page).toHaveURL(/\/registry-content$/);
   });
 
@@ -31,6 +27,13 @@ test.describe('Registry Content page', () => {
     page,
     request,
   }) => {
+    // Leftovers from other specs (or an earlier failed run) break the
+    // empty-state assumption — clear all mirror registries first.
+    const existing = await request.get('/api/mirror-registries');
+    for (const r of (await existing.json()).registries as { id: string }[]) {
+      await request.delete(`/api/mirror-registries/${r.id}`);
+    }
+
     await page.goto('/registry-content');
     await expect(
       page
@@ -38,7 +41,7 @@ test.describe('Registry Content page', () => {
         .filter({ visible: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: /settings/i }),
+      page.getByRole('link', { name: 'Settings → Registry' }),
     ).toBeVisible();
 
     const created = await request.post('/api/mirror-registries', {
