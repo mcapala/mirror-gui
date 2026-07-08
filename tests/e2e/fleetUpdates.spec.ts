@@ -93,6 +93,8 @@ test.describe('Fleet Updates tab', () => {
         url: `https://127.0.0.1:${port}`,
         token: 'sha256~e2e-test-token',
         insecureSkipVerify: true,
+        // opt-in semantics: a hub without a cluster selection is skipped
+        clusters: ['e2e-cluster-1'],
       },
     });
     expect(created.ok(), await created.text()).toBeTruthy();

@@ -47,9 +47,19 @@ test.beforeAll(async () => {
       cert: fs.readFileSync(path.join(TLS_DIR, 'server.crt')),
     },
     (req, res) => {
-      req.resume();
+      const chunks: Buffer[] = [];
+      req.on('data', chunk => chunks.push(chunk));
       req.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
         res.setHeader('Content-Type', 'application/json');
+        if (body.includes('searchComplete')) {
+          res.end(
+            JSON.stringify({
+              data: { searchComplete: ['e2e-cluster-1', 'e2e-cluster-2'] },
+            }),
+          );
+          return;
+        }
         res.end(JSON.stringify(STUB_RESPONSE));
       });
     }
@@ -77,7 +87,7 @@ test.describe('Fleet Operators', () => {
     }
   });
 
-  test('configure hub, refresh, dashboard shows deployed packages', async ({
+  test('hub without clusters is inactive; picker activates it', async ({
     page,
     request,
   }) => {
@@ -92,13 +102,33 @@ test.describe('Fleet Operators', () => {
     expect(created.ok(), await created.text()).toBeTruthy();
     hubId = (await created.json()).hub.id;
 
+    // Unconfigured hub: refresh yields a flagged, empty snapshot.
     await page.goto('/fleet');
     await expect(
       page.getByRole('heading', { name: 'Fleet Operators' })
     ).toBeVisible({ timeout: 15000 });
-
     await page.getByRole('button', { name: /refresh/i }).click();
+    await expect(
+      page.getByText(`${HUB_NAME}: no clusters selected`)
+    ).toBeVisible({ timeout: 20000 });
 
+    // Pick both clusters in Settings → ACM Hubs (deep link, eventKey acm-hubs).
+    await page.goto('/settings?tab=acm-hubs');
+    const hubRow = page.getByRole('row', { name: new RegExp(HUB_NAME) });
+    await expect(hubRow.getByText('none — inactive')).toBeVisible();
+    await hubRow.getByRole('button', { name: 'Clusters' }).click();
+    await expect(
+      page.getByRole('checkbox', { name: 'e2e-cluster-1' })
+    ).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: 'Select all' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(hubRow.getByText('2 selected')).toBeVisible();
+  });
+
+  test('configured hub refresh shows deployed packages', async ({ page }) => {
+    // Depends on the selection saved by the previous test (workers=1).
+    await page.goto('/fleet');
+    await page.getByRole('button', { name: /refresh/i }).click();
     await expect(
       page.getByText('advanced-cluster-management')
     ).toBeVisible({ timeout: 20000 });
