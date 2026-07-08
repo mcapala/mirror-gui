@@ -170,6 +170,19 @@ describe('mirror-registries routes', () => {
         await fs.promises.readFile(path.join(dir, 'registries.json'), 'utf8'),
       );
       expect(raw.registries[0].password).toBe('hunter2');
+      // ...and the store file is owner-only, like the ACM hub token store.
+      const stat = await fs.promises.stat(path.join(dir, 'registries.json'));
+      expect(stat.mode & 0o777).toBe(0o600);
+    });
+
+    it('rejects a PUT password without a username', async () => {
+      const app = makeApp({ storageDir: dir });
+      const id = await createRegistry(app);
+      const res = await request(app)
+        .put(`/api/mirror-registries/${id}`)
+        .send({ host: 'quay.local:8443', pathPrefix: 'mirror', password: 'p' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/together/);
     });
 
     it('rejects half-set credentials on create', async () => {

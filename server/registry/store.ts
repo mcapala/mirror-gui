@@ -36,9 +36,11 @@ export class RegistryStore {
   }
 
   async writeRegistries(registries: MirrorRegistryConfig[]): Promise<void> {
+    // May hold registry passwords — owner-only, like the ACM hub token store.
     await this.atomicWrite(
       this.registriesPath(),
       JSON.stringify({ registries }, null, 2),
+      0o600,
     );
   }
 
@@ -67,10 +69,17 @@ export class RegistryStore {
     await fsp.rm(this.scanPath(id), { force: true });
   }
 
-  private async atomicWrite(dest: string, content: string): Promise<void> {
+  private async atomicWrite(
+    dest: string,
+    content: string,
+    mode: number = 0o644,
+  ): Promise<void> {
     await fsp.mkdir(path.dirname(dest), { recursive: true });
     const tmp = `${dest}.tmp`;
-    await fsp.writeFile(tmp, content, { mode: 0o644 });
+    await fsp.writeFile(tmp, content, { mode });
+    // writeFile's mode only applies on creation — enforce it even when a
+    // stale tmp file (or a pre-credentials 0644 store) is being replaced.
+    await fsp.chmod(tmp, mode);
     await fsp.rename(tmp, dest);
   }
 }

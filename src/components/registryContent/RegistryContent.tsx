@@ -308,7 +308,8 @@ const RegistryContent: React.FC = () => {
               </Thead>
               <Tbody>
                 {report.additionalImages.map(a => (
-                  <Tr key={`${a.repo}-${a.tag}`}>
+                  // ':' is illegal in repo paths, so the key cannot collide.
+                  <Tr key={`${a.repo}:${a.tag}`}>
                     <Td>{a.repo}</Td>
                     <Td>{a.tag}</Td>
                     <Td>{shortDigest(a.digest)}</Td>

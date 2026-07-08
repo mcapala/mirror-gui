@@ -270,7 +270,15 @@ export function createRegistryClient(
       );
     }
     // The bearer exchange for /v2/ carries no repository scope.
-    const tokenUrl = new URL(challenge.realm);
+    let tokenUrl: URL;
+    try {
+      tokenUrl = new URL(challenge.realm);
+    } catch {
+      throw new RegistryRequestError(
+        'bad-response',
+        'auth challenge carried an invalid realm URL',
+      );
+    }
     if (challenge.service) {
       tokenUrl.searchParams.set('service', challenge.service);
     }

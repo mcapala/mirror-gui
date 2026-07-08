@@ -255,6 +255,12 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         registry.caBundle = (input.caBundle as string) || undefined;
       }
       const username = typeof input.username === 'string' ? input.username : '';
+      if (!username && typeof input.password === 'string' && input.password) {
+        res
+          .status(400)
+          .json({ error: 'username and password must be provided together' });
+        return;
+      }
       if (!username || input.password === '') {
         delete registry.username;
         delete registry.password;

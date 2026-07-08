@@ -322,7 +322,9 @@ const SettingsPage: React.FC = () => {
       host: regHost,
       pathPrefix: regPrefix,
       insecureSkipVerify: regSkipVerify,
-      caBundle: regCaBundle || undefined,
+      // Always a string: '' explicitly clears a stored bundle (the API keeps
+      // it only when the field is omitted).
+      caBundle: regCaBundle,
     };
     if (regUsername) {
       body.username = regUsername;

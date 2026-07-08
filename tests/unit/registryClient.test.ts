@@ -433,6 +433,27 @@ describe('ping', () => {
       kind: 'bad-response',
     });
   });
+
+  it('throws kind bad-response on a malformed challenge realm', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: () => true,
+        response: {
+          status: 401,
+          headers: { 'www-authenticate': 'Bearer realm="not a url"' },
+          data: {},
+        },
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: null,
+      transport,
+    });
+    await expect(client.ping()).rejects.toMatchObject({
+      kind: 'bad-response',
+    });
+  });
 });
 
 describe('listRepositories', () => {
