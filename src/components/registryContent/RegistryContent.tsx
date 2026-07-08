@@ -1,32 +1,24 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import {
   Alert,
   Button,
-  Checkbox,
   EmptyState,
   EmptyStateBody,
-  Form,
-  FormGroup,
   FormSelect,
   FormSelectOption,
   Label,
   Spinner,
-  TextArea,
-  TextInput,
   Title,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
-import { PlusCircleIcon, SyncAltIcon, TrashIcon } from '@patternfly/react-icons';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import { useAlerts } from '../../AlertContext';
-import type {
-  MirrorRegistry,
-  OperatorContentReport,
-  PullSecretRegistry,
-} from './types';
+import type { MirrorRegistry, OperatorContentReport } from './types';
 
 function shortDigest(digest: string | null): string {
   if (!digest) return '—';
@@ -36,9 +28,6 @@ function shortDigest(digest: string | null): string {
 const RegistryContent: React.FC = () => {
   const { addSuccessAlert, addDangerAlert } = useAlerts();
   const [registries, setRegistries] = useState<MirrorRegistry[]>([]);
-  const [pullSecretHosts, setPullSecretHosts] = useState<PullSecretRegistry[]>(
-    [],
-  );
   const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -46,21 +35,11 @@ const RegistryContent: React.FC = () => {
   const [reportIssue, setReportIssue] = useState<
     'none' | 'never-scanned' | 'schema-mismatch'
   >('none');
-  const [formOpen, setFormOpen] = useState(false);
-  const [formHost, setFormHost] = useState('');
-  const [formPrefix, setFormPrefix] = useState('');
-  const [formSkipVerify, setFormSkipVerify] = useState(false);
-  const [formCaBundle, setFormCaBundle] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const loadRegistries = useCallback(async () => {
     try {
-      const [mirror, pullSecret] = await Promise.all([
-        axios.get('/api/mirror-registries'),
-        axios.get('/api/registries'),
-      ]);
+      const mirror = await axios.get('/api/mirror-registries');
       setRegistries(mirror.data.registries);
-      setPullSecretHosts(pullSecret.data.registries ?? []);
       setSelectedId(prev =>
         mirror.data.registries.some((r: MirrorRegistry) => r.id === prev)
           ? prev
@@ -107,7 +86,6 @@ const RegistryContent: React.FC = () => {
   }, [loadRegistries]);
 
   useEffect(() => {
-    setConfirmDelete(false);
     loadReport(selectedId);
   }, [selectedId, loadReport]);
 
@@ -124,45 +102,6 @@ const RegistryContent: React.FC = () => {
       addDangerAlert(`Scan failed: ${message}`);
     } finally {
       setScanning(false);
-    }
-  };
-
-  const addRegistry = async () => {
-    try {
-      const response = await axios.post('/api/mirror-registries', {
-        host: formHost,
-        pathPrefix: formPrefix,
-        insecureSkipVerify: formSkipVerify,
-        caBundle: formCaBundle || undefined,
-      });
-      addSuccessAlert(`Registry ${formHost} added`);
-      setFormOpen(false);
-      setFormHost('');
-      setFormPrefix('');
-      setFormSkipVerify(false);
-      setFormCaBundle('');
-      await loadRegistries();
-      setSelectedId(response.data.registry.id);
-    } catch (error) {
-      const message = axios.isAxiosError(error)
-        ? error.response?.data?.error || error.message
-        : String(error);
-      addDangerAlert(`Failed to add registry: ${message}`);
-    }
-  };
-
-  const deleteRegistry = async () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
-    try {
-      await axios.delete(`/api/mirror-registries/${selectedId}`);
-      addSuccessAlert('Registry removed');
-      setConfirmDelete(false);
-      await loadRegistries();
-    } catch {
-      addDangerAlert('Failed to remove registry');
     }
   };
 
@@ -214,93 +153,14 @@ const RegistryContent: React.FC = () => {
               {scanning ? 'Scanning…' : 'Scan now'}
             </Button>
           </ToolbarItem>
-          <ToolbarItem>
-            <Button
-              variant="secondary"
-              icon={<PlusCircleIcon />}
-              onClick={() => setFormOpen(open => !open)}
-            >
-              Add registry
-            </Button>
-          </ToolbarItem>
-          {selectedId && (
-            <ToolbarItem>
-              <Button
-                variant={confirmDelete ? 'danger' : 'secondary'}
-                icon={<TrashIcon />}
-                onClick={deleteRegistry}
-              >
-                {confirmDelete ? 'Confirm delete' : 'Delete'}
-              </Button>
-            </ToolbarItem>
-          )}
         </ToolbarContent>
       </Toolbar>
-
-      {formOpen && (
-        <Form isHorizontal className="pf-v6-u-mb-md" style={{ maxWidth: 640 }}>
-          <FormGroup label="Registry host" isRequired fieldId="registry-host">
-            <FormSelect
-              id="registry-host"
-              value={formHost}
-              onChange={(_e, value) => setFormHost(value)}
-            >
-              <FormSelectOption value="" label="Select a pull-secret host…" />
-              {pullSecretHosts
-                .filter(h => h.hasAuth)
-                .map(h => (
-                  <FormSelectOption
-                    key={h.registry}
-                    value={h.registry}
-                    label={h.registry}
-                  />
-                ))}
-            </FormSelect>
-          </FormGroup>
-          <FormGroup
-            label="Path prefix"
-            fieldId="registry-prefix"
-          >
-            <TextInput
-              id="registry-prefix"
-              value={formPrefix}
-              onChange={(_e, value) => setFormPrefix(value)}
-              placeholder="e.g. mirror — empty for registry root"
-            />
-          </FormGroup>
-          <FormGroup fieldId="registry-skip-verify">
-            <Checkbox
-              id="registry-skip-verify"
-              label="Skip TLS verification (insecure)"
-              isChecked={formSkipVerify}
-              onChange={(_e, checked) => setFormSkipVerify(checked)}
-            />
-          </FormGroup>
-          <FormGroup label="CA bundle (PEM)" fieldId="registry-ca">
-            <TextArea
-              id="registry-ca"
-              value={formCaBundle}
-              onChange={(_e, value) => setFormCaBundle(value)}
-              rows={3}
-            />
-          </FormGroup>
-          <div>
-            <Button
-              variant="primary"
-              onClick={addRegistry}
-              isDisabled={!formHost}
-            >
-              Save registry
-            </Button>
-          </div>
-        </Form>
-      )}
 
       {registries.length === 0 && (
         <EmptyState titleText="No mirror registries configured" headingLevel="h4">
           <EmptyStateBody>
-            Add a mirror registry (host from your pull secret plus the path
-            prefix used when pushing the mirror) to scan its operator content.
+            Configure mirror registries (host, path prefix, and credentials) in{' '}
+            <Link to="/settings?tab=registry">Settings → Registry</Link>.
           </EmptyStateBody>
         </EmptyState>
       )}
@@ -418,6 +278,45 @@ const RegistryContent: React.FC = () => {
                 </Tbody>
               </Table>
             </>
+          )}
+
+          <Title headingLevel="h4" className="pf-v6-u-mt-md pf-v6-u-mb-sm">
+            Additional images{' '}
+            <Label color={report.additionalImages.length ? 'blue' : 'grey'}>
+              {report.additionalImages.length}
+            </Label>
+          </Title>
+          {!report.walkOk && (
+            <Alert
+              variant="warning"
+              isInline
+              className="pf-v6-u-mb-sm"
+              title="Catalog walk unavailable on this registry — this list only covers images referenced by your configurations."
+            />
+          )}
+          {report.additionalImages.length === 0 ? (
+            <p>No non-operator images found in this registry.</p>
+          ) : (
+            <Table aria-label="Additional registry images" variant="compact">
+              <Thead>
+                <Tr>
+                  <Th>Repository</Th>
+                  <Th>Tag</Th>
+                  <Th>Digest</Th>
+                  <Th>Source image</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {report.additionalImages.map(a => (
+                  <Tr key={`${a.repo}-${a.tag}`}>
+                    <Td>{a.repo}</Td>
+                    <Td>{a.tag}</Td>
+                    <Td>{shortDigest(a.digest)}</Td>
+                    <Td>{a.source ?? '—'}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
           )}
         </>
       )}

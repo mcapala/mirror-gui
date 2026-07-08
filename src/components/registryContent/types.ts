@@ -4,13 +4,9 @@ export interface MirrorRegistry {
   pathPrefix: string;
   insecureSkipVerify: boolean;
   caBundle?: string;
+  username?: string;
+  hasCredentials: boolean;
   hasPullSecretAuth: boolean;
-}
-
-export interface PullSecretRegistry {
-  registry: string;
-  username: string;
-  hasAuth: boolean;
 }
 
 export interface OperatorContentVersion {
