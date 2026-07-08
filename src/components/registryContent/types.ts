@@ -38,6 +38,13 @@ export interface OperatorContentReport {
   catalogs: string[];
   packages: Record<string, OperatorContentVersion[]>;
   unknownTags: Array<{ repo: string; tag: string; digest: string | null }>;
+  walkOk: boolean;
+  additionalImages: Array<{
+    repo: string;
+    tag: string;
+    digest: string | null;
+    source: string | null;
+  }>;
   errors: ScanIssue[];
   stats: {
     reposExpected: number;

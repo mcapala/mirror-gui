@@ -345,12 +345,6 @@ describe('executeScan v2', () => {
     ...over,
   });
 
-  const client = (overrides: Partial<ScanClientLike>): ScanClientLike => ({
-    listTags: async () => null,
-    headManifest: async () => null,
-    ...overrides,
-  });
-
   it('populates matchedAdditional and origin metadata', async () => {
     const scanClient: ScanClientLike = {
       listTags: async () => ['8.10', '8.9'],
@@ -568,6 +562,77 @@ describe('buildOperatorContent', () => {
       },
     };
     const report = buildOperatorContent(snapshot);
+    expect(report.packages).toEqual({});
+    expect(report.unknownTags).toEqual([]);
+  });
+});
+
+describe('buildOperatorContent additional images', () => {
+  it('lists non-operator tags with source refs, passes walkOk through', () => {
+    const snapshot: RegistryScanSnapshot = {
+      schemaVersion: 2,
+      registryId: 'r1',
+      host: 'quay.local:8443',
+      pathPrefix: 'mirror',
+      scannedAt: '2026-07-08T00:00:00.000Z',
+      partial: false,
+      walkOk: false,
+      catalogs: ['redhat-operator-index:v4.21'],
+      repos: [
+        {
+          repo: 'mirror/extra/tools',
+          present: true,
+          origin: 'additional',
+          sourceHost: 'docker.io',
+          hostAmbiguous: false,
+          tags: [
+            {
+              tag: 'v1',
+              digest: 'sha256:aaa',
+              matched: null,
+              matchedAdditional: 'docker.io/extra/tools:v1',
+            },
+          ],
+        },
+        {
+          repo: 'mirror/orphan/thing',
+          present: true,
+          origin: 'walk',
+          sourceHost: null,
+          hostAmbiguous: false,
+          tags: [
+            { tag: 'old', digest: 'sha256:bbb', matched: null, matchedAdditional: null },
+          ],
+        },
+      ],
+      errors: [],
+      stats: {
+        reposExpected: 0,
+        reposPresent: 0,
+        tagsScanned: 2,
+        matched: 0,
+        unknown: 2,
+        reposAdditional: 1,
+        reposWalked: 1,
+      },
+    };
+    const report = buildOperatorContent(snapshot);
+    expect(report.walkOk).toBe(false);
+    expect(report.additionalImages).toEqual([
+      {
+        repo: 'mirror/extra/tools',
+        tag: 'v1',
+        digest: 'sha256:aaa',
+        source: 'docker.io/extra/tools:v1',
+      },
+      {
+        repo: 'mirror/orphan/thing',
+        tag: 'old',
+        digest: 'sha256:bbb',
+        source: null,
+      },
+    ]);
+    // operator tables untouched by non-operator repos
     expect(report.packages).toEqual({});
     expect(report.unknownTags).toEqual([]);
   });

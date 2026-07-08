@@ -125,6 +125,15 @@ export interface OperatorContentReport {
   catalogs: string[];
   packages: Record<string, OperatorContentVersion[]>;
   unknownTags: Array<{ repo: string; tag: string; digest: string | null }>;
+  /** True when the /v2/_catalog walk completed for this scan. */
+  walkOk: boolean;
+  /** Tags of non-operator repos (origins 'additional' and 'walk'). */
+  additionalImages: Array<{
+    repo: string;
+    tag: string;
+    digest: string | null;
+    source: string | null;
+  }>;
   errors: ScanIssue[];
   stats: ScanStats;
 }

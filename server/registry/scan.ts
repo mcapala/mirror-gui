@@ -343,6 +343,23 @@ export function buildOperatorContent(
       }),
     );
   }
+  const additionalImages: OperatorContentReport['additionalImages'] = [];
+  for (const repo of snapshot.repos) {
+    if (repo.origin === 'operator') {
+      continue;
+    }
+    for (const tag of repo.tags) {
+      additionalImages.push({
+        repo: repo.repo,
+        tag: tag.tag,
+        digest: tag.digest,
+        source: tag.matchedAdditional,
+      });
+    }
+  }
+  additionalImages.sort(
+    (a, b) => a.repo.localeCompare(b.repo) || a.tag.localeCompare(b.tag),
+  );
   return {
     registryId: snapshot.registryId,
     host: snapshot.host,
@@ -352,6 +369,8 @@ export function buildOperatorContent(
     catalogs: snapshot.catalogs,
     packages,
     unknownTags,
+    walkOk: snapshot.walkOk,
+    additionalImages,
     errors: snapshot.errors,
     // Tag-level counts are scoped to operator repos so the badge matches this
     // report's own tables; repo-level counts pass through unchanged — other
