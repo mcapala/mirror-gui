@@ -259,6 +259,32 @@ describe('executeScan', () => {
     expect(result.stats.unknown).toBe(0);
   });
 
+  it('skips probing expected repos absent from a successful walk (knownRepos)', async () => {
+    const expectations = deriveExpectations(catalogBundles(), '');
+    const probed: string[] = [];
+    const result = await executeScan(
+      buildScanTargets(expectations, new Map(), [
+        'rhacm2/acm-operator-bundle',
+      ]),
+      client({
+        listTags: async repo => {
+          probed.push(repo);
+          return repo === 'rhacm2/acm-operator-bundle' ? ['t1'] : null;
+        },
+        headManifest: async () => 'sha256:aaa',
+      }),
+      { knownRepos: new Set(['rhacm2/acm-operator-bundle']) },
+    );
+    // Only the repo the walk saw gets HTTP calls; the rest are absent for free.
+    expect(probed).toEqual(['rhacm2/acm-operator-bundle']);
+    const skipped = result.repos.find(r => r.repo === 'community/op-bundle')!;
+    expect(skipped.present).toBe(false);
+    expect(skipped.tags).toEqual([]);
+    expect(result.errors).toEqual([]);
+    expect(result.stats.reposPresent).toBe(1);
+    expect(result.stats.reposExpected).toBe(2);
+  });
+
   it('records absent repos without error', async () => {
     const expectations = deriveExpectations(catalogBundles(), '');
     const result = await executeScan(

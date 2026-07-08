@@ -235,7 +235,13 @@ async function forEachWithConcurrency<T>(
 export async function executeScan(
   targets: ScanTarget[],
   client: ScanClientLike,
-  opts: { concurrency?: number } = {},
+  opts: {
+    concurrency?: number;
+    /** Repos a successful _catalog walk listed. When set, targets outside
+     * this set are marked absent without any HTTP probing — the walk shows
+     * everything the credentials can see, so "not listed" = "absent". */
+    knownRepos?: Set<string>;
+  } = {},
 ): Promise<{ repos: ScannedRepo[]; errors: ScanIssue[]; stats: ScanStats }> {
   const repos: ScannedRepo[] = [];
   const errors: ScanIssue[] = [];
@@ -251,6 +257,10 @@ export async function executeScan(
         sourceHost: target.sourceHost,
         hostAmbiguous: target.hostAmbiguous,
       };
+      if (opts.knownRepos && !opts.knownRepos.has(target.repo)) {
+        repos.push({ ...base, present: false, tags: [] });
+        return;
+      }
       let tagNames: string[] | null;
       try {
         tagNames = await client.listTags(target.repo);

@@ -176,7 +176,10 @@ export function createRegistryClient(
     url: string,
     repo: string,
     accept?: string,
-    scope?: string,
+    /** Token scopes to try in order on a 401 challenge; null means a
+     * scope-less exchange (Quay grants catalog visibility from the token
+     * identity and 400s an explicit registry:catalog:* scope). */
+    scopes?: Array<string | null>,
   ): Promise<RegistryResponse> {
     const headers: Record<string, string> = {};
     if (accept) {
@@ -206,24 +209,35 @@ export function createRegistryClient(
         `authentication failed (HTTP 401) for ${repo} — check the pull secret entry`,
       );
     }
-    const tokenUrl = new URL(challenge.realm);
-    if (challenge.service) {
-      tokenUrl.searchParams.set('service', challenge.service);
+    let bearer: string | undefined;
+    let lastStatus = 0;
+    for (const scope of scopes ?? [`repository:${repo}:pull`]) {
+      const tokenUrl = new URL(challenge.realm);
+      if (challenge.service) {
+        tokenUrl.searchParams.set('service', challenge.service);
+      }
+      if (scope !== null) {
+        tokenUrl.searchParams.set('scope', scope);
+      }
+      const tokenResponse = await attempt(
+        'GET',
+        tokenUrl.toString(),
+        opts.basicAuth ? { Authorization: `Basic ${opts.basicAuth}` } : {},
+      );
+      const tokenData = tokenResponse.data as
+        | { token?: string; access_token?: string }
+        | undefined;
+      const candidate = tokenData?.token || tokenData?.access_token;
+      if (tokenResponse.status === 200 && candidate) {
+        bearer = candidate;
+        break;
+      }
+      lastStatus = tokenResponse.status;
     }
-    tokenUrl.searchParams.set('scope', scope ?? `repository:${repo}:pull`);
-    const tokenResponse = await attempt(
-      'GET',
-      tokenUrl.toString(),
-      opts.basicAuth ? { Authorization: `Basic ${opts.basicAuth}` } : {},
-    );
-    const tokenData = tokenResponse.data as
-      | { token?: string; access_token?: string }
-      | undefined;
-    const bearer = tokenData?.token || tokenData?.access_token;
-    if (tokenResponse.status !== 200 || !bearer) {
+    if (!bearer) {
       throw new RegistryRequestError(
         'auth',
-        `token exchange failed (HTTP ${tokenResponse.status}) for ${repo} — check the pull secret entry`,
+        `token exchange failed (HTTP ${lastStatus}) for ${repo} — check the pull secret entry`,
       );
     }
     tokens.set(repo, bearer);
@@ -385,7 +399,7 @@ export function createRegistryClient(
           url,
           '_catalog',
           undefined,
-          'registry:catalog:*',
+          ['registry:catalog:*', null],
         );
         if (response.status === 404) {
           return null;

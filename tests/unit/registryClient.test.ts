@@ -529,6 +529,73 @@ describe('listRepositories', () => {
     expect(tokenReq?.url).toContain('scope=registry%3Acatalog%3A*');
   });
 
+  it('falls back to a scope-less token when the catalog scope is rejected (Quay)', async () => {
+    // Quay's token server 400s scope=registry:catalog:* but grants a
+    // scope-less token whose identity carries catalog visibility.
+    const requests: RecordedRequest[] = [];
+    const transport: RegistryTransport = {
+      async request(method, url, config) {
+        requests.push({ method, url, headers: config.headers });
+        if (url.includes('/token')) {
+          if (url.includes('scope=')) {
+            return { status: 400, headers: {}, data: {} };
+          }
+          return ok({ token: 'anon-token' });
+        }
+        if (config.headers.Authorization === 'Bearer anon-token') {
+          return ok({ repositories: ['mirror/a'] });
+        }
+        return {
+          status: 401,
+          headers: {
+            'www-authenticate':
+              'Bearer realm="https://reg.example/token",service="reg"',
+          },
+          data: {},
+        };
+      },
+    };
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'YmFzaWM=',
+      transport,
+    });
+    expect(await client.listRepositories()).toEqual(['mirror/a']);
+    const tokenReqs = requests.filter(r => r.url.includes('/token'));
+    expect(tokenReqs).toHaveLength(2);
+    expect(tokenReqs[0].url).toContain('scope=registry%3Acatalog%3A*');
+    expect(tokenReqs[1].url).not.toContain('scope=');
+  });
+
+  it('throws auth when both catalog-scoped and scope-less exchanges fail', async () => {
+    const { transport } = fakeTransport([
+      {
+        match: (_m, url) => url.includes('/token'),
+        response: { status: 400, headers: {}, data: {} },
+      },
+      {
+        match: () => true,
+        response: {
+          status: 401,
+          headers: {
+            'www-authenticate':
+              'Bearer realm="https://reg.example/token",service="reg"',
+          },
+          data: {},
+        },
+      },
+    ]);
+    const client = createRegistryClient({
+      host: 'reg.example',
+      basicAuth: 'YmFzaWM=',
+      transport,
+    });
+    await expect(client.listRepositories()).rejects.toMatchObject({
+      name: 'RegistryRequestError',
+      kind: 'auth',
+    });
+  });
+
   it('returns null when _catalog is unsupported (404)', async () => {
     const { transport } = fakeTransport([
       {

@@ -31,6 +31,7 @@ let knownDigest: string;
 let mirroredRepo: string;
 let catalogWalkDisabled = false;
 let catalogScopeRejected = false;
+let tagListRequests: string[] = [];
 
 beforeAll(async () => {
   const fixture = JSON.parse(
@@ -116,6 +117,7 @@ beforeAll(async () => {
 
     const tagsMatch = url.pathname.match(/^\/v2\/(.+)\/tags\/list$/);
     if (tagsMatch) {
+      tagListRequests.push(tagsMatch[1]);
       if (tagsMatch[1] === 'mirror/ubi8/ubi') {
         res
           .writeHead(200, { 'Content-Type': 'application/json' })
@@ -187,6 +189,7 @@ describe('registry scan against a live stub registry', () => {
     await fs.promises.rm(dir, { recursive: true, force: true });
     catalogWalkDisabled = false;
     catalogScopeRejected = false;
+    tagListRequests = [];
   });
 
   it('runs the full scan flow: token auth, pagination, digest join', async () => {
@@ -240,6 +243,11 @@ describe('registry scan against a live stub registry', () => {
     expect(scan.body.stats.tagsScanned).toBe(5);
     expect(scan.body.stats.matched).toBe(2);
     expect(scan.body.stats.unknown).toBe(3);
+    // Walk intersection: only repos the walk listed get tags/list probes;
+    // expected-but-unmirrored repos cost zero HTTP calls.
+    expect([...new Set(tagListRequests)].sort()).toEqual(
+      ['mirror/orphan/tool', 'mirror/ubi8/ubi', mirroredRepo].sort(),
+    );
 
     const content = await request(app).get(
       `/api/mirror-registries/${id}/operator-content`,
@@ -290,7 +298,7 @@ describe('registry scan against a live stub registry', () => {
     ).toBe(false);
   });
 
-  it('records walkOk=false when the token server rejects the catalog scope (HTTP 400)', async () => {
+  it('walks via a scope-less token when the token server rejects the catalog scope (Quay)', async () => {
     const app = express();
     app.use(express.json());
     app.use(
@@ -317,13 +325,15 @@ describe('registry scan against a live stub registry', () => {
     catalogScopeRejected = true;
     const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
     expect(scan.status).toBe(200);
-    expect(scan.body.walkOk).toBe(false);
+    expect(scan.body.walkOk).toBe(true);
     expect(scan.body.partial).toBe(false);
     expect(scan.body.errors).toEqual([]);
     expect(
-      scan.body.repos.some((r: { origin: string }) => r.origin === 'walk'),
-    ).toBe(false);
-    // Non-walk scanning still completed against the same registry.
+      scan.body.repos.some(
+        (r: { repo: string; origin: string }) =>
+          r.origin === 'walk' && r.repo === 'mirror/orphan/tool',
+      ),
+    ).toBe(true);
     expect(scan.body.stats.reposPresent).toBe(1);
   });
 });

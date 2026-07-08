@@ -378,7 +378,7 @@ describe('mirror-registries routes', () => {
             repo === mirroredRepo ? ['known-tag', 'drift-tag'] : null,
           headManifest: async (_repo, tag) =>
             tag === 'known-tag' ? digest : 'sha256:0000',
-          listRepositories: async () => [],
+          listRepositories: async () => [mirroredRepo],
         }),
       });
       const id = await createRegistry(app);
@@ -413,12 +413,12 @@ describe('mirror-registries routes', () => {
       const app = makeApp({
         storageDir: dir,
         createClient: fakeClient({
-          listTags: async () => {
-            await gate;
-            return null;
-          },
+          listTags: async () => null,
           headManifest: async () => null,
-          listRepositories: async () => [],
+          listRepositories: async () => {
+            await gate;
+            return [];
+          },
         }),
       });
       const id = await createRegistry(app);
@@ -528,6 +528,33 @@ describe('mirror-registries routes', () => {
         repo: null,
       });
       expect(scan.body.errors[0].message).toMatch(/_catalog walk failed/);
+    });
+
+    it('does not probe expected repos the successful walk did not list', async () => {
+      const probed: string[] = [];
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClient({
+          listTags: async repo => {
+            probed.push(repo);
+            return null;
+          },
+          headManifest: async () => null,
+          listRepositories: async () => ['mirror/present/only'],
+        }),
+      });
+      const id = await createRegistry(app);
+      const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+      expect(scan.status).toBe(200);
+      expect(scan.body.walkOk).toBe(true);
+      expect(probed).toEqual(['mirror/present/only']);
+      // Expected repos still appear in the snapshot, absent.
+      expect(scan.body.stats.reposExpected).toBeGreaterThan(0);
+      expect(
+        scan.body.repos
+          .filter((r: { origin: string }) => r.origin === 'operator')
+          .every((r: { present: boolean }) => r.present === false),
+      ).toBe(true);
     });
 
     it('scans with stored credentials when the pull secret has none', async () => {

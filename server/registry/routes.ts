@@ -465,7 +465,9 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           additionalExpectations,
           walkedRepos,
         );
-        const result = await executeScan(targets, client);
+        const result = await executeScan(targets, client, {
+          knownRepos: walkOk ? new Set(walkedRepos) : undefined,
+        });
         const errors = [...catalogIssues, ...walkIssues, ...result.errors];
         const snapshot: RegistryScanSnapshot = {
           schemaVersion: SCAN_SCHEMA_VERSION,
