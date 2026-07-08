@@ -53,6 +53,7 @@ interface HubStatus {
   truncated: boolean;
   skippedItems: number;
   clusterCount: number;
+  unconfigured?: boolean;
 }
 
 interface Snapshot {
@@ -196,6 +197,12 @@ const FleetOperators: React.FC = () => {
                   {hub.status === 'error' ? (
                     <Tooltip content={hub.error ?? 'query failed'}>
                       <Label color="red">{hub.name}: error</Label>
+                    </Tooltip>
+                  ) : hub.unconfigured ? (
+                    <Tooltip content="Select clusters in Settings → ACM Hubs to include this hub">
+                      <Label color="yellow">
+                        {hub.name}: no clusters selected
+                      </Label>
                     </Tooltip>
                   ) : hub.truncated ? (
                     <Tooltip content="Results hit the search limit — data may be incomplete">
