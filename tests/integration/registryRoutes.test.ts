@@ -481,6 +481,55 @@ describe('mirror-registries routes', () => {
       });
     });
 
+    it('treats an auth-denied _catalog walk as walk-unsupported, not a scan error', async () => {
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClient({
+          listTags: async () => null,
+          headManifest: async () => null,
+          listRepositories: async () => {
+            throw new RegistryRequestError(
+              'auth',
+              'token exchange failed (HTTP 400) for _catalog — check the pull secret entry',
+            );
+          },
+        }),
+      });
+      const id = await createRegistry(app);
+      const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+      expect(scan.status).toBe(200);
+      expect(scan.body.walkOk).toBe(false);
+      expect(scan.body.partial).toBe(false);
+      expect(scan.body.errors).toEqual([]);
+    });
+
+    it('keeps a transport-level _catalog walk failure as a scan error', async () => {
+      const app = makeApp({
+        storageDir: dir,
+        createClient: fakeClient({
+          listTags: async () => null,
+          headManifest: async () => null,
+          listRepositories: async () => {
+            throw new RegistryRequestError(
+              'unreachable',
+              'registry unreachable — ECONNRESET',
+            );
+          },
+        }),
+      });
+      const id = await createRegistry(app);
+      const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+      expect(scan.status).toBe(200);
+      expect(scan.body.walkOk).toBe(false);
+      expect(scan.body.partial).toBe(true);
+      expect(scan.body.errors).toHaveLength(1);
+      expect(scan.body.errors[0]).toMatchObject({
+        kind: 'unreachable',
+        repo: null,
+      });
+      expect(scan.body.errors[0].message).toMatch(/_catalog walk failed/);
+    });
+
     it('scans with stored credentials when the pull secret has none', async () => {
       let capturedBasicAuth: string | null | undefined;
       const app = makeApp({

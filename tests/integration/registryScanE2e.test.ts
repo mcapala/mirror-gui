@@ -30,6 +30,7 @@ let registryHost: string;
 let knownDigest: string;
 let mirroredRepo: string;
 let catalogWalkDisabled = false;
+let catalogScopeRejected = false;
 
 beforeAll(async () => {
   const fixture = JSON.parse(
@@ -56,6 +57,17 @@ beforeAll(async () => {
     if (url.pathname === '/token') {
       if (!auth.startsWith('Basic ')) {
         res.writeHead(401).end();
+        return;
+      }
+      // Some token servers (e.g. registry.redhat.io's) reject the catalog
+      // scope outright with HTTP 400 — the registry never grants _catalog.
+      if (
+        catalogScopeRejected &&
+        url.searchParams.get('scope') === 'registry:catalog:*'
+      ) {
+        res
+          .writeHead(400, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ errors: [{ code: 'INVALID_SCOPE' }] }));
         return;
       }
       res
@@ -174,6 +186,7 @@ describe('registry scan against a live stub registry', () => {
   afterEach(async () => {
     await fs.promises.rm(dir, { recursive: true, force: true });
     catalogWalkDisabled = false;
+    catalogScopeRejected = false;
   });
 
   it('runs the full scan flow: token auth, pagination, digest join', async () => {
@@ -268,14 +281,49 @@ describe('registry scan against a live stub registry', () => {
     const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
     expect(scan.status).toBe(200);
     expect(scan.body.walkOk).toBe(false);
-    expect(scan.body.partial).toBe(true);
-    expect(
-      scan.body.errors.some((e: { message: string }) =>
-        e.message.includes('_catalog'),
-      ),
-    ).toBe(true);
+    // Walk-unsupported is a registry property, not a scan failure — walkOk
+    // carries the signal; the scan itself is complete.
+    expect(scan.body.partial).toBe(false);
+    expect(scan.body.errors).toEqual([]);
     expect(
       scan.body.repos.some((r: { origin: string }) => r.origin === 'walk'),
     ).toBe(false);
+  });
+
+  it('records walkOk=false when the token server rejects the catalog scope (HTTP 400)', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use(
+      '/api/mirror-registries',
+      createRegistryRouter({
+        storageDir: dir,
+        readPullSecretAuths: async () => ({
+          [registryHost]: { auth: Buffer.from('user:pass').toString('base64') },
+        }),
+        resolveCatalogDir: async () => FIXTURE_CATALOG_DIR,
+        listIscConfigs: async () => [ISC],
+        readAcmSnapshot: async () => null,
+        createClient: opts => createRegistryClient({ ...opts, scheme: 'http' }),
+        now: () => '2026-07-07T12:00:00.000Z',
+      }),
+    );
+
+    const created = await request(app)
+      .post('/api/mirror-registries')
+      .send({ host: registryHost, pathPrefix: 'mirror' });
+    expect(created.status).toBe(201);
+    const id = created.body.registry.id;
+
+    catalogScopeRejected = true;
+    const scan = await request(app).post(`/api/mirror-registries/${id}/scan`);
+    expect(scan.status).toBe(200);
+    expect(scan.body.walkOk).toBe(false);
+    expect(scan.body.partial).toBe(false);
+    expect(scan.body.errors).toEqual([]);
+    expect(
+      scan.body.repos.some((r: { origin: string }) => r.origin === 'walk'),
+    ).toBe(false);
+    // Non-walk scanning still completed against the same registry.
+    expect(scan.body.stats.reposPresent).toBe(1);
   });
 });

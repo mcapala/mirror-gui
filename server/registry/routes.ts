@@ -418,14 +418,10 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
         try {
           const listed = await client.listRepositories();
           if (listed === null) {
+            // _catalog answered 404 — the registry doesn't implement it.
+            // A registry property, not a scan failure: walkOk carries the
+            // signal, no error entry (would flag every scan "partial").
             walkOk = false;
-            walkIssues.push({
-              repo: null,
-              catalog: null,
-              kind: 'bad-response',
-              message:
-                '_catalog is unsupported on this registry (HTTP 404) — orphan discovery skipped',
-            });
           } else {
             const prefix = registry.pathPrefix
               ? `${registry.pathPrefix}/`
@@ -436,23 +432,32 @@ export function createRegistryRouter(deps: RegistryRouterDeps): Router {
           }
         } catch (error) {
           walkOk = false;
-          walkIssues.push(
-            error instanceof RegistryRequestError
-              ? {
-                  repo: null,
-                  catalog: null,
-                  kind: error.kind,
-                  message: `_catalog walk failed: ${error.message}`,
-                }
-              : {
-                  repo: null,
-                  catalog: null,
-                  kind: 'unreachable',
-                  message: `_catalog walk failed: ${
-                    error instanceof Error ? error.message : String(error)
-                  }`,
-                },
-          );
+          // ping() already proved the credentials against /v2/, so an
+          // auth-kind failure here means the registry refuses to grant the
+          // catalog scope (e.g. token server 400s registry:catalog:*) —
+          // same class as a 404: walk unsupported, not a scan error.
+          if (
+            !(error instanceof RegistryRequestError) ||
+            error.kind !== 'auth'
+          ) {
+            walkIssues.push(
+              error instanceof RegistryRequestError
+                ? {
+                    repo: null,
+                    catalog: null,
+                    kind: error.kind,
+                    message: `_catalog walk failed: ${error.message}`,
+                  }
+                : {
+                    repo: null,
+                    catalog: null,
+                    kind: 'unreachable',
+                    message: `_catalog walk failed: ${
+                      error instanceof Error ? error.message : String(error)
+                    }`,
+                  },
+            );
+          }
         }
 
         const targets = buildScanTargets(
