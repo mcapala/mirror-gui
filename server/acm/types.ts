@@ -5,6 +5,8 @@ export interface AcmHub {
   token: string;
   caBundle?: string;
   insecureSkipVerify?: boolean;
+  /** Managed clusters included in fleet queries. Empty/absent = hub inactive. */
+  clusters?: string[];
 }
 
 export interface RedactedAcmHub {

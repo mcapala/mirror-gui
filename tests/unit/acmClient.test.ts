@@ -48,6 +48,27 @@ describe('buildSearchRequestBody', () => {
     expect(body.variables.input[1].filters[0].values).toEqual(['Cluster']);
     expect(body.variables.input[1].limit).toBe(500);
   });
+
+  it('adds cluster filters to both inputs when clusters are given', () => {
+    const body = buildSearchRequestBody(500, ['c1', 'c2']);
+    expect(body.variables.input[0].filters).toEqual([
+      { property: 'kind', values: ['ClusterServiceVersion'] },
+      { property: 'cluster', values: ['c1', 'c2'] },
+    ]);
+    // Cluster resources live on the hub — filter them by their own name.
+    expect(body.variables.input[1].filters).toEqual([
+      { property: 'kind', values: ['Cluster'] },
+      { property: 'name', values: ['c1', 'c2'] },
+    ]);
+  });
+
+  it('adds no cluster filter for undefined or empty selections', () => {
+    for (const clusters of [undefined, []]) {
+      const body = buildSearchRequestBody(500, clusters);
+      expect(body.variables.input[0].filters).toHaveLength(1);
+      expect(body.variables.input[1].filters).toHaveLength(1);
+    }
+  });
 });
 
 describe('extractClusterVersion', () => {
@@ -168,6 +189,27 @@ describe('queryHub', () => {
     };
     expect(agent.options.ca).toBe('PEMDATA');
     expect(agent.options.rejectUnauthorized).toBe(true);
+  });
+
+  it('passes the hub cluster selection into the request body', async () => {
+    let seenBody: unknown;
+    const transport = {
+      post: async (_url: string, body: unknown) => {
+        seenBody = body;
+        return okResponse([]);
+      },
+    };
+    await queryHub({ ...HUB, clusters: ['edge-1'] }, { transport });
+    const input = (seenBody as ReturnType<typeof buildSearchRequestBody>)
+      .variables.input;
+    expect(input[0].filters).toContainEqual({
+      property: 'cluster',
+      values: ['edge-1'],
+    });
+    expect(input[1].filters).toContainEqual({
+      property: 'name',
+      values: ['edge-1'],
+    });
   });
 
   it('disables verification when insecureSkipVerify is set', async () => {

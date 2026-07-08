@@ -29,17 +29,30 @@ export function searchApiUrl(hubUrl: string): string {
   return `${hubUrl.replace(/\/+$/, '')}/searchapi/graphql`;
 }
 
-export function buildSearchRequestBody(limit: number = SEARCH_RESULT_LIMIT) {
+export function buildSearchRequestBody(
+  limit: number = SEARCH_RESULT_LIMIT,
+  clusters?: string[],
+) {
+  const selected = clusters?.length ? clusters : null;
   return {
     query: SEARCH_QUERY,
     variables: {
       input: [
         {
-          filters: [{ property: 'kind', values: ['ClusterServiceVersion'] }],
+          filters: [
+            { property: 'kind', values: ['ClusterServiceVersion'] },
+            // CSVs are indexed with the managed cluster under `cluster`.
+            ...(selected ? [{ property: 'cluster', values: selected }] : []),
+          ],
           limit,
         },
         {
-          filters: [{ property: 'kind', values: ['Cluster'] }],
+          filters: [
+            { property: 'kind', values: ['Cluster'] },
+            // Cluster resources live on the hub, so their `cluster` property
+            // is the hub's local cluster — match their own name instead.
+            ...(selected ? [{ property: 'name', values: selected }] : []),
+          ],
           limit,
         },
       ],
@@ -119,7 +132,7 @@ export async function queryHub(
   try {
     response = await transport.post(
       searchApiUrl(hub.url),
-      buildSearchRequestBody(limit),
+      buildSearchRequestBody(limit, hub.clusters),
       {
         headers: {
           Authorization: `Bearer ${hub.token}`,
