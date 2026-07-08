@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   queryHub,
+  queryHubClusters,
   classifyHubError,
   buildSearchRequestBody,
+  buildClusterCompleteBody,
   extractClusterVersion,
   searchApiUrl,
   SEARCH_RESULT_LIMIT,
@@ -226,6 +228,87 @@ describe('queryHub', () => {
     };
     expect(agent.options.ca).toBeUndefined();
     expect(agent.options.rejectUnauthorized).toBe(false);
+  });
+});
+
+describe('buildClusterCompleteBody', () => {
+  it('asks searchComplete for cluster names of ClusterServiceVersions', () => {
+    const body = buildClusterCompleteBody(5000);
+    expect(body.query).toContain('searchComplete');
+    expect(body.variables.property).toBe('cluster');
+    expect(body.variables.query.filters).toEqual([
+      { property: 'kind', values: ['ClusterServiceVersion'] },
+    ]);
+    expect(body.variables.query.limit).toBe(5000);
+    expect(body.variables.limit).toBe(5000);
+  });
+});
+
+describe('queryHubClusters', () => {
+  const completeResponse = (values: unknown[]) => ({
+    data: { data: { searchComplete: values } },
+  });
+
+  it('returns sorted unique cluster names, dropping nulls and empties', async () => {
+    const transport = {
+      post: async () => completeResponse(['zeta', 'alpha', null, '', 'alpha']),
+    };
+    const result = await queryHubClusters(HUB, { transport });
+    expect(result.clusters).toEqual(['alpha', 'zeta']);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('sends the Bearer token and a TLS agent honoring the hub CA', async () => {
+    let seenConfig: Record<string, unknown> = {};
+    const transport = {
+      post: async (_url: string, _body: unknown, config: Record<string, unknown>) => {
+        seenConfig = config;
+        return completeResponse([]);
+      },
+    };
+    await queryHubClusters({ ...HUB, caBundle: 'PEMDATA' }, { transport });
+    expect((seenConfig.headers as Record<string, string>).Authorization).toBe(
+      'Bearer sha256~tok',
+    );
+    const agent = seenConfig.httpsAgent as import('https').Agent & {
+      options: { ca?: string; rejectUnauthorized?: boolean };
+    };
+    expect(agent.options.ca).toBe('PEMDATA');
+    expect(agent.options.rejectUnauthorized).toBe(true);
+  });
+
+  it('flags truncation when the list hits the limit', async () => {
+    const transport = { post: async () => completeResponse(['a', 'b']) };
+    const result = await queryHubClusters(HUB, { transport, limit: 2 });
+    expect(result.truncated).toBe(true);
+  });
+
+  it('throws bad-response on GraphQL errors and on a missing array', async () => {
+    const errTransport = {
+      post: async () => ({ data: { errors: [{ message: 'denied' }] } }),
+    };
+    await expect(
+      queryHubClusters(HUB, { transport: errTransport }),
+    ).rejects.toMatchObject({
+      kind: 'bad-response',
+      message: expect.stringContaining('denied'),
+    });
+
+    const emptyTransport = { post: async () => ({ data: { data: {} } }) };
+    await expect(
+      queryHubClusters(HUB, { transport: emptyTransport }),
+    ).rejects.toMatchObject({ kind: 'bad-response' });
+  });
+
+  it('classifies transport failures via classifyHubError', async () => {
+    const transport = {
+      post: async () => {
+        throw Object.assign(new Error('401'), { response: { status: 401 } });
+      },
+    };
+    await expect(queryHubClusters(HUB, { transport })).rejects.toMatchObject({
+      kind: 'auth',
+    });
   });
 });
 
