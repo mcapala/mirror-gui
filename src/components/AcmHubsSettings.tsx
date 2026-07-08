@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   ActionGroup,
+  Alert,
   Button,
   Checkbox,
   EmptyState,
@@ -16,6 +17,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalVariant,
+  Spinner,
   Switch,
   TextArea,
   TextInput,
@@ -32,6 +34,7 @@ interface RedactedHub {
   hasToken: boolean;
   hasCaBundle: boolean;
   insecureSkipVerify: boolean;
+  clusters: string[];
 }
 
 interface TestResult {
@@ -71,6 +74,13 @@ const AcmHubsSettings: React.FC = () => {
   const [form, setForm] = useState<HubForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RedactedHub | null>(null);
+  const [pickerHub, setPickerHub] = useState<RedactedHub | null>(null);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [pickerTruncated, setPickerTruncated] = useState(false);
+  const [discovered, setDiscovered] = useState<string[]>([]);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [pickerSaving, setPickerSaving] = useState(false);
 
   const loadHubs = useCallback(async () => {
     try {
@@ -189,6 +199,70 @@ const AcmHubsSettings: React.FC = () => {
     }
   };
 
+  const openPicker = async (hub: RedactedHub) => {
+    setPickerHub(hub);
+    setPickerError(null);
+    setPickerTruncated(false);
+    setDiscovered([]);
+    setChecked(new Set(hub.clusters));
+    setPickerLoading(true);
+    try {
+      const response = await axios.post(
+        `/api/acm/hubs/${hub.id}/clusters/discover`,
+      );
+      if (response.data.status === 'ok') {
+        setDiscovered(response.data.clusters ?? []);
+        setPickerTruncated(Boolean(response.data.truncated));
+      } else {
+        setPickerError(
+          `${response.data.kind ?? 'failed'}: ${response.data.error ?? 'cluster discovery failed'}`,
+        );
+      }
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.message
+        : String(error);
+      setPickerError(message);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const savePicker = async () => {
+    if (!pickerHub) return;
+    setPickerSaving(true);
+    try {
+      await axios.put(`/api/acm/hubs/${pickerHub.id}`, {
+        name: pickerHub.name,
+        url: pickerHub.url,
+        insecureSkipVerify: pickerHub.insecureSkipVerify,
+        clusters: [...checked].sort(),
+      });
+      addSuccessAlert(`Cluster selection for "${pickerHub.name}" saved`);
+      setPickerHub(null);
+      await loadHubs();
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.message
+        : String(error);
+      addDangerAlert(`Failed to save cluster selection: ${message}`);
+    } finally {
+      setPickerSaving(false);
+    }
+  };
+
+  const toggleCluster = (name: string, isChecked: boolean) => {
+    setChecked(prev => {
+      const next = new Set(prev);
+      if (isChecked) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    });
+  };
+
   const tlsMode = (hub: RedactedHub): string => {
     if (hub.insecureSkipVerify) return 'skip verification';
     if (hub.hasCaBundle) return 'custom CA';
@@ -219,6 +293,7 @@ const AcmHubsSettings: React.FC = () => {
               <Th>URL</Th>
               <Th>TLS</Th>
               <Th>Token</Th>
+              <Th>Clusters</Th>
               <Th>Last test</Th>
               <Th screenReaderText="Actions" />
             </Tr>
@@ -240,6 +315,15 @@ const AcmHubsSettings: React.FC = () => {
                   </Td>
                   <Td dataLabel="Token">
                     {hub.hasToken ? 'stored' : 'missing'}
+                  </Td>
+                  <Td dataLabel="Clusters">
+                    {hub.clusters.length > 0 ? (
+                      `${hub.clusters.length} selected`
+                    ) : (
+                      <Label color="yellow" isCompact>
+                        none — inactive
+                      </Label>
+                    )}
                   </Td>
                   <Td dataLabel="Last test">
                     {test ? (
@@ -267,6 +351,14 @@ const AcmHubsSettings: React.FC = () => {
                       className="pf-v6-u-mr-sm"
                     >
                       Test
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openPicker(hub)}
+                      className="pf-v6-u-mr-sm"
+                    >
+                      Clusters
                     </Button>
                     <Button
                       variant="secondary"
@@ -425,6 +517,96 @@ const AcmHubsSettings: React.FC = () => {
             Delete
           </Button>
           <Button variant="link" onClick={() => setDeleteTarget(null)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        variant={ModalVariant.medium}
+        isOpen={pickerHub !== null}
+        onClose={() => setPickerHub(null)}
+        aria-label="Cluster selection"
+      >
+        <ModalHeader title="Select Clusters" />
+        <ModalBody>
+          <p className="pf-v6-u-mb-md">
+            Only the selected clusters are included in the fleet snapshot. A
+            hub with no selection is inactive.
+          </p>
+          {pickerLoading ? (
+            <Spinner aria-label="Discovering clusters" />
+          ) : (
+            <>
+              {pickerError && (
+                <Alert
+                  variant="danger"
+                  isInline
+                  title="Cluster discovery failed"
+                  className="pf-v6-u-mb-md"
+                >
+                  {pickerError}
+                </Alert>
+              )}
+              {pickerTruncated && (
+                <Alert
+                  variant="warning"
+                  isInline
+                  title="Cluster list hit the search limit — it may be incomplete"
+                  className="pf-v6-u-mb-md"
+                />
+              )}
+              <ActionGroup className="pf-v6-u-mb-sm">
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() =>
+                    setChecked(
+                      new Set([...discovered, ...(pickerHub?.clusters ?? [])]),
+                    )
+                  }
+                >
+                  Select all
+                </Button>
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => setChecked(new Set())}
+                >
+                  Clear
+                </Button>
+              </ActionGroup>
+              {[
+                ...discovered,
+                ...(pickerHub?.clusters ?? []).filter(
+                  c => !discovered.includes(c),
+                ),
+              ].map(name => (
+                <Checkbox
+                  key={name}
+                  id={`cluster-pick-${name}`}
+                  label={
+                    discovered.includes(name)
+                      ? name
+                      : `${name} (not found on hub)`
+                  }
+                  isChecked={checked.has(name)}
+                  onChange={(_e, isChecked) => toggleCluster(name, isChecked)}
+                />
+              ))}
+            </>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="primary"
+            onClick={savePicker}
+            isLoading={pickerSaving}
+            isDisabled={pickerSaving || pickerLoading}
+          >
+            Save
+          </Button>
+          <Button variant="link" onClick={() => setPickerHub(null)}>
             Cancel
           </Button>
         </ModalFooter>
