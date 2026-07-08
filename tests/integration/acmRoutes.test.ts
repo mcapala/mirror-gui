@@ -17,6 +17,9 @@ type FakeQueryHub = (
 function makeApp(opts: {
   acmDir: string;
   queryHub?: FakeQueryHub;
+  queryHubClusters?: (
+    hub: AcmHub,
+  ) => Promise<{ clusters: string[]; truncated: boolean }>;
   catalogData?: CatalogDataLike;
   loadCatalogData?: () => Promise<CatalogDataLike | null>;
 }) {
@@ -32,6 +35,8 @@ function makeApp(opts: {
           clusterItems: [],
           truncated: false,
         }))) as never,
+      queryHubClusters: (opts.queryHubClusters ??
+        (async () => ({ clusters: [], truncated: false }))) as never,
       loadCatalogData:
         opts.loadCatalogData ?? (async () => opts.catalogData ?? null),
       now: () => '2026-07-06T12:00:00.000Z',
@@ -260,6 +265,53 @@ describe('ACM routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('failed');
       expect(res.body.kind).toBe('auth');
+    });
+  });
+
+  describe('POST /hubs/:id/clusters/discover', () => {
+    it('returns discovered cluster names without leaking the token', async () => {
+      const app = makeApp({
+        acmDir: dir,
+        queryHubClusters: async hub => {
+          expect(hub.token).toBe('sha256~secret');
+          return { clusters: ['alpha', 'zeta'], truncated: false };
+        },
+      });
+      const created = await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      const res = await request(app).post(
+        `/api/acm/hubs/${created.body.hub.id}/clusters/discover`,
+      );
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        status: 'ok',
+        clusters: ['alpha', 'zeta'],
+        truncated: false,
+      });
+      expect(JSON.stringify(res.body)).not.toContain('sha256~secret');
+    });
+
+    it('passes hub failures through as status failed', async () => {
+      const app = makeApp({
+        acmDir: dir,
+        queryHubClusters: async () => {
+          throw new HubQueryError('auth', 'authentication failed (HTTP 401)');
+        },
+      });
+      const created = await request(app).post('/api/acm/hubs').send(HUB_INPUT);
+      const res = await request(app).post(
+        `/api/acm/hubs/${created.body.hub.id}/clusters/discover`,
+      );
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('failed');
+      expect(res.body.kind).toBe('auth');
+      expect(res.body.error).toMatch(/authentication failed/);
+    });
+
+    it('404s on an unknown hub id', async () => {
+      const res = await request(makeApp({ acmDir: dir })).post(
+        '/api/acm/hubs/no-such-id/clusters/discover',
+      );
+      expect(res.status).toBe(404);
     });
   });
 

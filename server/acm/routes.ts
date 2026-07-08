@@ -8,7 +8,10 @@ import {
   type CatalogDataLike,
   type HubFetchOutcome,
 } from './aggregate.js';
-import { queryHub as defaultQueryHub } from './client.js';
+import {
+  queryHub as defaultQueryHub,
+  queryHubClusters as defaultQueryHubClusters,
+} from './client.js';
 import { buildReconcileCatalog, reconcile, type IscConfig } from './reconcile.js';
 import { HubQueryError, redactHub, type AcmHub } from './types.js';
 
@@ -16,6 +19,7 @@ export interface AcmRouterDeps {
   acmDir: string;
   loadCatalogData: () => Promise<CatalogDataLike | null>;
   queryHub?: typeof defaultQueryHub;
+  queryHubClusters?: typeof defaultQueryHubClusters;
   now?: () => string;
 }
 
@@ -85,6 +89,7 @@ function wrap(handler: Handler): Handler {
 export function createAcmRouter(deps: AcmRouterDeps): Router {
   const store = new AcmStore(deps.acmDir);
   const queryHub = deps.queryHub ?? defaultQueryHub;
+  const queryHubClusters = deps.queryHubClusters ?? defaultQueryHubClusters;
   const now = deps.now ?? (() => new Date().toISOString());
   let refreshInFlight = false;
 
@@ -213,6 +218,30 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         const kind = error instanceof HubQueryError ? error.kind : 'unreachable';
         const message =
           error instanceof Error ? error.message : String(error);
+        res.json({ status: 'failed', kind, error: message });
+      }
+    }),
+  );
+
+  router.post(
+    '/hubs/:id/clusters/discover',
+    wrap(async (req, res) => {
+      const hubs = await store.readHubs();
+      const hub = hubs.find(h => h.id === req.params.id);
+      if (!hub) {
+        res.status(404).json({ error: 'hub not found' });
+        return;
+      }
+      try {
+        const result = await queryHubClusters(hub);
+        res.json({
+          status: 'ok',
+          clusters: result.clusters,
+          truncated: result.truncated,
+        });
+      } catch (error) {
+        const kind = error instanceof HubQueryError ? error.kind : 'unreachable';
+        const message = error instanceof Error ? error.message : String(error);
         res.json({ status: 'failed', kind, error: message });
       }
     }),
