@@ -44,6 +44,26 @@ test.describe('Mirror Configuration', () => {
     ).toHaveValue('registry.example/keep/me:v1');
   });
 
+  test('operator channel details survive a page reload of a restored draft', async ({ page }) => {
+    await page.getByRole('tab', { name: /operators/i }).click();
+    await page.getByRole('button', { name: /add operator catalog/i }).click();
+    await page.getByRole('button', { name: 'Add operator', exact: true }).click();
+
+    const typeahead = page.getByPlaceholder('Type to search operators...');
+    await typeahead.click();
+    await typeahead.fill('advanced');
+    await page
+      .getByRole('option', { name: 'advanced-cluster-management' })
+      .click();
+    await expect(page.getByText('Default Channel')).toBeVisible({ timeout: 10000 });
+
+    // Restored draft must refetch catalog metadata — channels used to vanish.
+    await page.reload();
+    await page.getByRole('tab', { name: /operators/i }).click();
+    await expect(page.getByText('Default Channel')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Available Channels/)).toBeVisible();
+  });
+
   test('saving empty config shows inline validation error', async ({ page }) => {
     await page.getByRole('button', { name: /save configuration/i }).click();
     await expect(page.getByText('At least one platform channel, operator, or additional image is required')).toBeVisible({ timeout: 5000 });

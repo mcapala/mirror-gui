@@ -587,6 +587,18 @@ const MirrorConfig: React.FC = () => {
     }
   };
 
+  // A draft restored from sessionStorage carries the selected operators, but
+  // detailedOperators (default/available channels) lives only in memory —
+  // refetch catalog metadata for every catalog already present in the draft.
+  useEffect(() => {
+    for (const op of config.mirror.operators) {
+      if (op.catalog) {
+        fetchOperatorsForCatalog(op.catalog);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchOperatorChannels = async (
     operatorName: string,
     catalogUrl: string,
