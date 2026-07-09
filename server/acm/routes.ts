@@ -12,7 +12,12 @@ import {
   queryHub as defaultQueryHub,
   queryHubClusters as defaultQueryHubClusters,
 } from './client.js';
-import { buildReconcileCatalog, reconcile, type IscConfig } from './reconcile.js';
+import {
+  buildCatalogUrlMap,
+  buildReconcileCatalog,
+  reconcile,
+  type IscConfig,
+} from './reconcile.js';
 import { HubQueryError, redactHub, type AcmHub } from './types.js';
 
 export interface AcmRouterDeps {
@@ -395,6 +400,7 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         config,
         outcome.snapshot,
         buildReconcileCatalog(catalogData),
+        buildCatalogUrlMap(catalogData),
       );
       res.json(result);
     }),

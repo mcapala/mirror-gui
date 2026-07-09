@@ -616,5 +616,75 @@ describe('ACM routes', () => {
       expect(res.status).toBe(422);
       expect(res.body.error).toMatch(/refresh/i);
     });
+
+    it('seeds add-operator suggestions from an empty-operators ISC', async () => {
+      const catalogData: CatalogDataLike = {
+        operators: {
+          'redhat-operator-index:v4.21': [
+            {
+              name: 'advanced-cluster-management',
+              defaultChannel: 'release-2.16',
+              channelVersions: {
+                'release-2.15': ['2.15.0', '2.15.1'],
+                'release-2.16': ['2.16.0'],
+              },
+            },
+          ],
+        },
+        index: {
+          catalogs: [
+            {
+              catalog_type: 'redhat-operator-index',
+              ocp_version: 'v4.21',
+              // deliberately NOT derivable from the key — proves the index
+              // URL flows through, not the registry.redhat.io fallback
+              catalog_url:
+                'registry.example/mirrored/redhat-operator-index:v4.21',
+            },
+          ],
+        },
+      };
+      const app = makeApp({
+        acmDir: dir,
+        catalogData,
+        queryHub: async () => ({
+          csvItems: [
+            {
+              name: 'advanced-cluster-management.v2.15.0',
+              cluster: 'c1',
+              phase: 'Succeeded',
+            },
+          ],
+          clusterItems: [{ name: 'c1', openshiftVersion: '4.16.8' }],
+          truncated: false,
+        }),
+      });
+      await request(app)
+        .post('/api/acm/hubs')
+        .send({ ...HUB_INPUT, clusters: ['c1'] });
+      await request(app).post('/api/acm/refresh').expect(200);
+      const res = await request(app)
+        .post('/api/acm/suggest-update')
+        .send({
+          config: {
+            kind: 'ImageSetConfiguration',
+            apiVersion: 'mirror.openshift.io/v2alpha1',
+            mirror: { operators: [] },
+          },
+        });
+      expect(res.status).toBe(200);
+      const add = res.body.suggestions.find(
+        (s: { kind: string }) => s.kind === 'add-operator',
+      );
+      expect(add).toMatchObject({
+        path: {
+          type: 'operator',
+          catalog: 'registry.example/mirrored/redhat-operator-index:v4.21',
+          package: 'advanced-cluster-management',
+        },
+        proposedChannels: [{ name: 'release-2.15', minVersion: '2.15.0' }],
+      });
+      expect(JSON.stringify(res.body)).not.toContain('sha256~secret');
+    });
   });
 });
