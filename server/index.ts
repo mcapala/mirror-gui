@@ -10,6 +10,7 @@ import compression from 'compression';
 
 import { fileURLToPath, pathToFileURL } from 'url';
 import { getChannelObjectsFromGeneratedOperator } from './catalogChannels.js';
+import { resolveDirectDependencies } from './catalogDependencies.js';
 import { isPathAvailable } from './pathAvailability.js';
 import {
   type ChannelObject,
@@ -561,33 +562,15 @@ async function getOperatorDependencies(catalogType: string, catalogVersion: stri
       const catalogDeps = dependenciesData[catalogKey];
 
       if (catalogDeps) {
-        if (catalogDeps[operatorName]) {
-          dependencies = [...catalogDeps[operatorName]];
+        const resolved = resolveDirectDependencies(catalogDeps, operatorName);
+        dependencies = resolved.refs.map(ref => ({ ...ref }));
+        dependencyPackageName = resolved.conventionPackage;
+        if (dependencyPackageName) {
+          console.log(
+            `Found dependencies in ${dependencyPackageName} for ${operatorName}`,
+          );
         }
-
-        const dependencyPackageNames: string[] = [];
-
-        if (operatorName.endsWith('-operator')) {
-          const baseName = operatorName.replace(/-operator$/, '');
-          dependencyPackageNames.push(`${baseName}-dependencies`);
-        }
-
-        dependencyPackageNames.push(
-          `${operatorName}-dependencies`,
-          `${operatorName}-dependency`,
-          `${operatorName}-deps`,
-        );
-
-        for (const depPackageName of dependencyPackageNames) {
-          if (catalogDeps[depPackageName]) {
-            const depDependencies = catalogDeps[depPackageName];
-            dependencies = dependencies.concat(depDependencies);
-            dependencyPackageName = depPackageName;
-            console.log(`Found ${depDependencies.length} dependencies in ${depPackageName} for ${operatorName}`);
-            break;
-          }
       }
-    }
   }
 
   if (dependencyPackageName) {
