@@ -66,8 +66,22 @@ const kindColor: Record<
 
 function pathText(path: Suggestion['path']): string {
   if (path.type === 'platform-channel') return `platform / ${path.channel}`;
-  if (path.type === 'operator') return path.package;
-  return `${path.package} / ${path.channel}`;
+  const tag = path.catalog.split(':').pop() ?? '';
+  if (path.type === 'operator') return `${path.package} · ${tag}`;
+  return `${path.package} / ${path.channel} · ${tag}`;
+}
+
+function childCount(s: Suggestion): number {
+  return (s.children ?? []).reduce((n, c) => n + 1 + childCount(c), 0);
+}
+
+function targetText(s: Suggestion): string {
+  const n = childCount(s);
+  return n > 0 ? `${pathText(s.path)} (+${n} deps)` : pathText(s.path);
+}
+
+function flattenChildren(s: Suggestion): Suggestion[] {
+  return (s.children ?? []).flatMap(c => [c, ...flattenChildren(c)]);
 }
 
 const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
@@ -350,7 +364,7 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
                     <Tr>
                       <Td
                         expand={
-                          suggestion.notes?.length
+                          suggestion.notes?.length || suggestion.children?.length
                             ? {
                                 rowIndex,
                                 isExpanded: expanded.has(suggestion.id),
@@ -363,7 +377,7 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
                       <Td>
                         <Checkbox
                           id={`sugg-${suggestion.id}`}
-                          aria-label={`Apply ${kindLabel[suggestion.kind]} to ${pathText(suggestion.path)}`}
+                          aria-label={`Apply ${kindLabel[suggestion.kind]} to ${targetText(suggestion)}`}
                           isChecked={checked.has(suggestion.id)}
                           onChange={() => toggle(suggestion.id)}
                         />
@@ -373,7 +387,7 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
                           {kindLabel[suggestion.kind]}
                         </Label>
                       </Td>
-                      <Td dataLabel="Target">{pathText(suggestion.path)}</Td>
+                      <Td dataLabel="Target">{targetText(suggestion)}</Td>
                       <Td dataLabel="Current">{suggestion.current ?? '—'}</Td>
                       <Td dataLabel="Proposed">{suggestion.proposed ?? '—'}</Td>
                       <Td dataLabel="Why">
@@ -386,14 +400,22 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
                         ) : null}
                       </Td>
                     </Tr>
-                    {suggestion.notes?.length ? (
+                    {suggestion.notes?.length || suggestion.children?.length ? (
                       <Tr isExpanded={expanded.has(suggestion.id)}>
                         <Td />
                         <Td colSpan={6}>
                           <ExpandableRowContent>
                             <List>
-                              {suggestion.notes.map((note, i) => (
+                              {(suggestion.notes ?? []).map((note, i) => (
                                 <ListItem key={i}>{note}</ListItem>
+                              ))}
+                              {flattenChildren(suggestion).map(child => (
+                                <ListItem key={child.id}>
+                                  {kindLabel[child.kind]} —{' '}
+                                  {pathText(child.path)}:{' '}
+                                  {child.current ?? '—'} to{' '}
+                                  {child.proposed ?? '—'} ({child.evidence})
+                                </ListItem>
                               ))}
                             </List>
                           </ExpandableRowContent>

@@ -25,14 +25,22 @@ export function applySuggestions(
   let applied = 0;
   const skipped: string[] = [];
 
+  // a checked parent row carries its dependency children; apply them all
+  const flat: Suggestion[] = [];
+  const expand = (s: Suggestion): void => {
+    flat.push(s);
+    (s.children ?? []).forEach(expand);
+  };
+  suggestions.forEach(expand);
+
   // Additive suggestions first, removals last so a batched channel swap
   // never trips the "would leave the package without channels" guard on
   // the pre-add state.
   const isRemoval = (s: Suggestion): boolean =>
     s.kind === 'remove-channel' || s.kind === 'remove-operator';
   const ordered = [
-    ...suggestions.filter(s => !isRemoval(s)),
-    ...suggestions.filter(isRemoval),
+    ...flat.filter(s => !isRemoval(s)),
+    ...flat.filter(isRemoval),
   ];
 
   for (const suggestion of ordered) {

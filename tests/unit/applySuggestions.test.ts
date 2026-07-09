@@ -293,6 +293,34 @@ describe('remove-operator', () => {
     ]);
   });
 
+  it('applies nested children with the parent, removals still last', () => {
+    const parent: Suggestion = {
+      ...addSuggestion('odf-operator'),
+      children: [
+        {
+          ...addSuggestion('cephcsi-operator'),
+          children: [removeSuggestion('cephcsi-operator')],
+        },
+      ],
+    };
+    const result = applySuggestions(
+      configWith(['odf-operator', 'cephcsi-operator']),
+      [parent],
+    );
+    expect(result.applied).toBe(3);
+    const newEntry = result.config.mirror.operators.find(
+      e => e.catalog === NEW_URL,
+    );
+    expect(newEntry!.packages.map(p => p.name).sort()).toEqual([
+      'cephcsi-operator',
+      'odf-operator',
+    ]);
+    const oldEntry = result.config.mirror.operators.find(
+      e => e.catalog === OLD_URL,
+    );
+    expect(oldEntry!.packages.map(p => p.name)).toEqual(['odf-operator']);
+  });
+
   it('skips with a note when the package is already gone', () => {
     const result = applySuggestions(configWith(['odf-operator']), [
       removeSuggestion('cephcsi-operator'),

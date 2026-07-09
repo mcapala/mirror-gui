@@ -27,6 +27,9 @@ export interface Suggestion {
   proposedChannels?: { name: string; minVersion: string }[];
   evidence: string;
   notes?: string[];
+  /** Same-kind suggestions on this package's dependency operators, folded
+   *  under this row. Selecting the parent applies them all. */
+  children?: Suggestion[];
   defaultChecked: boolean;
 }
 
