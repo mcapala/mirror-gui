@@ -203,4 +203,46 @@ test.describe('Fleet Updates tab', () => {
     await expect(preview).toContainText('cincinnati-operator');
     await expect(preview).toContainText('minVersion: 4.6.0');
   });
+
+  test('shows per-row notes in an expansion and fleet-wide warnings in a collapsed notices section', async ({
+    page,
+    request,
+  }) => {
+    currentStubResponse = stubResponse(
+      [
+        // 2.14.0 is in no fixture channel → default-channel fallback note
+        { name: 'advanced-cluster-management.v2.14.0', cluster: 'e2e-cluster-1' },
+        // in no bundled catalog → fleet-wide warning
+        { name: 'unknown-widget.v1.0.0', cluster: 'e2e-cluster-1' },
+      ],
+      [{ name: 'e2e-cluster-1', openshiftVersion: '4.16.8' }],
+    );
+    const refreshed = await request.post('/api/acm/refresh');
+    expect(refreshed.ok(), await refreshed.text()).toBeTruthy();
+
+    await page.goto('/config');
+    await page.getByRole('tab', { name: /fleet updates/i }).click();
+    await page.getByRole('button', { name: /suggest updates/i }).click();
+
+    await expect(
+      page.getByText('Add operator', { exact: true }).first(),
+    ).toBeVisible({ timeout: 20000 });
+    // seeded fallback proposes the default channel at the numeric floor
+    // (channel name tracks the bundled catalog's defaultChannel — don't pin it)
+    await expect(page.getByText(/release-2\.\d+@2\.14\.0/)).toBeVisible();
+
+    // note is hidden until the row is expanded
+    const note = page.getByText(/proposing the default channel/);
+    await expect(note).toBeHidden();
+    await page.locator('button[id^="sugg-notes-"]').first().click();
+    await expect(note).toBeVisible();
+
+    // fleet-wide warning lives in a collapsed notices section, not an alert
+    const notices = page.getByRole('button', { name: /1 notice/i });
+    await expect(notices).toBeVisible();
+    const warning = page.getByText(/unknown-widget/);
+    await expect(warning).toBeHidden();
+    await notices.click();
+    await expect(warning).toBeVisible();
+  });
 });

@@ -6,7 +6,10 @@ import {
   Checkbox,
   EmptyState,
   EmptyStateBody,
+  ExpandableSection,
   Label,
+  List,
+  ListItem,
   Spinner,
   Title,
   Toolbar,
@@ -14,8 +17,16 @@ import {
   ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
-import { SyncAltIcon } from '@patternfly/react-icons';
+import {
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  ExpandableRowContent,
+} from '@patternfly/react-table';
+import { SyncAltIcon, InfoCircleIcon } from '@patternfly/react-icons';
 import { useAlerts } from '../../AlertContext';
 import type { ImageSetConfig } from '../MirrorConfig';
 import type { ReconcileResult, SnapshotMeta, Suggestion } from './types';
@@ -66,6 +77,7 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
   const [suggesting, setSuggesting] = useState(false);
   const [result, setResult] = useState<ReconcileResult | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const loadMeta = useCallback(async () => {
     try {
@@ -122,6 +134,7 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
       setChecked(
         new Set(data.suggestions.filter(s => s.defaultChecked).map(s => s.id)),
       );
+      setExpanded(new Set());
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? error.response?.data?.error || error.message
@@ -167,6 +180,18 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
         ? new Set()
         : new Set(result.suggestions.map(s => s.id)),
     );
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   if (loading) {
@@ -253,15 +278,20 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
 
       {result && (
         <>
-          {result.warnings.map((warning, i) => (
-            <Alert
-              key={i}
-              variant="warning"
-              isInline
-              title={warning}
+          {result.warnings.length > 0 && (
+            <ExpandableSection
+              toggleText={`${result.warnings.length} notice${
+                result.warnings.length === 1 ? '' : 's'
+              }`}
               className="pf-v6-u-mt-md"
-            />
-          ))}
+            >
+              <List>
+                {result.warnings.map((warning, i) => (
+                  <ListItem key={i}>{warning}</ListItem>
+                ))}
+              </List>
+            </ExpandableSection>
+          )}
 
           {result.suggestions.length === 0 ? (
             <EmptyState titleText="Nothing to change" headingLevel="h4">
@@ -274,6 +304,7 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
               <Table aria-label="Update suggestions" className="pf-v6-u-mt-md">
                 <Thead>
                   <Tr>
+                    <Th screenReaderText="Notes" />
                     <Th>
                       <Checkbox
                         id="sugg-select-all"
@@ -295,9 +326,24 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
                     <Th>Why</Th>
                   </Tr>
                 </Thead>
-                <Tbody>
-                  {result.suggestions.map(suggestion => (
-                    <Tr key={suggestion.id}>
+                {result.suggestions.map((suggestion, rowIndex) => (
+                  <Tbody
+                    key={suggestion.id}
+                    isExpanded={expanded.has(suggestion.id)}
+                  >
+                    <Tr>
+                      <Td
+                        expand={
+                          suggestion.notes?.length
+                            ? {
+                                rowIndex,
+                                isExpanded: expanded.has(suggestion.id),
+                                onToggle: () => toggleExpanded(suggestion.id),
+                                expandId: 'sugg-notes-',
+                              }
+                            : undefined
+                        }
+                      />
                       <Td>
                         <Checkbox
                           id={`sugg-${suggestion.id}`}
@@ -314,10 +360,32 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
                       <Td dataLabel="Target">{pathText(suggestion.path)}</Td>
                       <Td dataLabel="Current">{suggestion.current ?? '—'}</Td>
                       <Td dataLabel="Proposed">{suggestion.proposed ?? '—'}</Td>
-                      <Td dataLabel="Why">{suggestion.evidence}</Td>
+                      <Td dataLabel="Why">
+                        {suggestion.evidence}
+                        {suggestion.notes?.length ? (
+                          <InfoCircleIcon
+                            className="pf-v6-u-ml-sm"
+                            aria-label="Has notes"
+                          />
+                        ) : null}
+                      </Td>
                     </Tr>
-                  ))}
-                </Tbody>
+                    {suggestion.notes?.length ? (
+                      <Tr isExpanded={expanded.has(suggestion.id)}>
+                        <Td />
+                        <Td colSpan={6}>
+                          <ExpandableRowContent>
+                            <List>
+                              {suggestion.notes.map((note, i) => (
+                                <ListItem key={i}>{note}</ListItem>
+                              ))}
+                            </List>
+                          </ExpandableRowContent>
+                        </Td>
+                      </Tr>
+                    ) : null}
+                  </Tbody>
+                ))}
               </Table>
               <Button
                 variant="primary"
