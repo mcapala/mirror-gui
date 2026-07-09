@@ -921,6 +921,12 @@ describe('bump-catalog', () => {
     const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
     expect(bump!.movedPackages).toEqual(['cephcsi-operator']);
     expect(bump!.evidence).toContain('keeps 1');
+    // verbose note explains WHY the straggler stays
+    expect(
+      bump!.notes!.some(
+        n => n.includes('odf-operator') && n.includes('legacy-4.20'),
+      ),
+    ).toBe(true);
   });
 
   // old ISC channel absent from the target tag but unused by any deployment,
@@ -957,13 +963,79 @@ describe('bump-catalog', () => {
     expect(result.suggestions.some(s => s.kind === 'raise-min-version')).toBe(false);
   });
 
-  it('keeps existing target channels verbatim and only appends the covering channel', () => {
+  it('rewrites a channel that exists in the target but no deployed version uses', () => {
+    // the odf-external-snapshotter case: stable-4.21 still exists in v4.22,
+    // but nothing runs from it — the bump should swap it out in one step
+    const result = reconcile(
+      bumpIsc([{
+        name: 'cephcsi-operator',
+        channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }],
+      }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      DEAD_CH,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump!.channelRewrites).toEqual({
+      'cephcsi-operator': [{ name: 'stable-4.22', minVersion: '4.22.0-rhodf' }],
+    });
+    expect(
+      bump!.notes!.some(
+        n => n.includes('stable-4.21') && n.includes('dropped'),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps channels a deployment still uses and appends the covering channel', () => {
     const result = reconcile(
       bumpIsc([{
         name: 'cephcsi-operator',
         channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }, { name: 'gone-4.19' }],
       }]),
+      snap({
+        packages: {
+          'cephcsi-operator': {
+            deployments: [dep('c1', '4.22.0-rhodf'), dep('c2', '4.21.8-rhodf')],
+          },
+        },
+      }),
+      DEAD_CH,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump!.channelRewrites).toEqual({
+      'cephcsi-operator': [
+        { name: 'stable-4.21', minVersion: '4.21.8-rhodf' },
+        { name: 'stable-4.22', minVersion: '4.22.0-rhodf' },
+      ],
+    });
+  });
+
+  it('moves undeployed packages verbatim without inventing a rewrite', () => {
+    const result = reconcile(
+      bumpIsc([
+        { name: 'cephcsi-operator', channels: [{ name: 'stable-4.21' }] },
+        { name: 'odf-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.0-rhodf' }] },
+      ]),
       snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      BUMP_CATALOG,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump!.movedPackages).toEqual(['cephcsi-operator', 'odf-operator']);
+    expect(bump!.channelRewrites?.['odf-operator']).toBeUndefined();
+  });
+
+  it('only appends channels when the snapshot is untrustworthy — never drops', () => {
+    const badHub: HubSnapshotStatus = {
+      ...OK_HUB, id: 'h2', name: 'hub-2', status: 'error', error: 'down',
+    };
+    const result = reconcile(
+      bumpIsc([{
+        name: 'cephcsi-operator',
+        channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }],
+      }]),
+      snap({
+        hubs: [OK_HUB, badHub],
+        packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } },
+      }),
       DEAD_CH,
     );
     const bump = result.suggestions.find(s => s.kind === 'bump-catalog');

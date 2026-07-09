@@ -196,11 +196,16 @@ function compareCatalogKeyTags(a: string, b: string): number {
  * One bump per ISC catalog entry: fires when a deployed version of one of the
  * entry's packages attributes to no channel of the selected tag but does
  * attribute in a newer synced tag of the same index. Packages are never
- * split across entries — a package moves if the target tag has all of its
- * ISC channels, or (when the snapshot is trustworthy) if every missing
- * channel is dead — no deployed version attributes to it on the old tag —
- * and the deployed versions are covered by target channels; dead channels
- * are then dropped and a covering target channel appended (channelRewrites).
+ * split across entries. A moved package's channels are rewritten against the
+ * target tag in the same suggestion, so the bump lands in one step:
+ * channels a deployment still runs from are kept verbatim (and must exist in
+ * the target, else the package stays behind); channels no deployed version
+ * uses are dropped when the snapshot is trustworthy — dropping is removal
+ * semantics — even if the target still has them; and a covering target
+ * channel is appended for every deployed version the kept channels miss.
+ * Undeployed packages move verbatim. A package whose deployed version fits
+ * no target channel stays on the old tag (straggler), with a note saying
+ * why.
  */
 function planCatalogBump(
   catEntry: IscOperatorCatalog,
@@ -286,45 +291,70 @@ function planCatalogBump(
     const targetDetail = targetOps.get(pkg.name);
     if (!targetDetail) {
       kept.push(pkg.name);
+      notes.push(
+        `${pkg.name}: stays on ${oldTag} — not in the ${newTag} catalog`,
+      );
       continue;
     }
     const oldDetail = catOps.get(pkg.name);
-    const versions =
-      snapshot.packages[pkg.name]?.deployments.map(d => d.version) ?? [];
+    const versions = [
+      ...new Set(
+        snapshot.packages[pkg.name]?.deployments.map(d => d.version) ?? [],
+      ),
+    ];
     const keptChannels: { name: string; minVersion: string }[] = [];
     const dropped: string[] = [];
-    let straggler = false;
+    let stragglerReason: string | null = null;
     for (const ch of pkg.channels ?? []) {
-      if (targetDetail.channelVersions[ch.name] !== undefined) {
-        keptChannels.push({ name: ch.name, minVersion: ch.minVersion ?? '' });
-        continue;
-      }
-      // channel absent from the target tag: droppable only when no deployed
-      // version attributes to it (dead) and the snapshot can prove that
+      const inTargetTag = targetDetail.channelVersions[ch.name] !== undefined;
       const usedOnOld = versions.some(v =>
         (oldDetail?.channelVersions[ch.name] ?? []).includes(v),
       );
-      if (usedOnOld || !trustworthy) {
-        straggler = true;
-        break;
+      // a channel some deployment still runs from must survive the bump
+      if (usedOnOld) {
+        if (!inTargetTag) {
+          stragglerReason =
+            `channel ${ch.name} is still in use by a deployed version ` +
+            `but ${newTag} does not have it`;
+          break;
+        }
+        keptChannels.push({ name: ch.name, minVersion: ch.minVersion ?? '' });
+        continue;
+      }
+      // unused channel: dropping is removal semantics, so it needs a
+      // trustworthy snapshot; undeployed packages have no deployments to
+      // judge deadness against, so their channels stay as-is
+      if (versions.length === 0 || !trustworthy) {
+        if (inTargetTag) {
+          keptChannels.push({
+            name: ch.name,
+            minVersion: ch.minVersion ?? '',
+          });
+          continue;
+        }
+        if (!trustworthy) {
+          stragglerReason =
+            `channel ${ch.name} is not in ${newTag} and the snapshot is ` +
+            'incomplete — cannot prove the channel is unused';
+          break;
+        }
+        dropped.push(ch.name);
+        continue;
       }
       dropped.push(ch.name);
     }
-    if (straggler) {
+    if (stragglerReason) {
       kept.push(pkg.name);
+      notes.push(`${pkg.name}: stays on ${oldTag} — ${stragglerReason}`);
       continue;
     }
-    if (dropped.length === 0) {
-      moved.push(pkg.name);
-      continue;
-    }
-    // dropping channels loses coverage — every deployed version must
-    // attribute to a kept or newly added target channel, else straggler
+    // coverage: every deployed version must attribute to a kept or newly
+    // added target channel, else the bump would stop mirroring it
     const inTarget = (channelName: string, version: string): boolean =>
       (targetDetail.channelVersions[channelName] ?? []).includes(version);
     const added: { name: string; minVersion: string }[] = [];
-    let uncoverable = false;
-    for (const version of [...new Set(versions)]) {
+    let uncoverable: string | null = null;
+    for (const version of versions) {
       if (
         keptChannels.some(ch => inTarget(ch.name, version)) ||
         added.some(ch => inTarget(ch.name, version))
@@ -335,7 +365,7 @@ function planCatalogBump(
         .filter(channelName => inTarget(channelName, version))
         .sort();
       if (hosts.length === 0) {
-        uncoverable = true;
+        uncoverable = version;
         break;
       }
       const channelName =
@@ -345,22 +375,52 @@ function planCatalogBump(
       const attributedHere = versions.filter(v => inTarget(channelName, v));
       added.push({ name: channelName, minVersion: minOf(attributedHere) });
     }
-    const rewritten = [...keptChannels, ...added];
-    if (uncoverable || rewritten.length === 0) {
+    if (uncoverable) {
       kept.push(pkg.name);
+      notes.push(
+        `${pkg.name}: stays on ${oldTag} — deployed ${uncoverable} is in ` +
+          `no channel of ${newTag}`,
+      );
+      continue;
+    }
+    const rewritten = [...keptChannels, ...added];
+    if (rewritten.length === 0) {
+      kept.push(pkg.name);
+      notes.push(
+        `${pkg.name}: stays on ${oldTag} — the rewrite would leave it ` +
+          'without channels',
+      );
       continue;
     }
     moved.push(pkg.name);
+    if (dropped.length === 0 && added.length === 0) {
+      continue; // verbatim move, nothing to rewrite
+    }
     channelRewrites[pkg.name] = rewritten;
-    notes.push(
-      `${pkg.name}: channel(s) ${dropped.join(', ')} are not in ${newTag} and ` +
-        'no deployed version uses them — dropped' +
-        (added.length
-          ? `; added ${added
-              .map(ch => `${ch.name}@${ch.minVersion}`)
-              .join(', ')} covering the deployed version(s)`
-          : ''),
+    const removedNames = dropped.filter(
+      name => !rewritten.some(ch => ch.name === name),
     );
+    const noteParts: string[] = [];
+    if (removedNames.length) {
+      noteParts.push(
+        `dropped ${removedNames.join(', ')} — no deployed version uses ` +
+          `${removedNames.length > 1 ? 'them' : 'it'} on ${oldTag}`,
+      );
+    }
+    for (const ch of added) {
+      const covers = versions.filter(v => inTarget(ch.name, v));
+      const existedBefore = (pkg.channels ?? []).some(
+        c => c.name === ch.name,
+      );
+      noteParts.push(
+        existedBefore
+          ? `set ${ch.name} minVersion to ${ch.minVersion} (matches ` +
+              `deployed ${covers.join(', ')})`
+          : `added ${ch.name} (minVersion ${ch.minVersion}) covering ` +
+              `deployed ${covers.join(', ')}`,
+      );
+    }
+    notes.push(`${pkg.name}: ${noteParts.join('; ')}`);
   }
   const triggering = bumpable.filter(t => moved.includes(t.pkg));
   if (triggering.length === 0) {
