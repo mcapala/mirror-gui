@@ -130,7 +130,7 @@ describe('applySuggestions', () => {
     });
   });
 
-  it('skips add-operator when the package already exists or the catalog entry is gone', () => {
+  it('skips add-operator when the package already exists', () => {
     const existing = applySuggestions(baseConfig(), [{
       id: 'ao2', kind: 'add-operator',
       path: { type: 'operator', catalog: CATALOG_URL, package: 'odf-operator' },
@@ -140,15 +140,42 @@ describe('applySuggestions', () => {
     }]);
     expect(existing.applied).toBe(0);
     expect(existing.skipped[0]).toContain('odf-operator');
+  });
 
-    const noCatalog = applySuggestions(baseConfig(), [{
+  it('creates the catalog entry for add-operator when the ISC lacks it', () => {
+    const result = applySuggestions(baseConfig(), [{
       id: 'ao3', kind: 'add-operator',
+      path: { type: 'operator', catalog: 'quay.io/other/index:v1', package: 'gitops-operator' },
+      current: null, proposed: 'gitops-1.14@1.14.0',
+      proposedChannels: [{ name: 'gitops-1.14', minVersion: '1.14.0' }],
+      evidence: '', defaultChecked: false,
+    }]);
+    expect(result.applied).toBe(1);
+    const entry = result.config.mirror.operators.find(
+      e => e.catalog === 'quay.io/other/index:v1',
+    );
+    expect(entry).toMatchObject({
+      catalogVersion: 'v1',
+      availableOperators: [],
+      packages: [
+        {
+          name: 'gitops-operator',
+          channels: [{ name: 'gitops-1.14', minVersion: '1.14.0' }],
+        },
+      ],
+    });
+  });
+
+  it('still skips non-add-operator suggestions on a missing catalog', () => {
+    const result = applySuggestions(baseConfig(), [{
+      id: 'rs2', kind: 'reset-unused-operator',
       path: { type: 'operator', catalog: 'quay.io/other/index:v1', package: 'gitops-operator' },
       current: null, proposed: 'x',
       proposedChannels: [{ name: 'gitops-1.14', minVersion: '1.14.0' }],
       evidence: '', defaultChecked: false,
     }]);
-    expect(noCatalog.applied).toBe(0);
+    expect(result.applied).toBe(0);
+    expect(result.skipped[0]).toContain('quay.io/other/index:v1');
   });
 
   it('skips suggestions whose path no longer exists', () => {

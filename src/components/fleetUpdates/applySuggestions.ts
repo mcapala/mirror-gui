@@ -50,10 +50,23 @@ export function applySuggestions(
     }
 
     if (path.type === 'operator') {
-      const entry = next.mirror.operators.find(e => e.catalog === path.catalog);
+      let entry = next.mirror.operators.find(e => e.catalog === path.catalog);
       if (!entry) {
-        skipped.push(`catalog ${path.catalog} not found`);
-        continue;
+        if (kind === 'add-operator' && suggestion.proposedChannels) {
+          // seeded suggestion on an ISC without this catalog — create the
+          // entry; MirrorConfig's metadata rehydrate effect fills
+          // availableOperators after the apply
+          entry = {
+            catalog: path.catalog,
+            catalogVersion: path.catalog.match(/:([^/:]+)$/)?.[1],
+            availableOperators: [],
+            packages: [],
+          };
+          next.mirror.operators.push(entry);
+        } else {
+          skipped.push(`catalog ${path.catalog} not found`);
+          continue;
+        }
       }
       const pkg = entry.packages.find(p => p.name === path.package);
       if (kind === 'add-operator' && suggestion.proposedChannels) {

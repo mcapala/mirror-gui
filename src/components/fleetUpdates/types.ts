@@ -25,6 +25,7 @@ export interface Suggestion {
   proposed: string | null;
   proposedChannels?: { name: string; minVersion: string }[];
   evidence: string;
+  notes?: string[];
   defaultChecked: boolean;
 }
 
