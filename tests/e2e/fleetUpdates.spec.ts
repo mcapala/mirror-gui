@@ -6,27 +6,37 @@ import path from 'path';
 const TLS_DIR = path.resolve('tests/fixtures/tls');
 const HUB_NAME = 'e2e-updates-hub';
 
-const STUB_RESPONSE = {
-  data: {
-    searchResult: [
-      {
-        items: [
-          {
+function stubResponse(
+  csvs: Array<{ name: string; cluster: string }>,
+  clusters: Array<{ name: string; openshiftVersion: string }>,
+) {
+  return {
+    data: {
+      searchResult: [
+        {
+          items: csvs.map(csv => ({
             kind: 'ClusterServiceVersion',
-            name: 'advanced-cluster-management.v2.15.0',
-            cluster: 'e2e-cluster-1',
+            name: csv.name,
+            cluster: csv.cluster,
             phase: 'Succeeded',
-          },
-        ],
-      },
-      {
-        items: [
-          { kind: 'Cluster', name: 'e2e-cluster-1', openshiftVersion: '4.16.8' },
-        ],
-      },
-    ],
-  },
-};
+          })),
+        },
+        {
+          items: clusters.map(c => ({
+            kind: 'Cluster',
+            name: c.name,
+            openshiftVersion: c.openshiftVersion,
+          })),
+        },
+      ],
+    },
+  };
+}
+
+let currentStubResponse = stubResponse(
+  [{ name: 'advanced-cluster-management.v2.15.0', cluster: 'e2e-cluster-1' }],
+  [{ name: 'e2e-cluster-1', openshiftVersion: '4.16.8' }],
+);
 
 const ISC_YAML = `kind: ImageSetConfiguration
 apiVersion: mirror.openshift.io/v2alpha1
@@ -56,7 +66,7 @@ test.beforeAll(async () => {
       req.resume();
       req.on('end', () => {
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(STUB_RESPONSE));
+        res.end(JSON.stringify(currentStubResponse));
       });
     }
   );
@@ -131,5 +141,66 @@ test.describe('Fleet Updates tab', () => {
     await page.getByRole('tab', { name: /preview/i }).click();
     await expect(page.locator('#yaml-preview')).toContainText('minVersion: 2.15.0');
     await expect(page.locator('#yaml-preview')).toContainText('minVersion: 4.16.8');
+  });
+
+  test('seeds suggestions from an empty ISC and select-all applies them', async ({
+    page,
+    request,
+  }) => {
+    // two deployed operators, both only in the bundled redhat catalog
+    currentStubResponse = stubResponse(
+      [
+        { name: 'advanced-cluster-management.v2.15.0', cluster: 'e2e-cluster-1' },
+        // csvNamePrefixes alias: update-service-operator → cincinnati-operator
+        { name: 'update-service-operator.v4.6.0', cluster: 'e2e-cluster-1' },
+      ],
+      [{ name: 'e2e-cluster-1', openshiftVersion: '4.16.8' }],
+    );
+    const refreshed = await request.post('/api/acm/refresh');
+    expect(refreshed.ok(), await refreshed.text()).toBeTruthy();
+
+    // fresh context → empty sessionStorage draft → empty ISC in the editor
+    await page.goto('/config');
+    await page.getByRole('tab', { name: /fleet updates/i }).click();
+    await page.getByRole('button', { name: /suggest updates/i }).click();
+
+    // exact: the hidden Operators tab has an "Add operator catalog" button
+    await expect(
+      page.getByText('Add operator', { exact: true }).first(),
+    ).toBeVisible({ timeout: 20000 });
+    // .first(): names also appear in the evidence ("... is deployed on ...")
+    await expect(
+      page.getByText('advanced-cluster-management').first(),
+    ).toBeVisible();
+    await expect(page.getByText('cincinnati-operator').first()).toBeVisible();
+    // zero fleet-wide warnings → no notices section (Task 7 renders it)
+    await expect(page.getByRole('button', { name: /notice/i })).toHaveCount(0);
+
+    const selectAll = page.locator('#sugg-select-all');
+    // seeded suggestions are not default-checked
+    await expect(selectAll).not.toBeChecked();
+    await expect(
+      page.getByRole('button', { name: /apply selected \(0\)/i }),
+    ).toBeDisabled();
+
+    // one row checked → header goes indeterminate
+    await page
+      .locator('input[id^="sugg-"]:not(#sugg-select-all)')
+      .first()
+      .check();
+    await expect(selectAll).toHaveJSProperty('indeterminate', true);
+
+    // select-all checks every row
+    await selectAll.click();
+    await expect(selectAll).toBeChecked();
+    await page.getByRole('button', { name: /apply selected \(2\)/i }).click();
+
+    await page.getByRole('tab', { name: /preview/i }).click();
+    const preview = page.locator('#yaml-preview');
+    await expect(preview).toContainText('redhat-operator-index:v4.21');
+    await expect(preview).toContainText('advanced-cluster-management');
+    await expect(preview).toContainText('minVersion: 2.15.0');
+    await expect(preview).toContainText('cincinnati-operator');
+    await expect(preview).toContainText('minVersion: 4.6.0');
   });
 });

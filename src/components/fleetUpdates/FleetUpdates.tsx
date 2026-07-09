@@ -160,6 +160,15 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
     });
   };
 
+  const toggleAll = () => {
+    if (!result) return;
+    setChecked(prev =>
+      prev.size === result.suggestions.length
+        ? new Set()
+        : new Set(result.suggestions.map(s => s.id)),
+    );
+  };
+
   if (loading) {
     return (
       <div className="pf-v6-u-text-align-center pf-v6-u-mt-2xl">
@@ -265,7 +274,20 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
               <Table aria-label="Update suggestions" className="pf-v6-u-mt-md">
                 <Thead>
                   <Tr>
-                    <Th screenReaderText="Apply" />
+                    <Th>
+                      <Checkbox
+                        id="sugg-select-all"
+                        aria-label="Select all suggestions"
+                        isChecked={
+                          checked.size === result.suggestions.length
+                            ? true
+                            : checked.size === 0
+                              ? false
+                              : null
+                        }
+                        onChange={toggleAll}
+                      />
+                    </Th>
                     <Th>Change</Th>
                     <Th>Target</Th>
                     <Th>Current</Th>
