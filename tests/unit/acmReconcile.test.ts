@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildCatalogUrlMap,
   buildReconcileCatalog,
   catalogKeyFromUrl,
   reconcile,
@@ -486,6 +487,36 @@ describe('add-operator for deployed-but-unmirrored packages', () => {
     ]);
     expect(add!.notes!.some(n => n.includes('numeric floor'))).toBe(true);
     expect(result.warnings.some(w => w.includes('numeric floor'))).toBe(false);
+  });
+});
+
+describe('buildCatalogUrlMap', () => {
+  it('maps catalog keys to index URLs and derives missing ones', () => {
+    const urls = buildCatalogUrlMap({
+      operators: {
+        'redhat-operator-index:v4.21': [],
+        'extra-index:v1': [],
+      },
+      index: {
+        catalogs: [
+          {
+            catalog_type: 'redhat-operator-index',
+            ocp_version: 'v4.21',
+            catalog_url: 'registry.example/custom/redhat-operator-index:v4.21',
+          },
+        ],
+      },
+    });
+    expect(urls.get('redhat-operator-index:v4.21')).toBe(
+      'registry.example/custom/redhat-operator-index:v4.21',
+    );
+    expect(urls.get('extra-index:v1')).toBe(
+      'registry.redhat.io/redhat/extra-index:v1',
+    );
+  });
+
+  it('returns an empty map for null data', () => {
+    expect(buildCatalogUrlMap(null).size).toBe(0);
   });
 });
 

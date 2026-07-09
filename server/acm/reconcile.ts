@@ -113,6 +113,34 @@ export function buildReconcileCatalog(
   return catalog;
 }
 
+export function buildCatalogUrlMap(
+  data: {
+    operators?: Record<string, unknown>;
+    index?: {
+      catalogs?: Array<{
+        catalog_type: string;
+        ocp_version: string;
+        catalog_url?: string;
+      }>;
+    };
+  } | null,
+): Map<string, string> {
+  const urls = new Map<string, string>();
+  for (const entry of data?.index?.catalogs ?? []) {
+    if (entry.catalog_url) {
+      urls.set(`${entry.catalog_type}:${entry.ocp_version}`, entry.catalog_url);
+    }
+  }
+  for (const key of Object.keys(data?.operators ?? {})) {
+    if (!urls.has(key)) {
+      // sync-catalogs.sh only mirrors Red Hat indexes; keys are "<name>:<tag>"
+      // and Red Hat indexes all live under registry.redhat.io/redhat/
+      urls.set(key, `registry.redhat.io/redhat/${key}`);
+    }
+  }
+  return urls;
+}
+
 const minOf = (versions: string[]): string =>
   versions.reduce((a, b) => (compareVersionStrings(a, b) <= 0 ? a : b));
 

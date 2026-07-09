@@ -36,6 +36,13 @@ export interface CatalogOperatorLike {
 
 export interface CatalogDataLike {
   operators: Record<string, CatalogOperatorLike[]>;
+  index?: {
+    catalogs?: Array<{
+      catalog_type: string;
+      ocp_version: string;
+      catalog_url?: string;
+    }>;
+  };
 }
 
 const SEMVERISH = /^\d+(\.\d+)+/;
