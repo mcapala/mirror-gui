@@ -28,9 +28,11 @@ export function applySuggestions(
   // Additive suggestions first, removals last so a batched channel swap
   // never trips the "would leave the package without channels" guard on
   // the pre-add state.
+  const isRemoval = (s: Suggestion): boolean =>
+    s.kind === 'remove-channel' || s.kind === 'remove-operator';
   const ordered = [
-    ...suggestions.filter(s => s.kind !== 'remove-channel'),
-    ...suggestions.filter(s => s.kind === 'remove-channel'),
+    ...suggestions.filter(s => !isRemoval(s)),
+    ...suggestions.filter(isRemoval),
   ];
 
   for (const suggestion of ordered) {
@@ -88,6 +90,18 @@ export function applySuggestions(
               minVersion: ch.minVersion,
             })),
           });
+          applied++;
+        }
+      } else if (kind === 'remove-operator') {
+        if (!pkg) {
+          skipped.push(`${path.package} not found in ${path.catalog}`);
+        } else {
+          entry.packages = entry.packages.filter(p => p.name !== path.package);
+          if (entry.packages.length === 0) {
+            next.mirror.operators = next.mirror.operators.filter(
+              e => e !== entry,
+            );
+          }
           applied++;
         }
       } else if (

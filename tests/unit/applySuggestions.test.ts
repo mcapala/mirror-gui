@@ -210,3 +210,94 @@ describe('applySuggestions', () => {
     expect(result.skipped[0]).toContain('gone-operator');
   });
 });
+
+describe('remove-operator', () => {
+  const OLD_URL = 'registry.redhat.io/redhat/redhat-operator-index:v4.21';
+  const NEW_URL = 'registry.redhat.io/redhat/redhat-operator-index:v4.22';
+
+  const removeSuggestion = (pkg: string): Suggestion => ({
+    id: `remove-operator|${OLD_URL}|${pkg}|`,
+    kind: 'remove-operator',
+    path: { type: 'operator', catalog: OLD_URL, package: pkg },
+    current: 'stable-4.21@4.21.8-rhodf',
+    proposed: null,
+    evidence: 'test',
+    defaultChecked: false,
+  });
+
+  const addSuggestion = (pkg: string): Suggestion => ({
+    id: `add-operator|${NEW_URL}|${pkg}|`,
+    kind: 'add-operator',
+    path: { type: 'operator', catalog: NEW_URL, package: pkg },
+    current: null,
+    proposed: 'stable-4.22@4.22.0-rhodf',
+    proposedChannels: [{ name: 'stable-4.22', minVersion: '4.22.0-rhodf' }],
+    evidence: 'test',
+    defaultChecked: true,
+  });
+
+  function configWith(packages: string[]): ImageSetConfig {
+    return {
+      mirror: {
+        platform: { channels: [] },
+        operators: [{
+          catalog: OLD_URL,
+          availableOperators: [],
+          packages: packages.map(name => ({
+            name,
+            channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }],
+          })),
+        }],
+        additionalImages: [],
+      },
+    } as unknown as ImageSetConfig;
+  }
+
+  it('removes the package and deletes the emptied entry', () => {
+    const result = applySuggestions(configWith(['cephcsi-operator']), [
+      removeSuggestion('cephcsi-operator'),
+    ]);
+    expect(result.applied).toBe(1);
+    expect(result.config.mirror.operators).toHaveLength(0);
+  });
+
+  it('keeps the entry when other packages remain', () => {
+    const result = applySuggestions(configWith(['cephcsi-operator', 'odf-operator']), [
+      removeSuggestion('cephcsi-operator'),
+    ]);
+    expect(result.config.mirror.operators[0].packages.map(p => p.name)).toEqual([
+      'odf-operator',
+    ]);
+  });
+
+  it('applies add-only as a transition split: package under both catalogs', () => {
+    const result = applySuggestions(configWith(['cephcsi-operator']), [
+      addSuggestion('cephcsi-operator'),
+    ]);
+    expect(result.config.mirror.operators).toHaveLength(2);
+    expect(
+      result.config.mirror.operators.map(e => e.catalog).sort(),
+    ).toEqual([OLD_URL, NEW_URL]);
+  });
+
+  it('applies add + remove as a full move even when the remove sorts first in input', () => {
+    const result = applySuggestions(configWith(['cephcsi-operator']), [
+      removeSuggestion('cephcsi-operator'),
+      addSuggestion('cephcsi-operator'),
+    ]);
+    expect(result.applied).toBe(2);
+    expect(result.config.mirror.operators).toHaveLength(1);
+    expect(result.config.mirror.operators[0].catalog).toBe(NEW_URL);
+    expect(result.config.mirror.operators[0].packages[0].channels).toEqual([
+      { name: 'stable-4.22', minVersion: '4.22.0-rhodf' },
+    ]);
+  });
+
+  it('skips with a note when the package is already gone', () => {
+    const result = applySuggestions(configWith(['odf-operator']), [
+      removeSuggestion('cephcsi-operator'),
+    ]);
+    expect(result.applied).toBe(0);
+    expect(result.skipped.some(s => s.includes('cephcsi-operator'))).toBe(true);
+  });
+});

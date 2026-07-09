@@ -46,6 +46,7 @@ const kindLabel: Record<Suggestion['kind'], string> = {
   'add-channel': 'Add channel',
   'add-operator': 'Add operator',
   'remove-channel': 'Remove channel',
+  'remove-operator': 'Remove operator',
   'reset-unused-operator': 'Reset unused operator',
 };
 
@@ -59,6 +60,7 @@ const kindColor: Record<
   'add-channel': 'purple',
   'add-operator': 'purple',
   'remove-channel': 'grey',
+  'remove-operator': 'red',
   'reset-unused-operator': 'grey',
 };
 

@@ -5,6 +5,7 @@ export type SuggestionKind =
   | 'add-channel'
   | 'add-operator'
   | 'remove-channel'
+  | 'remove-operator'
   | 'reset-unused-operator';
 
 export type SuggestionPath =
