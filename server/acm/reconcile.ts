@@ -1,4 +1,8 @@
 import { compareVersionStrings } from '../utils.js';
+import {
+  resolveDependencyClosure,
+  type CatalogDependencyMap,
+} from '../catalogDependencies.js';
 import type { DeployedOperatorSnapshot } from './types.js';
 
 // --- Types (see plan Interfaces block; copy verbatim) ---
@@ -28,6 +32,9 @@ export interface Suggestion {
   evidence: string;
   /** Operator-scoped explanations shown in the row's expandable area. */
   notes?: string[];
+  /** Same-kind suggestions on this package's dependency operators, folded
+   *  under this row. Selecting the parent applies them all. */
+  children?: Suggestion[];
   defaultChecked: boolean;
 }
 
@@ -353,6 +360,98 @@ function planPackageCatalogUpdate(args: {
   return { rows, hasAdd, hasRemove };
 }
 
+/**
+ * Folds a suggestion on package C under a same-kind, same-catalog
+ * suggestion on package P when C is in P's dependency closure
+ * (dependencies.json of the suggestion's catalog key). Children fold
+ * under the closest declarer: a candidate whose closure contains another
+ * candidate is skipped, so the child lands on the lower candidate and
+ * that candidate folds under the higher one — producing the nested tree.
+ * Alphabetical tie-break.
+ */
+function collapseDependencySuggestions(
+  suggestions: Suggestion[],
+  dependencies: Record<string, CatalogDependencyMap>,
+): Suggestion[] {
+  const pkgOf = (s: Suggestion): string | null =>
+    s.path.type === 'operator' || s.path.type === 'operator-channel'
+      ? s.path.package
+      : null;
+  const catOf = (s: Suggestion): string | null =>
+    s.path.type === 'operator' || s.path.type === 'operator-channel'
+      ? s.path.catalog
+      : null;
+
+  const parentOf = new Map<string, Suggestion>();
+  for (const s of suggestions) {
+    const child = pkgOf(s);
+    const cat = catOf(s);
+    if (!child || !cat) {
+      continue;
+    }
+    const key = catalogKeyFromUrl(cat);
+    const depsMap = key ? dependencies[key] : undefined;
+    if (!depsMap) {
+      continue;
+    }
+    const candidates = suggestions.filter(p => {
+      const parent = pkgOf(p);
+      return (
+        p !== s &&
+        p.kind === s.kind &&
+        catOf(p) === cat &&
+        !!parent &&
+        resolveDependencyClosure(depsMap, parent).includes(child)
+      );
+    });
+    if (candidates.length === 0) {
+      continue;
+    }
+    // closest declarer: skip a candidate that contains another candidate
+    // in its own closure — the child folds under the lower one, which
+    // itself folds under the higher one, nesting the tree
+    const names = candidates.map(c => pkgOf(c)!);
+    const closest = candidates.filter(
+      c =>
+        !names.some(
+          other =>
+            other !== pkgOf(c) &&
+            resolveDependencyClosure(depsMap, pkgOf(c)!).includes(other),
+        ),
+    );
+    const pool = closest.length > 0 ? closest : candidates;
+    const chosen = [...pool].sort((a, b) =>
+      pkgOf(a)!.localeCompare(pkgOf(b)!),
+    )[0];
+    parentOf.set(s.id, chosen);
+  }
+
+  // cycle guard: a suggestion whose parent chain loops back stays flat
+  for (const [id] of parentOf) {
+    const seen = new Set<string>([id]);
+    let cursor = parentOf.get(id);
+    while (cursor) {
+      if (seen.has(cursor.id)) {
+        parentOf.delete(id);
+        break;
+      }
+      seen.add(cursor.id);
+      cursor = parentOf.get(cursor.id);
+    }
+  }
+
+  const roots: Suggestion[] = [];
+  for (const s of suggestions) {
+    const parent = parentOf.get(s.id);
+    if (!parent) {
+      roots.push(s);
+      continue;
+    }
+    (parent.children ??= []).push(s);
+  }
+  return roots;
+}
+
 function seedFromEmptyIsc(
   snapshot: DeployedOperatorSnapshot,
   catalog: ReconcileCatalog,
@@ -445,6 +544,7 @@ export function reconcile(
   snapshot: DeployedOperatorSnapshot,
   catalog: ReconcileCatalog,
   catalogUrls: Map<string, string> = new Map(),
+  dependencies: Record<string, CatalogDependencyMap> = {},
 ): ReconcileResult {
   const suggestions: Suggestion[] = [];
   const report: BehindReportEntry[] = [];
@@ -898,5 +998,10 @@ export function reconcile(
     }
   }
 
-  return { suggestions, report, noData, warnings };
+  return {
+    suggestions: collapseDependencySuggestions(suggestions, dependencies),
+    report,
+    noData,
+    warnings,
+  };
 }

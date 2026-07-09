@@ -2263,6 +2263,7 @@ app.use(
   createAcmRouter({
     acmDir: ACM_DIR,
     loadCatalogData: loadPreFetchedCatalogData,
+    loadDependenciesData,
   }),
 );
 

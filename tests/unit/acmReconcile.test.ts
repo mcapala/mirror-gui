@@ -13,6 +13,7 @@ import type {
   PackageDeployment,
 } from '../../server/acm/types.js';
 import { buildAliasLookup, buildCatalogLookup, buildSnapshot, type HubFetchOutcome } from '../../server/acm/aggregate.js';
+import type { CatalogDependencyMap } from '../../server/catalogDependencies.js';
 
 const OK_HUB: HubSnapshotStatus = {
   id: 'h1', name: 'hub-1', status: 'ok', error: null,
@@ -1008,6 +1009,118 @@ describe('per-package catalog update pair', () => {
     expect(result.suggestions.some(s => s.kind === 'add-operator')).toBe(false);
     expect(result.suggestions.some(s => s.kind === 'remove-operator')).toBe(false);
     expect(result.warnings.some(w => w.includes('are in no catalog channel'))).toBe(true);
+  });
+
+  describe('dependency collapsing', () => {
+    const DEPS: Record<string, CatalogDependencyMap> = {
+      'redhat-operator-index:v4.22': {
+        'odf-dependencies': [{ packageName: 'cephcsi-operator' }],
+      },
+      'redhat-operator-index:v4.21': {
+        'odf-dependencies': [{ packageName: 'cephcsi-operator' }],
+      },
+    };
+    const DEP_CAT = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.21',
+            channelVersions: { 'stable-4.21': ['4.21.8-rhodf'] },
+          },
+          {
+            name: 'odf-dependencies',
+            defaultChannel: 'stable-4.21',
+            channelVersions: { 'stable-4.21': ['4.21.8-rhodf'] },
+          },
+          {
+            name: 'cephcsi-operator',
+            defaultChannel: 'stable-4.21',
+            channelVersions: { 'stable-4.21': ['4.21.8-rhodf'] },
+          },
+        ],
+        'redhat-operator-index:v4.22': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.22',
+            channelVersions: { 'stable-4.22': ['4.22.0-rhodf'] },
+          },
+          {
+            name: 'odf-dependencies',
+            defaultChannel: 'stable-4.22',
+            channelVersions: { 'stable-4.22': ['4.22.0-rhodf'] },
+          },
+          {
+            name: 'cephcsi-operator',
+            defaultChannel: 'stable-4.22',
+            channelVersions: { 'stable-4.22': ['4.22.0-rhodf'] },
+          },
+        ],
+      },
+    });
+    const threePkgIsc = () =>
+      oldEntry([
+        { name: 'odf-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] },
+        { name: 'odf-dependencies', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] },
+        { name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] },
+      ]);
+    const threePkgSnap = () =>
+      snap({
+        packages: {
+          'odf-operator': { deployments: [dep('c1', '4.22.0-rhodf')] },
+          'odf-dependencies': { deployments: [dep('c1', '4.22.0-rhodf')] },
+          'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] },
+        },
+      });
+
+    it('folds children under the topmost parent, recursively', () => {
+      const result = reconcile(threePkgIsc(), threePkgSnap(), DEP_CAT, new Map(), DEPS);
+      const adds = result.suggestions.filter(s => s.kind === 'add-operator');
+      expect(adds).toHaveLength(1);
+      const top = adds[0];
+      expect((top.path as { package: string }).package).toBe('odf-operator');
+      expect(top.children).toHaveLength(1);
+      const mid = top.children![0];
+      expect((mid.path as { package: string }).package).toBe('odf-dependencies');
+      expect(mid.children).toHaveLength(1);
+      expect((mid.children![0].path as { package: string }).package).toBe(
+        'cephcsi-operator',
+      );
+      // child suggestion is verbatim: own id, own proposedChannels
+      expect(mid.children![0].proposedChannels).toEqual([
+        { name: 'stable-4.22', minVersion: '4.22.0-rhodf' },
+      ]);
+    });
+
+    it('collapses remove rows the same way but never across kinds', () => {
+      const result = reconcile(threePkgIsc(), threePkgSnap(), DEP_CAT, new Map(), DEPS);
+      const removes = result.suggestions.filter(s => s.kind === 'remove-operator');
+      expect(removes).toHaveLength(1);
+      expect((removes[0].path as { package: string }).package).toBe('odf-operator');
+      expect(removes[0].children![0].kind).toBe('remove-operator');
+    });
+
+    it('leaves children flat when the parent has no same-kind suggestion', () => {
+      const result = reconcile(
+        oldEntry([
+          { name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] },
+        ]),
+        snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+        DEP_CAT,
+        new Map(),
+        DEPS,
+      );
+      const adds = result.suggestions.filter(s => s.kind === 'add-operator');
+      expect(adds).toHaveLength(1);
+      expect(adds[0].children).toBeUndefined();
+    });
+
+    it('leaves everything flat without a dependency map for the catalog', () => {
+      const result = reconcile(threePkgIsc(), threePkgSnap(), DEP_CAT, new Map(), {});
+      const adds = result.suggestions.filter(s => s.kind === 'add-operator');
+      expect(adds).toHaveLength(3);
+      expect(adds.every(a => a.children === undefined)).toBe(true);
+    });
   });
 });
 

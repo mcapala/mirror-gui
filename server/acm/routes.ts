@@ -19,10 +19,12 @@ import {
   type IscConfig,
 } from './reconcile.js';
 import { HubQueryError, redactHub, type AcmHub } from './types.js';
+import type { CatalogDependencyMap } from '../catalogDependencies.js';
 
 export interface AcmRouterDeps {
   acmDir: string;
   loadCatalogData: () => Promise<CatalogDataLike | null>;
+  loadDependenciesData?: () => Promise<Record<string, CatalogDependencyMap> | null>;
   queryHub?: typeof defaultQueryHub;
   queryHubClusters?: typeof defaultQueryHubClusters;
   now?: () => string;
@@ -396,11 +398,15 @@ export function createAcmRouter(deps: AcmRouterDeps): Router {
         );
         return null;
       });
+      const dependenciesData = deps.loadDependenciesData
+        ? await deps.loadDependenciesData().catch(() => null)
+        : null;
       const result = reconcile(
         config,
         outcome.snapshot,
         buildReconcileCatalog(catalogData),
         buildCatalogUrlMap(catalogData),
+        dependenciesData ?? {},
       );
       res.json(result);
     }),
