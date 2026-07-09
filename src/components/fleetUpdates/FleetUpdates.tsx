@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Alert,
@@ -31,6 +31,8 @@ import { useAlerts } from '../../AlertContext';
 import type { ImageSetConfig } from '../MirrorConfig';
 import type { ReconcileResult, SnapshotMeta, Suggestion } from './types';
 import { applySuggestions } from './applySuggestions';
+import { computeIscDiff, diffCounts } from './iscDiff';
+import YamlDiff from './YamlDiff';
 
 interface FleetUpdatesProps {
   config: ImageSetConfig;
@@ -81,6 +83,19 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
   const [result, setResult] = useState<ReconcileResult | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const chosen = useMemo(
+    () => (result ? result.suggestions.filter(s => checked.has(s.id)) : []),
+    [result, checked],
+  );
+
+  const diffParts = useMemo(
+    () =>
+      result
+        ? computeIscDiff(config, applySuggestions(config, chosen).config)
+        : null,
+    [config, result, chosen],
+  );
 
   const loadMeta = useCallback(async () => {
     try {
@@ -150,7 +165,6 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
 
   const apply = () => {
     if (!result) return;
-    const chosen = result.suggestions.filter(s => checked.has(s.id));
     const { config: next, applied, skipped } = applySuggestions(config, chosen);
     setConfig(next);
     if (skipped.length > 0) {
@@ -398,6 +412,21 @@ const FleetUpdates: React.FC<FleetUpdatesProps> = ({ config, setConfig }) => {
               >
                 Apply selected ({checked.size})
               </Button>
+              {diffParts && (() => {
+                const counts = diffCounts(diffParts);
+                return (
+                  <ExpandableSection
+                    toggleText={`Preview changes (+${counts.added} −${counts.removed})`}
+                    className="pf-v6-u-mt-md"
+                  >
+                    {counts.added + counts.removed === 0 ? (
+                      <p>No changes — select suggestions to preview their effect.</p>
+                    ) : (
+                      <YamlDiff parts={diffParts} />
+                    )}
+                  </ExpandableSection>
+                );
+              })()}
             </>
           )}
 
