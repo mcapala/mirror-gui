@@ -158,6 +158,24 @@ function suggestionId(
   return `${kind}|${path.catalog}|${path.package}|${channel}`;
 }
 
+/** Numeric compare of the ":vX.Y" tags of two catalog keys (lexical would put v4.9 above v4.21). */
+function compareCatalogKeyTags(a: string, b: string): number {
+  const parts = (key: string): number[] =>
+    (key.split(':').pop() ?? '')
+      .replace(/^v/, '')
+      .split('.')
+      .map(n => Number.parseInt(n, 10) || 0);
+  const pa = parts(a);
+  const pb = parts(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) {
+      return d;
+    }
+  }
+  return a.localeCompare(b);
+}
+
 function seedFromEmptyIsc(
   snapshot: DeployedOperatorSnapshot,
   catalog: ReconcileCatalog,
@@ -181,7 +199,11 @@ function seedFromEmptyIsc(
     const preferred = hosts.filter(k =>
       k.startsWith('redhat-operator-index:'),
     );
-    const key = preferred[0] ?? hosts[0];
+    // several OCP versions of the preferred index can host the package — seed
+    // from the newest one
+    const key = preferred.length
+      ? preferred.reduce((a, b) => (compareCatalogKeyTags(a, b) >= 0 ? a : b))
+      : hosts[0];
     const notes: string[] = [];
     if (hosts.length > 1) {
       notes.push(

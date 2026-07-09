@@ -592,6 +592,29 @@ describe('seed-from-empty ISC', () => {
     expect(add!.notes!.some(n => n.includes('chose'))).toBe(true);
   });
 
+  it('prefers the newest redhat-operator-index version when several host the package', () => {
+    const op = {
+      name: 'odf-operator',
+      defaultChannel: 'stable-4.15',
+      channelVersions: { 'stable-4.15': ['4.15.0'] },
+    };
+    const multi = buildReconcileCatalog({
+      operators: {
+        // v4.9 sorts after v4.21 lexically — numeric tag compare must win
+        'redhat-operator-index:v4.9': [op],
+        'redhat-operator-index:v4.21': [op],
+      },
+    });
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.15.0')] } },
+    });
+    const result = reconcile(EMPTY_ISC, s, multi, new Map());
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect((add!.path as { catalog: string }).catalog).toBe(
+      'registry.redhat.io/redhat/redhat-operator-index:v4.21',
+    );
+  });
+
   it('breaks catalog ties alphabetically when no redhat-operator-index candidate exists', () => {
     const multi = buildReconcileCatalog({
       operators: {
