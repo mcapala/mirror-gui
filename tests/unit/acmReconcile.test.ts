@@ -490,6 +490,181 @@ describe('add-operator for deployed-but-unmirrored packages', () => {
   });
 });
 
+describe('seed-from-empty ISC', () => {
+  const EMPTY_ISC: IscConfig = {
+    kind: 'ImageSetConfiguration',
+    apiVersion: 'mirror.openshift.io/v2alpha1',
+    mirror: { operators: [] },
+  };
+  const URLS = new Map([['redhat-operator-index:v4.21', CATALOG_URL]]);
+
+  it('seeds an add-operator suggestion choosing the channel that contains the deployed version', () => {
+    const s = snap({
+      packages: {
+        'odf-operator': { deployments: [dep('c1', '4.15.0'), dep('c2', '4.15.2')] },
+      },
+    });
+    // CATALOG: defaultChannel stable-4.16; stable-4.15 contains both versions
+    const result = reconcile(EMPTY_ISC, s, CATALOG, URLS);
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect(add).toMatchObject({
+      path: { type: 'operator', catalog: CATALOG_URL, package: 'odf-operator' },
+      proposedChannels: [{ name: 'stable-4.15', minVersion: '4.15.0' }],
+      defaultChecked: false,
+    });
+    expect(add!.notes).toBeUndefined();
+  });
+
+  it('prefers the default channel when several channels contain deployed versions', () => {
+    const multi = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.16',
+            channelVersions: {
+              'stable-4.15': ['4.15.0', '4.16.0'],
+              'stable-4.16': ['4.16.0', '4.16.1'],
+            },
+          },
+        ],
+      },
+    });
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.16.0')] } },
+    });
+    const result = reconcile(EMPTY_ISC, s, multi, URLS);
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect(add!.proposedChannels).toEqual([
+      { name: 'stable-4.16', minVersion: '4.16.0' },
+    ]);
+  });
+
+  it('falls back to the default channel with a note when no channel contains a deployed version', () => {
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.14.9')] } },
+    });
+    const result = reconcile(EMPTY_ISC, s, CATALOG, URLS);
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect(add!.proposedChannels).toEqual([
+      { name: 'stable-4.16', minVersion: '4.14.9' },
+    ]);
+    expect(
+      add!.notes!.some(n => n.includes('proposing the default channel')),
+    ).toBe(true);
+    expect(
+      result.warnings.some(w => w.includes('proposing the default channel')),
+    ).toBe(false);
+  });
+
+  it('prefers redhat-operator-index over other catalogs and notes the choice', () => {
+    const multi = buildReconcileCatalog({
+      operators: {
+        'community-operator-index:v4.21': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.15',
+            channelVersions: { 'stable-4.15': ['4.15.0'] },
+          },
+        ],
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.15',
+            channelVersions: { 'stable-4.15': ['4.15.0'] },
+          },
+        ],
+      },
+    });
+    const urls = new Map([
+      ['redhat-operator-index:v4.21', CATALOG_URL],
+      [
+        'community-operator-index:v4.21',
+        'registry.redhat.io/redhat/community-operator-index:v4.21',
+      ],
+    ]);
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.15.0')] } },
+    });
+    const result = reconcile(EMPTY_ISC, s, multi, urls);
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect((add!.path as { catalog: string }).catalog).toBe(CATALOG_URL);
+    expect(add!.notes!.some(n => n.includes('chose'))).toBe(true);
+  });
+
+  it('breaks catalog ties alphabetically when no redhat-operator-index candidate exists', () => {
+    const multi = buildReconcileCatalog({
+      operators: {
+        'community-operator-index:v4.21': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.15',
+            channelVersions: { 'stable-4.15': ['4.15.0'] },
+          },
+        ],
+        'certified-operator-index:v4.21': [
+          {
+            name: 'odf-operator',
+            defaultChannel: 'stable-4.15',
+            channelVersions: { 'stable-4.15': ['4.15.0'] },
+          },
+        ],
+      },
+    });
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.15.0')] } },
+    });
+    const result = reconcile(EMPTY_ISC, s, multi, new Map());
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    // alphabetical: certified < community; URL derived from the key when no map entry
+    expect((add!.path as { catalog: string }).catalog).toBe(
+      'registry.redhat.io/redhat/certified-operator-index:v4.21',
+    );
+  });
+
+  it('warns fleet-wide for a deployed package found in no catalog', () => {
+    const s = snap({
+      packages: { 'mystery-op': { deployments: [dep('c1', '1.0.0')] } },
+    });
+    const result = reconcile(EMPTY_ISC, s, CATALOG, URLS);
+    expect(result.suggestions).toHaveLength(0);
+    expect(
+      result.warnings.some(
+        w => w.includes('mystery-op') && w.includes('no bundled catalog'),
+      ),
+    ).toBe(true);
+  });
+
+  it('also seeds when mirror.operators is absent entirely', () => {
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.16.0')] } },
+    });
+    const result = reconcile(
+      { kind: 'ImageSetConfiguration', apiVersion: 'mirror.openshift.io/v2alpha1' },
+      s,
+      CATALOG,
+      URLS,
+    );
+    expect(result.suggestions.some(x => x.kind === 'add-operator')).toBe(true);
+  });
+
+  it('does not seed when the ISC has an operator entry, even with zero packages', () => {
+    const config: IscConfig = {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      mirror: { operators: [{ catalog: CATALOG_URL, packages: [] }] },
+    };
+    const s = snap({
+      packages: { 'odf-operator': { deployments: [dep('c1', '4.16.0')] } },
+    });
+    const result = reconcile(config, s, CATALOG, URLS);
+    // existing add-operator pass runs (ISC catalog hosts the package) —
+    // same outcome, but via the non-seed path with per-channel floors
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect(add!.evidence).toContain('missing from the ISC');
+  });
+});
+
 describe('buildCatalogUrlMap', () => {
   it('maps catalog keys to index URLs and derives missing ones', () => {
     const urls = buildCatalogUrlMap({

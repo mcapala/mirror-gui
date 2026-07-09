@@ -158,10 +158,94 @@ function suggestionId(
   return `${kind}|${path.catalog}|${path.package}|${channel}`;
 }
 
+function seedFromEmptyIsc(
+  snapshot: DeployedOperatorSnapshot,
+  catalog: ReconcileCatalog,
+  catalogUrls: Map<string, string>,
+  fleetScope: string,
+  suggestions: Suggestion[],
+  warnings: string[],
+): void {
+  for (const [packageName, snapPkg] of Object.entries(snapshot.packages)) {
+    const hosts = [...catalog.entries()]
+      .filter(([, ops]) => ops.has(packageName))
+      .map(([key]) => key)
+      .sort();
+    if (hosts.length === 0) {
+      warnings.push(
+        `${packageName} is deployed (${snapPkg.deployments.length} deployment(s)) ` +
+          'but is in no bundled catalog — add it manually if it should be mirrored.',
+      );
+      continue;
+    }
+    const preferred = hosts.filter(k =>
+      k.startsWith('redhat-operator-index:'),
+    );
+    const key = preferred[0] ?? hosts[0];
+    const notes: string[] = [];
+    if (hosts.length > 1) {
+      notes.push(
+        `${packageName} exists in ${hosts.length} catalogs ` +
+          `(${hosts.join(', ')}) — chose ${key}.`,
+      );
+    }
+    const detail = catalog.get(key)!.get(packageName)!;
+    const versions = snapPkg.deployments.map(d => d.version);
+    const withDeployed = Object.keys(detail.channelVersions)
+      .filter(ch =>
+        versions.some(v => detail.channelVersions[ch].includes(v)),
+      )
+      .sort();
+    let channelName: string;
+    if (withDeployed.length > 0) {
+      channelName =
+        detail.defaultChannel && withDeployed.includes(detail.defaultChannel)
+          ? detail.defaultChannel
+          : withDeployed[0];
+    } else if (
+      detail.defaultChannel &&
+      detail.channelVersions[detail.defaultChannel]
+    ) {
+      channelName = detail.defaultChannel;
+      notes.push(
+        `${packageName}: no deployed version is in any catalog channel — ` +
+          'proposing the default channel with the numeric floor.',
+      );
+    } else {
+      warnings.push(
+        `${packageName} is deployed but its catalog entry has no usable channels — add it manually.`,
+      );
+      continue;
+    }
+    const floor = minOf(versions);
+    const catalogUrl =
+      catalogUrls.get(key) ?? `registry.redhat.io/redhat/${key}`;
+    const path: SuggestionPath = {
+      type: 'operator',
+      catalog: catalogUrl,
+      package: packageName,
+    };
+    suggestions.push({
+      id: suggestionId('add-operator', path),
+      kind: 'add-operator',
+      path,
+      current: null,
+      proposed: `${channelName}@${floor}`,
+      proposedChannels: [{ name: channelName, minVersion: floor }],
+      evidence:
+        `${packageName} is deployed on ${snapPkg.deployments.length} ` +
+        `deployment(s) across ${fleetScope} but the ISC has no operator entries`,
+      defaultChecked: false,
+      ...(notes.length ? { notes } : {}),
+    });
+  }
+}
+
 export function reconcile(
   config: IscConfig,
   snapshot: DeployedOperatorSnapshot,
   catalog: ReconcileCatalog,
+  catalogUrls: Map<string, string> = new Map(),
 ): ReconcileResult {
   const suggestions: Suggestion[] = [];
   const report: BehindReportEntry[] = [];
@@ -404,97 +488,108 @@ export function reconcile(
     }
   }
 
-  const iscPackageNames = new Set(
-    (config.mirror?.operators ?? []).flatMap(entry =>
-      (entry.packages ?? []).map(pkg => pkg.name),
-    ),
-  );
-  for (const [packageName, snapPkg] of Object.entries(snapshot.packages)) {
-    if (iscPackageNames.has(packageName)) {
-      continue;
-    }
-    let host: { catalogUrl: string; detail: CatalogOperatorDetail } | null =
-      null;
-    for (const catEntry of config.mirror?.operators ?? []) {
-      const key = catalogKeyFromUrl(catEntry.catalog ?? '');
-      const detail = key ? catalog.get(key)?.get(packageName) : undefined;
-      if (detail) {
-        host = { catalogUrl: catEntry.catalog, detail };
-        break;
+  if ((config.mirror?.operators ?? []).length === 0) {
+    seedFromEmptyIsc(
+      snapshot,
+      catalog,
+      catalogUrls,
+      fleetScope,
+      suggestions,
+      warnings,
+    );
+  } else {
+    const iscPackageNames = new Set(
+      (config.mirror?.operators ?? []).flatMap(entry =>
+        (entry.packages ?? []).map(pkg => pkg.name),
+      ),
+    );
+    for (const [packageName, snapPkg] of Object.entries(snapshot.packages)) {
+      if (iscPackageNames.has(packageName)) {
+        continue;
       }
-    }
-    if (!host) {
-      warnings.push(
-        `${packageName} is deployed (${snapPkg.deployments.length} deployment(s)) ` +
-          'but is in no ISC catalog — add it manually if it should be mirrored.',
-      );
-      continue;
-    }
-    const notes: string[] = [];
-    const versions = snapPkg.deployments.map(d => d.version);
-    const pkgFloor = minOf(versions);
-    const channelsWithDeployments = Object.entries(
-      host.detail.channelVersions,
-    ).filter(([, channelVersions]) =>
-      versions.some(v => channelVersions.includes(v)),
-    );
-    const unattributed = versions.filter(
-      v => !channelsWithDeployments.some(([, vs]) => vs.includes(v)),
-    );
-    let proposedChannels: { name: string; minVersion: string }[];
-    if (channelsWithDeployments.length > 0) {
-      proposedChannels = channelsWithDeployments.map(
-        ([name, channelVersions]) => ({
-          name,
-          minVersion:
-            unattributed.length > 0
-              ? pkgFloor
-              : minOf(versions.filter(v => channelVersions.includes(v))),
-        }),
-      );
-      if (unattributed.length > 0) {
-        notes.push(
-          `${packageName}: deployed version(s) ${[...new Set(unattributed)].join(', ')} ` +
-            'are in no catalog channel — proposed minVersions use the numeric floor.',
+      let host: { catalogUrl: string; detail: CatalogOperatorDetail } | null =
+        null;
+      for (const catEntry of config.mirror?.operators ?? []) {
+        const key = catalogKeyFromUrl(catEntry.catalog ?? '');
+        const detail = key ? catalog.get(key)?.get(packageName) : undefined;
+        if (detail) {
+          host = { catalogUrl: catEntry.catalog, detail };
+          break;
+        }
+      }
+      if (!host) {
+        warnings.push(
+          `${packageName} is deployed (${snapPkg.deployments.length} deployment(s)) ` +
+            'but is in no ISC catalog — add it manually if it should be mirrored.',
         );
+        continue;
       }
-    } else if (
-      host.detail.defaultChannel &&
-      host.detail.channelVersions[host.detail.defaultChannel]
-    ) {
-      proposedChannels = [
-        { name: host.detail.defaultChannel, minVersion: pkgFloor },
-      ];
-      notes.push(
-        `${packageName}: no deployed version is in any catalog channel — ` +
-          'proposing the default channel with the numeric floor.',
+      const notes: string[] = [];
+      const versions = snapPkg.deployments.map(d => d.version);
+      const pkgFloor = minOf(versions);
+      const channelsWithDeployments = Object.entries(
+        host.detail.channelVersions,
+      ).filter(([, channelVersions]) =>
+        versions.some(v => channelVersions.includes(v)),
       );
-    } else {
-      warnings.push(
-        `${packageName} is deployed but its catalog entry has no usable channels — add it manually.`,
+      const unattributed = versions.filter(
+        v => !channelsWithDeployments.some(([, vs]) => vs.includes(v)),
       );
-      continue;
+      let proposedChannels: { name: string; minVersion: string }[];
+      if (channelsWithDeployments.length > 0) {
+        proposedChannels = channelsWithDeployments.map(
+          ([name, channelVersions]) => ({
+            name,
+            minVersion:
+              unattributed.length > 0
+                ? pkgFloor
+                : minOf(versions.filter(v => channelVersions.includes(v))),
+          }),
+        );
+        if (unattributed.length > 0) {
+          notes.push(
+            `${packageName}: deployed version(s) ${[...new Set(unattributed)].join(', ')} ` +
+              'are in no catalog channel — proposed minVersions use the numeric floor.',
+          );
+        }
+      } else if (
+        host.detail.defaultChannel &&
+        host.detail.channelVersions[host.detail.defaultChannel]
+      ) {
+        proposedChannels = [
+          { name: host.detail.defaultChannel, minVersion: pkgFloor },
+        ];
+        notes.push(
+          `${packageName}: no deployed version is in any catalog channel — ` +
+            'proposing the default channel with the numeric floor.',
+        );
+      } else {
+        warnings.push(
+          `${packageName} is deployed but its catalog entry has no usable channels — add it manually.`,
+        );
+        continue;
+      }
+      const path: SuggestionPath = {
+        type: 'operator',
+        catalog: host.catalogUrl,
+        package: packageName,
+      };
+      suggestions.push({
+        id: suggestionId('add-operator', path),
+        kind: 'add-operator',
+        path,
+        current: null,
+        proposed: proposedChannels
+          .map(ch => `${ch.name}@${ch.minVersion}`)
+          .join(', '),
+        proposedChannels,
+        evidence:
+          `${packageName} is deployed on ${snapPkg.deployments.length} ` +
+          `deployment(s) across ${fleetScope} but missing from the ISC`,
+        defaultChecked: false,
+        ...(notes.length ? { notes } : {}),
+      });
     }
-    const path: SuggestionPath = {
-      type: 'operator',
-      catalog: host.catalogUrl,
-      package: packageName,
-    };
-    suggestions.push({
-      id: suggestionId('add-operator', path),
-      kind: 'add-operator',
-      path,
-      current: null,
-      proposed: proposedChannels
-        .map(ch => `${ch.name}@${ch.minVersion}`)
-        .join(', '),
-      proposedChannels,
-      evidence:
-        `${packageName} is deployed on ${snapPkg.deployments.length} ` +
-        `deployment(s) across ${fleetScope} but missing from the ISC`,
-      defaultChecked: false,
-      ...(notes.length ? { notes } : {}),
-    });
   }
 
   const platformChannels = config.mirror?.platform?.channels ?? [];
