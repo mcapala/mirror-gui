@@ -25,6 +25,8 @@ export interface Suggestion {
   proposed: string | null;
   proposedChannels?: { name: string; minVersion: string }[];
   evidence: string;
+  /** Operator-scoped explanations shown in the row's expandable area. */
+  notes?: string[];
   defaultChecked: boolean;
 }
 
@@ -400,6 +402,7 @@ export function reconcile(
       );
       continue;
     }
+    const notes: string[] = [];
     const versions = snapPkg.deployments.map(d => d.version);
     const pkgFloor = minOf(versions);
     const channelsWithDeployments = Object.entries(
@@ -422,7 +425,7 @@ export function reconcile(
         }),
       );
       if (unattributed.length > 0) {
-        warnings.push(
+        notes.push(
           `${packageName}: deployed version(s) ${[...new Set(unattributed)].join(', ')} ` +
             'are in no catalog channel — proposed minVersions use the numeric floor.',
         );
@@ -434,7 +437,7 @@ export function reconcile(
       proposedChannels = [
         { name: host.detail.defaultChannel, minVersion: pkgFloor },
       ];
-      warnings.push(
+      notes.push(
         `${packageName}: no deployed version is in any catalog channel — ` +
           'proposing the default channel with the numeric floor.',
       );
@@ -462,6 +465,7 @@ export function reconcile(
         `${packageName} is deployed on ${snapPkg.deployments.length} ` +
         `deployment(s) across ${fleetScope} but missing from the ISC`,
       defaultChecked: false,
+      ...(notes.length ? { notes } : {}),
     });
   }
 

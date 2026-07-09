@@ -421,6 +421,72 @@ describe('add-operator for deployed-but-unmirrored packages', () => {
     expect(result.suggestions.some(x => x.kind === 'add-operator')).toBe(false);
     expect(result.warnings.some(w => w.includes('mystery-op'))).toBe(true);
   });
+
+  it('routes the default-channel fallback to suggestion notes, not warnings', () => {
+    const multi = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'gitops-operator',
+            defaultChannel: 'gitops-1.14',
+            channelVersions: { 'gitops-1.14': ['1.14.0', '1.14.2'] },
+          },
+        ],
+      },
+    });
+    // 1.13.9 is in no catalog channel → default-channel fallback message
+    const s = snap({
+      packages: { 'gitops-operator': { deployments: [dep('c1', '1.13.9')] } },
+    });
+    const config: IscConfig = {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      mirror: { operators: [{ catalog: CATALOG_URL, packages: [] }] },
+    };
+    const result = reconcile(config, s, multi);
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect(add?.notes).toBeDefined();
+    expect(
+      add!.notes!.some(n => n.includes('proposing the default channel')),
+    ).toBe(true);
+    expect(
+      result.warnings.some(w => w.includes('proposing the default channel')),
+    ).toBe(false);
+  });
+
+  it('routes the numeric-floor explanation to suggestion notes, not warnings', () => {
+    const multi = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [
+          {
+            name: 'gitops-operator',
+            defaultChannel: 'gitops-1.14',
+            channelVersions: { 'gitops-1.14': ['1.14.0', '1.14.2'] },
+          },
+        ],
+      },
+    });
+    // 1.14.0 attributes to gitops-1.14; 1.13.9 attributes to nothing
+    const s = snap({
+      packages: {
+        'gitops-operator': {
+          deployments: [dep('c1', '1.14.0'), dep('c2', '1.13.9')],
+        },
+      },
+    });
+    const config: IscConfig = {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      mirror: { operators: [{ catalog: CATALOG_URL, packages: [] }] },
+    };
+    const result = reconcile(config, s, multi);
+    const add = result.suggestions.find(x => x.kind === 'add-operator');
+    expect(add?.proposedChannels).toEqual([
+      { name: 'gitops-1.14', minVersion: '1.13.9' },
+    ]);
+    expect(add!.notes!.some(n => n.includes('numeric floor'))).toBe(true);
+    expect(result.warnings.some(w => w.includes('numeric floor'))).toBe(false);
+  });
 });
 
 describe('platform reconciliation', () => {
