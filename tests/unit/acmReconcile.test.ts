@@ -836,6 +836,181 @@ describe('fallback floor clamp', () => {
   });
 });
 
+describe('per-package catalog update pair', () => {
+  const CAT = buildReconcileCatalog({
+    operators: {
+      'redhat-operator-index:v4.21': [
+        {
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: { 'stable-4.21': ['4.21.0-rhodf', '4.21.8-rhodf'] },
+        },
+        {
+          name: 'odf-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: { 'stable-4.21': ['4.21.0-rhodf'] },
+        },
+      ],
+      'redhat-operator-index:v4.22': [
+        {
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.22',
+          channelVersions: {
+            'stable-4.21': ['4.21.0-rhodf', '4.21.8-rhodf'],
+            'stable-4.22': ['4.22.0-rhodf'],
+          },
+        },
+      ],
+      'redhat-operator-index:v4.23': [
+        {
+          name: 'odf-operator',
+          defaultChannel: 'stable-4.23',
+          channelVersions: { 'stable-4.23': ['4.23.0-rhodf'] },
+        },
+      ],
+    },
+  });
+  const OLD_URL = 'registry.redhat.io/redhat/redhat-operator-index:v4.21';
+  const NEW_URL = 'registry.redhat.io/redhat/redhat-operator-index:v4.22';
+
+  function isc(operators: NonNullable<IscConfig['mirror']>['operators']): IscConfig {
+    return {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      mirror: { operators },
+    };
+  }
+  const oldEntry = (packages: Array<{ name: string; channels: { name: string; minVersion?: string }[] }>) =>
+    isc([{ catalog: OLD_URL, packages }]);
+
+  it('emits an add row (checked) and a remove row (unchecked) for a version only in a newer tag', () => {
+    const result = reconcile(
+      oldEntry([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('local-cluster', '4.22.0-rhodf')] } } }),
+      CAT,
+    );
+    const add = result.suggestions.find(s => s.kind === 'add-operator');
+    expect(add).toMatchObject({
+      path: { type: 'operator', catalog: NEW_URL, package: 'cephcsi-operator' },
+      proposedChannels: [{ name: 'stable-4.22', minVersion: '4.22.0-rhodf' }],
+      defaultChecked: true,
+    });
+    expect(add!.evidence).toContain('4.22.0-rhodf');
+    expect(add!.evidence).toContain('local-cluster @ hub-1');
+    expect(add!.evidence).toContain('default channel');
+    const remove = result.suggestions.find(s => s.kind === 'remove-operator');
+    expect(remove).toMatchObject({
+      path: { type: 'operator', catalog: OLD_URL, package: 'cephcsi-operator' },
+      defaultChecked: false,
+    });
+    expect(remove!.evidence).toContain('no deployed version');
+  });
+
+  it('suppresses the unattributed warning and the fallback raise when an add row exists', () => {
+    const result = reconcile(
+      oldEntry([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      CAT,
+    );
+    expect(result.warnings.some(w => w.includes('are in no catalog channel'))).toBe(false);
+    expect(result.suggestions.some(s => s.kind === 'raise-min-version')).toBe(false);
+  });
+
+  it('keeps the remove-channel rows suppressed for a package with a remove-operator row', () => {
+    const result = reconcile(
+      oldEntry([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      CAT,
+    );
+    expect(result.suggestions.some(s => s.kind === 'remove-channel')).toBe(false);
+  });
+
+  it('withholds the remove row while the old entry still serves a deployment', () => {
+    const result = reconcile(
+      oldEntry([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.0-rhodf' }] }]),
+      snap({
+        packages: {
+          'cephcsi-operator': {
+            deployments: [dep('c1', '4.22.0-rhodf'), dep('c2', '4.21.8-rhodf')],
+          },
+        },
+      }),
+      CAT,
+    );
+    expect(result.suggestions.some(s => s.kind === 'add-operator')).toBe(true);
+    expect(result.suggestions.some(s => s.kind === 'remove-operator')).toBe(false);
+  });
+
+  it('withholds the remove row when the snapshot is untrustworthy but still emits the add', () => {
+    const badHub: HubSnapshotStatus = {
+      ...OK_HUB, id: 'h2', name: 'hub-2', status: 'error', error: 'down',
+    };
+    const result = reconcile(
+      oldEntry([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }]),
+      snap({
+        hubs: [OK_HUB, badHub],
+        packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } },
+      }),
+      CAT,
+    );
+    expect(result.suggestions.some(s => s.kind === 'add-operator')).toBe(true);
+    expect(result.suggestions.some(s => s.kind === 'remove-operator')).toBe(false);
+  });
+
+  it('targets tags per package, not per entry', () => {
+    const result = reconcile(
+      oldEntry([
+        { name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] },
+        { name: 'odf-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.0-rhodf' }] },
+      ]),
+      snap({
+        packages: {
+          'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] },
+          'odf-operator': { deployments: [dep('c1', '4.23.0-rhodf')] },
+        },
+      }),
+      CAT,
+    );
+    const adds = result.suggestions.filter(s => s.kind === 'add-operator');
+    const catalogs = adds.map(a => (a.path as { catalog: string }).catalog).sort();
+    expect(catalogs).toEqual([
+      'registry.redhat.io/redhat/redhat-operator-index:v4.22',
+      'registry.redhat.io/redhat/redhat-operator-index:v4.23',
+    ]);
+  });
+
+  it('emits add-channel instead when the ISC already has the target entry and package', () => {
+    const result = reconcile(
+      isc([
+        { catalog: OLD_URL, packages: [{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }] },
+        { catalog: NEW_URL, packages: [{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }] },
+      ]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      CAT,
+    );
+    expect(result.suggestions.some(s => s.kind === 'add-operator')).toBe(false);
+    const addCh = result.suggestions.find(
+      s =>
+        s.kind === 'add-channel' &&
+        s.path.type === 'operator-channel' &&
+        s.path.catalog === NEW_URL &&
+        s.path.channel === 'stable-4.22',
+    );
+    expect(addCh).toMatchObject({ proposed: '4.22.0-rhodf', defaultChecked: true });
+  });
+
+  it('emits no pair when no newer tag attributes the version (fallback + warning stay)', () => {
+    const result = reconcile(
+      oldEntry([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.0-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '9.9.9-nowhere')] } } }),
+      CAT,
+    );
+    expect(result.suggestions.some(s => s.kind === 'add-operator')).toBe(false);
+    expect(result.suggestions.some(s => s.kind === 'remove-operator')).toBe(false);
+    expect(result.warnings.some(w => w.includes('are in no catalog channel'))).toBe(true);
+  });
+});
+
 describe('M3 alias map end-to-end (cincinnati-operator case)', () => {
   const catalogData = {
     operators: {

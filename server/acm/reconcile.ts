@@ -10,6 +10,7 @@ export type SuggestionKind =
   | 'add-channel'
   | 'add-operator'
   | 'remove-channel'
+  | 'remove-operator'
   | 'reset-unused-operator';
 
 export type SuggestionPath =
@@ -176,6 +177,181 @@ function compareCatalogKeyTags(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
+/**
+ * Per-package catalog update: when deployed versions attribute to no
+ * channel of the selected tag but do attribute in a newer synced tag of
+ * the same index, offer an add row (mirror the package from the target
+ * tag; covering channels only — channels the old entry still serves are
+ * not carried) and, independently, a remove row (drop the package from
+ * the old entry) when nothing deployed actually runs from it. Check both
+ * = full move; add only = transition split (both tags mirrored).
+ */
+function planPackageCatalogUpdate(args: {
+  catEntry: IscOperatorCatalog;
+  pkg: IscOperatorPackage;
+  key: string;
+  detail: CatalogOperatorDetail;
+  unattributed: string[];
+  versions: string[];
+  config: IscConfig;
+  catalog: ReconcileCatalog;
+  catalogUrls: Map<string, string>;
+  snapshot: DeployedOperatorSnapshot;
+  trustworthy: boolean;
+  fleetScope: string;
+}): { rows: Suggestion[]; hasAdd: boolean; hasRemove: boolean } {
+  const {
+    catEntry, pkg, key, detail, unattributed, versions, config,
+    catalog, catalogUrls, snapshot, trustworthy, fleetScope,
+  } = args;
+  const rows: Suggestion[] = [];
+  const none = { rows, hasAdd: false, hasRemove: false };
+  if (unattributed.length === 0) {
+    return none;
+  }
+  const oldTag = key.split(':')[1];
+
+  // --- add row: find the newest newer tag attributing all stray versions
+  const indexName = key.split(':')[0];
+  const newerKeys = [...catalog.keys()]
+    .filter(k => k.split(':')[0] === indexName && compareCatalogKeyTags(k, key) > 0)
+    .sort(compareCatalogKeyTags)
+    .reverse();
+  const attributesAll = (k: string): boolean => {
+    const d = catalog.get(k)?.get(pkg.name);
+    return (
+      !!d &&
+      unattributed.every(v =>
+        Object.values(d.channelVersions).some(vs => vs.includes(v)),
+      )
+    );
+  };
+  const targetKey = newerKeys.find(attributesAll);
+  let hasAdd = false;
+  if (targetKey) {
+    const targetDetail = catalog.get(targetKey)!.get(pkg.name)!;
+    const newTag = targetKey.split(':')[1];
+    const targetUrl =
+      catalogUrls.get(targetKey) ??
+      catEntry.catalog.replace(/:[^/:]+$/, `:${newTag}`);
+    const inTarget = (channelName: string, version: string): boolean =>
+      (targetDetail.channelVersions[channelName] ?? []).includes(version);
+    // covering channels for the stray versions only
+    const covering: { name: string; minVersion: string }[] = [];
+    for (const version of unattributed) {
+      if (covering.some(ch => inTarget(ch.name, version))) {
+        continue;
+      }
+      const hosts = Object.keys(targetDetail.channelVersions)
+        .filter(channelName => inTarget(channelName, version))
+        .sort();
+      const channelName =
+        targetDetail.defaultChannel && hosts.includes(targetDetail.defaultChannel)
+          ? targetDetail.defaultChannel
+          : hosts[0];
+      const attributedHere = versions.filter(v => inTarget(channelName, v));
+      covering.push({ name: channelName, minVersion: minOf(attributedHere) });
+    }
+    const example = unattributed[0];
+    const pin = snapshot.packages[pkg.name]?.deployments.find(
+      d => d.version === example,
+    );
+    const pinText = pin ? `${pin.cluster} @ ${pin.hub}` : 'unknown cluster';
+    const first = covering[0];
+    const isDefault = first.name === targetDetail.defaultChannel;
+    const evidence =
+      `${pkg.name} runs ${example} (${pinText}) — in no channel of ` +
+      `${oldTag}; ${first.name} ` +
+      (isDefault
+        ? `is ${newTag}'s default channel and contains it`
+        : `contains it in ${newTag}`);
+    const targetEntry = (config.mirror?.operators ?? []).find(
+      e => e.catalog === targetUrl,
+    );
+    const targetPkg = targetEntry?.packages?.find(p => p.name === pkg.name);
+    if (targetPkg) {
+      // entry + package already mirrored from the target tag: only the
+      // covering channels can be missing
+      for (const ch of covering) {
+        if (targetPkg.channels?.some(c => c.name === ch.name)) {
+          continue;
+        }
+        const path: SuggestionPath = {
+          type: 'operator-channel',
+          catalog: targetUrl,
+          package: pkg.name,
+          channel: ch.name,
+        };
+        rows.push({
+          id: suggestionId('add-channel', path),
+          kind: 'add-channel',
+          path,
+          current: null,
+          proposed: ch.minVersion,
+          evidence,
+          defaultChecked: true,
+        });
+        hasAdd = true;
+      }
+    } else {
+      const path: SuggestionPath = {
+        type: 'operator',
+        catalog: targetUrl,
+        package: pkg.name,
+      };
+      rows.push({
+        id: suggestionId('add-operator', path),
+        kind: 'add-operator',
+        path,
+        current: null,
+        proposed: covering
+          .map(ch => `${ch.name}@${ch.minVersion}`)
+          .join(', '),
+        proposedChannels: covering,
+        evidence,
+        defaultChecked: true,
+      });
+      hasAdd = true;
+    }
+  }
+
+  // --- remove row: independent of the add row's shape, but only offered
+  // when a newer tag actually hosts the stray versions (no qualifying key
+  // → no pair, today's fallback applies) and the old entry serves nothing
+  // that actually runs, so a remove applied alone never loses real
+  // coverage
+  const servedOnOld = versions.some(v =>
+    (pkg.channels ?? []).some(ch =>
+      (detail.channelVersions[ch.name] ?? []).includes(v),
+    ),
+  );
+  let hasRemove = false;
+  if (targetKey && trustworthy && !servedOnOld) {
+    const path: SuggestionPath = {
+      type: 'operator',
+      catalog: catEntry.catalog,
+      package: pkg.name,
+    };
+    rows.push({
+      id: suggestionId('remove-operator', path),
+      kind: 'remove-operator',
+      path,
+      current:
+        (pkg.channels ?? [])
+          .map(c => c.name + (c.minVersion ? `@${c.minVersion}` : ''))
+          .join(', ') || null,
+      proposed: null,
+      evidence:
+        `no deployed version runs ${pkg.name} from ${oldTag} across ` +
+        `${fleetScope} (deployed: ${[...new Set(versions)].join(', ')}, ` +
+        `in no ${oldTag} channel) — remove it here after adding it to a ` +
+        'newer catalog. Already-mirrored images are untouched.',
+      defaultChecked: false,
+    });
+    hasRemove = true;
+  }
+  return { rows, hasAdd, hasRemove };
+}
 
 function seedFromEmptyIsc(
   snapshot: DeployedOperatorSnapshot,
@@ -388,14 +564,22 @@ export function reconcile(
           ),
         ),
       ];
-      if (unattributed.length > 0) {
+      const update = key && detail
+        ? planPackageCatalogUpdate({
+            catEntry, pkg, key, detail, unattributed, versions, config,
+            catalog, catalogUrls, snapshot, trustworthy, fleetScope,
+          })
+        : { rows: [], hasAdd: false, hasRemove: false };
+      suggestions.push(...update.rows);
+      if (unattributed.length > 0 && !update.hasAdd) {
         warnings.push(
           `${pkg.name}: deployed version(s) ${unattributed.join(', ')} are in no ` +
             'catalog channel (skipRange-only upgrade graph?) — using numeric ' +
             'comparison for floors; channel removals are disabled for this package.',
         );
       }
-      const removalsAllowed = trustworthy && unattributed.length === 0;
+      const removalsAllowed =
+        trustworthy && unattributed.length === 0 && !update.hasRemove;
       const pkgFloor = minOf(versions);
 
       for (const ch of channels) {
@@ -408,7 +592,7 @@ export function reconcile(
         }
         const attributed = versions.filter(v => inChannel(v, ch.name));
         let floor: string | null = null;
-        if (unattributed.length > 0) {
+        if (unattributed.length > 0 && !update.hasAdd) {
           // minVersion is a floor filter, so a value below the channel's
           // entries is fine — but one above the channel head would filter
           // out every version the channel has (numaresources 4.22.1 into
