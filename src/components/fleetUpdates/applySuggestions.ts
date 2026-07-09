@@ -25,11 +25,15 @@ export function applySuggestions(
   let applied = 0;
   const skipped: string[] = [];
 
-  // Removals go last so a batched channel swap (add stable-4.22 +
-  // remove stable-4.21) never trips the "would leave the package without
-  // channels" guard on the pre-add state.
+  // Additive suggestions first, then catalog bumps (so raises land before
+  // packages move entries), removals last so a batched channel swap never
+  // trips the "would leave the package without channels" guard on the
+  // pre-add state.
   const ordered = [
-    ...suggestions.filter(s => s.kind !== 'remove-channel'),
+    ...suggestions.filter(
+      s => s.kind !== 'remove-channel' && s.kind !== 'bump-catalog',
+    ),
+    ...suggestions.filter(s => s.kind === 'bump-catalog'),
     ...suggestions.filter(s => s.kind === 'remove-channel'),
   ];
 
@@ -53,6 +57,63 @@ export function applySuggestions(
         applied++;
       } else {
         skipped.push(`platform channel ${path.channel} not found`);
+      }
+      continue;
+    }
+
+    if (path.type === 'catalog') {
+      if (
+        kind !== 'bump-catalog' ||
+        !suggestion.proposedCatalog ||
+        !suggestion.movedPackages
+      ) {
+        skipped.push(`unsupported catalog-level suggestion on ${path.catalog}`);
+        continue;
+      }
+      const oldEntry = next.mirror.operators.find(
+        e => e.catalog === path.catalog,
+      );
+      if (!oldEntry) {
+        skipped.push(`catalog ${path.catalog} not found`);
+        continue;
+      }
+      let target = next.mirror.operators.find(
+        e => e.catalog === suggestion.proposedCatalog,
+      );
+      if (!target) {
+        // same shape as the add-operator entry creation: the metadata
+        // rehydrate effect fills availableOperators after the apply
+        target = {
+          catalog: suggestion.proposedCatalog,
+          catalogVersion: suggestion.proposedCatalog.match(/:([^/:]+)$/)?.[1],
+          availableOperators: [],
+          packages: [],
+        };
+        next.mirror.operators.push(target);
+      }
+      let moved = 0;
+      for (const name of suggestion.movedPackages) {
+        const index = oldEntry.packages.findIndex(p => p.name === name);
+        if (index === -1) {
+          skipped.push(`${name} not found in ${path.catalog}`);
+          continue;
+        }
+        if (target.packages.some(p => p.name === name)) {
+          skipped.push(
+            `${name} already present in ${suggestion.proposedCatalog}`,
+          );
+          continue;
+        }
+        target.packages.push(oldEntry.packages.splice(index, 1)[0]);
+        moved++;
+      }
+      if (moved > 0) {
+        applied++;
+      }
+      if (oldEntry.packages.length === 0) {
+        next.mirror.operators = next.mirror.operators.filter(
+          e => e !== oldEntry,
+        );
       }
       continue;
     }
