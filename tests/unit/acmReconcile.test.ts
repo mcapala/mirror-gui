@@ -799,6 +799,215 @@ describe('platform reconciliation', () => {
   });
 });
 
+describe('bump-catalog', () => {
+  const BUMP_CATALOG = buildReconcileCatalog({
+    operators: {
+      'redhat-operator-index:v4.21': [
+        {
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: { 'stable-4.21': ['4.21.0-rhodf', '4.21.8-rhodf'] },
+        },
+        {
+          name: 'odf-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: {
+            'stable-4.21': ['4.21.0-rhodf'],
+            'legacy-4.20': ['4.20.0-rhodf'],
+          },
+        },
+      ],
+      'redhat-operator-index:v4.22': [
+        {
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.22',
+          channelVersions: {
+            'stable-4.21': ['4.21.0-rhodf', '4.21.8-rhodf'],
+            'stable-4.22': ['4.22.0-rhodf'],
+          },
+        },
+        {
+          // odf-operator exists in v4.22 but WITHOUT legacy-4.20 → straggler
+          name: 'odf-operator',
+          defaultChannel: 'stable-4.22',
+          channelVersions: {
+            'stable-4.21': ['4.21.0-rhodf'],
+            'stable-4.22': ['4.22.0-rhodf'],
+          },
+        },
+      ],
+    },
+  });
+  const OLD_URL = 'registry.redhat.io/redhat/redhat-operator-index:v4.21';
+  const NEW_URL = 'registry.redhat.io/redhat/redhat-operator-index:v4.22';
+
+  function bumpIsc(packages: Array<{
+    name: string;
+    channels: { name: string; minVersion?: string }[];
+  }>): IscConfig {
+    return {
+      kind: 'ImageSetConfiguration',
+      apiVersion: 'mirror.openshift.io/v2alpha1',
+      mirror: { operators: [{ catalog: OLD_URL, packages }] },
+    };
+  }
+
+  it('emits a bump when a deployed version only attributes in a newer tag', () => {
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('local-cluster', '4.22.0-rhodf')] } } }),
+      BUMP_CATALOG,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump).toBeDefined();
+    expect(bump).toMatchObject({
+      id: `bump-catalog|${OLD_URL}||`,
+      path: { type: 'catalog', catalog: OLD_URL },
+      current: 'v4.21',
+      proposed: 'v4.22',
+      proposedCatalog: NEW_URL,
+      movedPackages: ['cephcsi-operator'],
+      defaultChecked: false,
+    });
+    expect(bump!.evidence).toContain('4.22.0-rhodf');
+    expect(bump!.evidence).toContain('local-cluster @ hub-1');
+  });
+
+  it('suppresses the numeric-floor raise, remove-channel, and warning for moved packages', () => {
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('local-cluster', '4.22.0-rhodf')] } } }),
+      BUMP_CATALOG,
+    );
+    expect(result.suggestions.some(s => s.kind === 'raise-min-version')).toBe(false);
+    expect(result.suggestions.some(s => s.kind === 'remove-channel')).toBe(false);
+    expect(result.warnings.some(w => w.includes('are in no catalog channel'))).toBe(false);
+  });
+
+  it('does not emit a bump when every deployed version attributes on the selected tag', () => {
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.21.8-rhodf')] } } }),
+      BUMP_CATALOG,
+    );
+    expect(result.suggestions.some(s => s.kind === 'bump-catalog')).toBe(false);
+  });
+
+  it('does not emit a bump when no newer tag attributes the version, keeping the fallback', () => {
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.0-rhodf' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '9.9.9-nowhere')] } } }),
+      BUMP_CATALOG,
+    );
+    expect(result.suggestions.some(s => s.kind === 'bump-catalog')).toBe(false);
+    // existing numeric-fallback behavior still applies
+    expect(result.warnings.some(w => w.includes('are in no catalog channel'))).toBe(true);
+  });
+
+  it('keeps a package whose ISC channel is missing from the target tag as a straggler', () => {
+    const result = reconcile(
+      bumpIsc([
+        { name: 'cephcsi-operator', channels: [{ name: 'stable-4.21', minVersion: '4.21.8-rhodf' }] },
+        { name: 'odf-operator', channels: [{ name: 'legacy-4.20', minVersion: '4.20.0-rhodf' }] },
+      ]),
+      snap({
+        packages: {
+          'cephcsi-operator': { deployments: [dep('local-cluster', '4.22.0-rhodf')] },
+          'odf-operator': { deployments: [dep('c2', '4.20.0-rhodf')] },
+        },
+      }),
+      BUMP_CATALOG,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump!.movedPackages).toEqual(['cephcsi-operator']);
+    expect(bump!.evidence).toContain('keeps 1');
+  });
+
+  it('does not emit a bump when no triggering package is movable', () => {
+    // cephcsi's ISC channel does not exist in v4.22 → triggering package not movable
+    const NO_CH = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: { 'gone-4.19': ['4.19.0-rhodf'], 'stable-4.21': ['4.21.8-rhodf'] },
+        }],
+        'redhat-operator-index:v4.22': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.22',
+          channelVersions: { 'stable-4.22': ['4.22.0-rhodf'] },
+        }],
+      },
+    });
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'gone-4.19' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      NO_CH,
+    );
+    expect(result.suggestions.some(s => s.kind === 'bump-catalog')).toBe(false);
+  });
+
+  it('targets the newest synced tag that attributes all bumpable versions', () => {
+    const THREE = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: { 'stable-4.21': ['4.21.8-rhodf'] },
+        }],
+        'redhat-operator-index:v4.22': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.22',
+          channelVersions: { 'stable-4.21': ['4.21.8-rhodf'], 'stable-4.22': ['4.22.0-rhodf'] },
+        }],
+        'redhat-operator-index:v4.23': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.23',
+          channelVersions: { 'stable-4.21': ['4.21.8-rhodf'], 'stable-4.22': ['4.22.0-rhodf'], 'stable-4.23': ['4.23.0-rhodf'] },
+        }],
+      },
+    });
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      THREE,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump!.proposed).toBe('v4.23');
+    expect(bump!.proposedCatalog).toBe('registry.redhat.io/redhat/redhat-operator-index:v4.23');
+  });
+
+  it('falls back to an older newer tag when the newest does not attribute the version', () => {
+    const THREE = buildReconcileCatalog({
+      operators: {
+        'redhat-operator-index:v4.21': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.21',
+          channelVersions: { 'stable-4.21': ['4.21.8-rhodf'] },
+        }],
+        'redhat-operator-index:v4.22': [{
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.22',
+          channelVersions: { 'stable-4.21': ['4.21.8-rhodf'], 'stable-4.22': ['4.22.0-rhodf'] },
+        }],
+        'redhat-operator-index:v4.23': [{
+          // 4.22.0-rhodf pruned from v4.23 index
+          name: 'cephcsi-operator',
+          defaultChannel: 'stable-4.23',
+          channelVersions: { 'stable-4.23': ['4.23.0-rhodf'] },
+        }],
+      },
+    });
+    const result = reconcile(
+      bumpIsc([{ name: 'cephcsi-operator', channels: [{ name: 'stable-4.21' }] }]),
+      snap({ packages: { 'cephcsi-operator': { deployments: [dep('c1', '4.22.0-rhodf')] } } }),
+      THREE,
+    );
+    const bump = result.suggestions.find(s => s.kind === 'bump-catalog');
+    expect(bump!.proposed).toBe('v4.22');
+  });
+});
+
 describe('M3 alias map end-to-end (cincinnati-operator case)', () => {
   const catalogData = {
     operators: {

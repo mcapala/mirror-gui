@@ -10,12 +10,14 @@ export type SuggestionKind =
   | 'add-channel'
   | 'add-operator'
   | 'remove-channel'
-  | 'reset-unused-operator';
+  | 'reset-unused-operator'
+  | 'bump-catalog';
 
 export type SuggestionPath =
   | { type: 'operator-channel'; catalog: string; package: string; channel: string }
   | { type: 'operator'; catalog: string; package: string }
-  | { type: 'platform-channel'; channel: string };
+  | { type: 'platform-channel'; channel: string }
+  | { type: 'catalog'; catalog: string };
 
 export interface Suggestion {
   id: string;
@@ -24,6 +26,10 @@ export interface Suggestion {
   current: string | null;
   proposed: string | null;
   proposedChannels?: { name: string; minVersion: string }[];
+  /** bump-catalog: full catalog URL of the target index tag. */
+  proposedCatalog?: string;
+  /** bump-catalog: packages that move to the target entry; the rest stay. */
+  movedPackages?: string[];
   evidence: string;
   /** Operator-scoped explanations shown in the row's expandable area. */
   notes?: string[];
@@ -154,6 +160,9 @@ function suggestionId(
   if (path.type === 'platform-channel') {
     return `${kind}|platform||${path.channel}`;
   }
+  if (path.type === 'catalog') {
+    return `${kind}|${path.catalog}||`;
+  }
   const channel = path.type === 'operator-channel' ? path.channel : '';
   return `${kind}|${path.catalog}|${path.package}|${channel}`;
 }
@@ -174,6 +183,129 @@ function compareCatalogKeyTags(a: string, b: string): number {
     }
   }
   return a.localeCompare(b);
+}
+
+/**
+ * One bump per ISC catalog entry: fires when a deployed version of one of the
+ * entry's packages attributes to no channel of the selected tag but does
+ * attribute in a newer synced tag of the same index. Packages are never
+ * split across entries — a package moves only if the target tag has all of
+ * its ISC channels.
+ */
+function planCatalogBump(
+  catEntry: IscOperatorCatalog,
+  key: string,
+  catOps: Map<string, CatalogOperatorDetail>,
+  catalog: ReconcileCatalog,
+  catalogUrls: Map<string, string>,
+  snapshot: DeployedOperatorSnapshot,
+): Suggestion | null {
+  const indexName = key.split(':')[0];
+  const newerKeys = [...catalog.keys()]
+    .filter(
+      k =>
+        k.split(':')[0] === indexName && compareCatalogKeyTags(k, key) > 0,
+    )
+    .sort(compareCatalogKeyTags)
+    .reverse();
+  if (newerKeys.length === 0) {
+    return null;
+  }
+
+  const unattributedByPkg = new Map<string, string[]>();
+  for (const pkg of catEntry.packages ?? []) {
+    const detail = catOps.get(pkg.name);
+    const snapPkg = snapshot.packages[pkg.name];
+    if (!detail || !snapPkg) {
+      continue;
+    }
+    const versions = snapPkg.deployments.map(d => d.version);
+    const unattributed = [
+      ...new Set(
+        versions.filter(
+          v =>
+            !Object.values(detail.channelVersions).some(vs =>
+              vs.includes(v),
+            ),
+        ),
+      ),
+    ];
+    if (unattributed.length > 0) {
+      unattributedByPkg.set(pkg.name, unattributed);
+    }
+  }
+  if (unattributedByPkg.size === 0) {
+    return null;
+  }
+
+  const attributedIn = (k: string, pkgName: string, version: string): boolean => {
+    const d = catalog.get(k)?.get(pkgName);
+    return (
+      !!d && Object.values(d.channelVersions).some(vs => vs.includes(version))
+    );
+  };
+
+  const bumpable: Array<{ pkg: string; version: string }> = [];
+  for (const [pkgName, versions] of unattributedByPkg) {
+    for (const version of versions) {
+      if (newerKeys.some(k => attributedIn(k, pkgName, version))) {
+        bumpable.push({ pkg: pkgName, version });
+      }
+    }
+  }
+  if (bumpable.length === 0) {
+    return null;
+  }
+
+  const targetKey = newerKeys.find(k =>
+    bumpable.every(({ pkg, version }) => attributedIn(k, pkg, version)),
+  );
+  if (!targetKey) {
+    return null;
+  }
+
+  const targetOps = catalog.get(targetKey)!;
+  const moved: string[] = [];
+  const kept: string[] = [];
+  for (const pkg of catEntry.packages ?? []) {
+    const targetDetail = targetOps.get(pkg.name);
+    const movable =
+      !!targetDetail &&
+      (pkg.channels ?? []).every(
+        ch => targetDetail.channelVersions[ch.name] !== undefined,
+      );
+    (movable ? moved : kept).push(pkg.name);
+  }
+  const triggering = bumpable.filter(t => moved.includes(t.pkg));
+  if (triggering.length === 0) {
+    return null;
+  }
+
+  const oldTag = key.split(':')[1];
+  const newTag = targetKey.split(':')[1];
+  const proposedCatalog =
+    catalogUrls.get(targetKey) ??
+    catEntry.catalog.replace(/:[^/:]+$/, `:${newTag}`);
+  const example = triggering[0];
+  const pin = snapshot.packages[example.pkg]?.deployments.find(
+    d => d.version === example.version,
+  );
+  const pinText = pin ? `${pin.cluster} @ ${pin.hub}` : 'unknown cluster';
+  const path: SuggestionPath = { type: 'catalog', catalog: catEntry.catalog };
+  return {
+    id: suggestionId('bump-catalog', path),
+    kind: 'bump-catalog',
+    path,
+    current: oldTag,
+    proposed: newTag,
+    proposedCatalog,
+    movedPackages: moved,
+    evidence:
+      `${example.pkg} runs ${example.version} (${pinText}) — in no channel ` +
+      `of ${oldTag}, attributed in ${newTag}; moves ${moved.length} ` +
+      `package(s)${kept.length ? `, keeps ${kept.length} on ${oldTag}` : ''}`,
+    defaultChecked: false,
+  };
 }
 
 function seedFromEmptyIsc(
@@ -303,6 +435,15 @@ export function reconcile(
       );
     }
 
+    const bump =
+      catOps && key
+        ? planCatalogBump(catEntry, key, catOps, catalog, catalogUrls, snapshot)
+        : null;
+    if (bump) {
+      suggestions.push(bump);
+    }
+    const movedForBump = new Set(bump?.movedPackages ?? []);
+
     for (const pkg of catEntry.packages ?? []) {
       const snapPkg = snapshot.packages[pkg.name];
       const detail = catOps?.get(pkg.name);
@@ -387,14 +528,15 @@ export function reconcile(
           ),
         ),
       ];
-      if (unattributed.length > 0) {
+      if (unattributed.length > 0 && !movedForBump.has(pkg.name)) {
         warnings.push(
           `${pkg.name}: deployed version(s) ${unattributed.join(', ')} are in no ` +
             'catalog channel (skipRange-only upgrade graph?) — using numeric ' +
             'comparison for floors; channel removals are disabled for this package.',
         );
       }
-      const removalsAllowed = trustworthy && unattributed.length === 0;
+      const removalsAllowed =
+        trustworthy && unattributed.length === 0 && !movedForBump.has(pkg.name);
       const pkgFloor = minOf(versions);
 
       for (const ch of channels) {
@@ -407,7 +549,7 @@ export function reconcile(
         }
         const attributed = versions.filter(v => inChannel(v, ch.name));
         let floor: string | null = null;
-        if (unattributed.length > 0) {
+        if (unattributed.length > 0 && !movedForBump.has(pkg.name)) {
           floor = pkgFloor;
         } else if (attributed.length > 0) {
           floor = minOf(attributed);
