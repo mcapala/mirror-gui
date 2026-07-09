@@ -5,8 +5,7 @@ export type SuggestionKind =
   | 'add-channel'
   | 'add-operator'
   | 'remove-channel'
-  | 'reset-unused-operator'
-  | 'bump-catalog';
+  | 'reset-unused-operator';
 
 export type SuggestionPath =
   | {
@@ -16,8 +15,7 @@ export type SuggestionPath =
       channel: string;
     }
   | { type: 'operator'; catalog: string; package: string }
-  | { type: 'platform-channel'; channel: string }
-  | { type: 'catalog'; catalog: string };
+  | { type: 'platform-channel'; channel: string };
 
 export interface Suggestion {
   id: string;
@@ -26,9 +24,6 @@ export interface Suggestion {
   current: string | null;
   proposed: string | null;
   proposedChannels?: { name: string; minVersion: string }[];
-  proposedCatalog?: string;
-  movedPackages?: string[];
-  channelRewrites?: Record<string, { name: string; minVersion: string }[]>;
   evidence: string;
   notes?: string[];
   defaultChecked: boolean;

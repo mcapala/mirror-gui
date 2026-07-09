@@ -10,14 +10,12 @@ export type SuggestionKind =
   | 'add-channel'
   | 'add-operator'
   | 'remove-channel'
-  | 'reset-unused-operator'
-  | 'bump-catalog';
+  | 'reset-unused-operator';
 
 export type SuggestionPath =
   | { type: 'operator-channel'; catalog: string; package: string; channel: string }
   | { type: 'operator'; catalog: string; package: string }
-  | { type: 'platform-channel'; channel: string }
-  | { type: 'catalog'; catalog: string };
+  | { type: 'platform-channel'; channel: string };
 
 export interface Suggestion {
   id: string;
@@ -26,17 +24,6 @@ export interface Suggestion {
   current: string | null;
   proposed: string | null;
   proposedChannels?: { name: string; minVersion: string }[];
-  /** bump-catalog: full catalog URL of the target index tag. */
-  proposedCatalog?: string;
-  /** bump-catalog: packages that move to the target entry; the rest stay. */
-  movedPackages?: string[];
-  /**
-   * bump-catalog: replacement channel lists for moved packages whose ISC
-   * channels are absent from the target tag (dead + unused → dropped, and a
-   * target channel covering the deployed versions appended). Packages not
-   * listed move with their channels verbatim.
-   */
-  channelRewrites?: Record<string, { name: string; minVersion: string }[]>;
   evidence: string;
   /** Operator-scoped explanations shown in the row's expandable area. */
   notes?: string[];
@@ -167,9 +154,6 @@ function suggestionId(
   if (path.type === 'platform-channel') {
     return `${kind}|platform||${path.channel}`;
   }
-  if (path.type === 'catalog') {
-    return `${kind}|${path.catalog}||`;
-  }
   const channel = path.type === 'operator-channel' ? path.channel : '';
   return `${kind}|${path.catalog}|${path.package}|${channel}`;
 }
@@ -192,266 +176,6 @@ function compareCatalogKeyTags(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-/**
- * One bump per ISC catalog entry: fires when a deployed version of one of the
- * entry's packages attributes to no channel of the selected tag but does
- * attribute in a newer synced tag of the same index. Packages are never
- * split across entries. A moved package's channels are rewritten against the
- * target tag in the same suggestion, so the bump lands in one step:
- * channels a deployment still runs from are kept verbatim (and must exist in
- * the target, else the package stays behind); channels no deployed version
- * uses are dropped when the snapshot is trustworthy — dropping is removal
- * semantics — even if the target still has them; and a covering target
- * channel is appended for every deployed version the kept channels miss.
- * Undeployed packages move verbatim. A package whose deployed version fits
- * no target channel stays on the old tag (straggler), with a note saying
- * why.
- */
-function planCatalogBump(
-  catEntry: IscOperatorCatalog,
-  key: string,
-  catOps: Map<string, CatalogOperatorDetail>,
-  catalog: ReconcileCatalog,
-  catalogUrls: Map<string, string>,
-  snapshot: DeployedOperatorSnapshot,
-  trustworthy: boolean,
-): Suggestion | null {
-  const indexName = key.split(':')[0];
-  const newerKeys = [...catalog.keys()]
-    .filter(
-      k =>
-        k.split(':')[0] === indexName && compareCatalogKeyTags(k, key) > 0,
-    )
-    .sort(compareCatalogKeyTags)
-    .reverse();
-  if (newerKeys.length === 0) {
-    return null;
-  }
-
-  const unattributedByPkg = new Map<string, string[]>();
-  for (const pkg of catEntry.packages ?? []) {
-    const detail = catOps.get(pkg.name);
-    const snapPkg = snapshot.packages[pkg.name];
-    if (!detail || !snapPkg) {
-      continue;
-    }
-    const versions = snapPkg.deployments.map(d => d.version);
-    const unattributed = [
-      ...new Set(
-        versions.filter(
-          v =>
-            !Object.values(detail.channelVersions).some(vs =>
-              vs.includes(v),
-            ),
-        ),
-      ),
-    ];
-    if (unattributed.length > 0) {
-      unattributedByPkg.set(pkg.name, unattributed);
-    }
-  }
-  if (unattributedByPkg.size === 0) {
-    return null;
-  }
-
-  const attributedIn = (k: string, pkgName: string, version: string): boolean => {
-    const d = catalog.get(k)?.get(pkgName);
-    return (
-      !!d && Object.values(d.channelVersions).some(vs => vs.includes(version))
-    );
-  };
-
-  const bumpable: Array<{ pkg: string; version: string }> = [];
-  for (const [pkgName, versions] of unattributedByPkg) {
-    for (const version of versions) {
-      if (newerKeys.some(k => attributedIn(k, pkgName, version))) {
-        bumpable.push({ pkg: pkgName, version });
-      }
-    }
-  }
-  if (bumpable.length === 0) {
-    return null;
-  }
-
-  const targetKey = newerKeys.find(k =>
-    bumpable.every(({ pkg, version }) => attributedIn(k, pkg, version)),
-  );
-  if (!targetKey) {
-    return null;
-  }
-
-  const targetOps = catalog.get(targetKey)!;
-  const oldTag = key.split(':')[1];
-  const newTag = targetKey.split(':')[1];
-  const moved: string[] = [];
-  const kept: string[] = [];
-  const channelRewrites: Record<string, { name: string; minVersion: string }[]> = {};
-  const notes: string[] = [];
-  for (const pkg of catEntry.packages ?? []) {
-    const targetDetail = targetOps.get(pkg.name);
-    if (!targetDetail) {
-      kept.push(pkg.name);
-      notes.push(
-        `${pkg.name}: stays on ${oldTag} — not in the ${newTag} catalog`,
-      );
-      continue;
-    }
-    const oldDetail = catOps.get(pkg.name);
-    const versions = [
-      ...new Set(
-        snapshot.packages[pkg.name]?.deployments.map(d => d.version) ?? [],
-      ),
-    ];
-    const keptChannels: { name: string; minVersion: string }[] = [];
-    const dropped: string[] = [];
-    let stragglerReason: string | null = null;
-    for (const ch of pkg.channels ?? []) {
-      const inTargetTag = targetDetail.channelVersions[ch.name] !== undefined;
-      const usedOnOld = versions.some(v =>
-        (oldDetail?.channelVersions[ch.name] ?? []).includes(v),
-      );
-      // a channel some deployment still runs from must survive the bump
-      if (usedOnOld) {
-        if (!inTargetTag) {
-          stragglerReason =
-            `channel ${ch.name} is still in use by a deployed version ` +
-            `but ${newTag} does not have it`;
-          break;
-        }
-        keptChannels.push({ name: ch.name, minVersion: ch.minVersion ?? '' });
-        continue;
-      }
-      // unused channel: dropping is removal semantics, so it needs a
-      // trustworthy snapshot; undeployed packages have no deployments to
-      // judge deadness against, so their channels stay as-is
-      if (versions.length === 0 || !trustworthy) {
-        if (inTargetTag) {
-          keptChannels.push({
-            name: ch.name,
-            minVersion: ch.minVersion ?? '',
-          });
-          continue;
-        }
-        if (!trustworthy) {
-          stragglerReason =
-            `channel ${ch.name} is not in ${newTag} and the snapshot is ` +
-            'incomplete — cannot prove the channel is unused';
-          break;
-        }
-        dropped.push(ch.name);
-        continue;
-      }
-      dropped.push(ch.name);
-    }
-    if (stragglerReason) {
-      kept.push(pkg.name);
-      notes.push(`${pkg.name}: stays on ${oldTag} — ${stragglerReason}`);
-      continue;
-    }
-    // coverage: every deployed version must attribute to a kept or newly
-    // added target channel, else the bump would stop mirroring it
-    const inTarget = (channelName: string, version: string): boolean =>
-      (targetDetail.channelVersions[channelName] ?? []).includes(version);
-    const added: { name: string; minVersion: string }[] = [];
-    let uncoverable: string | null = null;
-    for (const version of versions) {
-      if (
-        keptChannels.some(ch => inTarget(ch.name, version)) ||
-        added.some(ch => inTarget(ch.name, version))
-      ) {
-        continue;
-      }
-      const hosts = Object.keys(targetDetail.channelVersions)
-        .filter(channelName => inTarget(channelName, version))
-        .sort();
-      if (hosts.length === 0) {
-        uncoverable = version;
-        break;
-      }
-      const channelName =
-        targetDetail.defaultChannel && hosts.includes(targetDetail.defaultChannel)
-          ? targetDetail.defaultChannel
-          : hosts[0];
-      const attributedHere = versions.filter(v => inTarget(channelName, v));
-      added.push({ name: channelName, minVersion: minOf(attributedHere) });
-    }
-    if (uncoverable) {
-      kept.push(pkg.name);
-      notes.push(
-        `${pkg.name}: stays on ${oldTag} — deployed ${uncoverable} is in ` +
-          `no channel of ${newTag}`,
-      );
-      continue;
-    }
-    const rewritten = [...keptChannels, ...added];
-    if (rewritten.length === 0) {
-      kept.push(pkg.name);
-      notes.push(
-        `${pkg.name}: stays on ${oldTag} — the rewrite would leave it ` +
-          'without channels',
-      );
-      continue;
-    }
-    moved.push(pkg.name);
-    if (dropped.length === 0 && added.length === 0) {
-      continue; // verbatim move, nothing to rewrite
-    }
-    channelRewrites[pkg.name] = rewritten;
-    const removedNames = dropped.filter(
-      name => !rewritten.some(ch => ch.name === name),
-    );
-    const noteParts: string[] = [];
-    if (removedNames.length) {
-      noteParts.push(
-        `dropped ${removedNames.join(', ')} — no deployed version uses ` +
-          `${removedNames.length > 1 ? 'them' : 'it'} on ${oldTag}`,
-      );
-    }
-    for (const ch of added) {
-      const covers = versions.filter(v => inTarget(ch.name, v));
-      const existedBefore = (pkg.channels ?? []).some(
-        c => c.name === ch.name,
-      );
-      noteParts.push(
-        existedBefore
-          ? `set ${ch.name} minVersion to ${ch.minVersion} (matches ` +
-              `deployed ${covers.join(', ')})`
-          : `added ${ch.name} (minVersion ${ch.minVersion}) covering ` +
-              `deployed ${covers.join(', ')}`,
-      );
-    }
-    notes.push(`${pkg.name}: ${noteParts.join('; ')}`);
-  }
-  const triggering = bumpable.filter(t => moved.includes(t.pkg));
-  if (triggering.length === 0) {
-    return null;
-  }
-  const proposedCatalog =
-    catalogUrls.get(targetKey) ??
-    catEntry.catalog.replace(/:[^/:]+$/, `:${newTag}`);
-  const example = triggering[0];
-  const pin = snapshot.packages[example.pkg]?.deployments.find(
-    d => d.version === example.version,
-  );
-  const pinText = pin ? `${pin.cluster} @ ${pin.hub}` : 'unknown cluster';
-  const path: SuggestionPath = { type: 'catalog', catalog: catEntry.catalog };
-  return {
-    id: suggestionId('bump-catalog', path),
-    kind: 'bump-catalog',
-    path,
-    current: oldTag,
-    proposed: newTag,
-    proposedCatalog,
-    movedPackages: moved,
-    ...(Object.keys(channelRewrites).length ? { channelRewrites } : {}),
-    evidence:
-      `${example.pkg} runs ${example.version} (${pinText}) — in no channel ` +
-      `of ${oldTag}, attributed in ${newTag}; moves ${moved.length} ` +
-      `package(s)${kept.length ? `, keeps ${kept.length} on ${oldTag}` : ''}`,
-    defaultChecked: false,
-    ...(notes.length ? { notes } : {}),
-  };
-}
 
 function seedFromEmptyIsc(
   snapshot: DeployedOperatorSnapshot,
@@ -580,17 +304,6 @@ export function reconcile(
       );
     }
 
-    const bump =
-      catOps && key
-        ? planCatalogBump(
-            catEntry, key, catOps, catalog, catalogUrls, snapshot, trustworthy,
-          )
-        : null;
-    if (bump) {
-      suggestions.push(bump);
-    }
-    const movedForBump = new Set(bump?.movedPackages ?? []);
-
     for (const pkg of catEntry.packages ?? []) {
       const snapPkg = snapshot.packages[pkg.name];
       const detail = catOps?.get(pkg.name);
@@ -675,15 +388,14 @@ export function reconcile(
           ),
         ),
       ];
-      if (unattributed.length > 0 && !movedForBump.has(pkg.name)) {
+      if (unattributed.length > 0) {
         warnings.push(
           `${pkg.name}: deployed version(s) ${unattributed.join(', ')} are in no ` +
             'catalog channel (skipRange-only upgrade graph?) — using numeric ' +
             'comparison for floors; channel removals are disabled for this package.',
         );
       }
-      const removalsAllowed =
-        trustworthy && unattributed.length === 0 && !movedForBump.has(pkg.name);
+      const removalsAllowed = trustworthy && unattributed.length === 0;
       const pkgFloor = minOf(versions);
 
       for (const ch of channels) {
@@ -696,7 +408,7 @@ export function reconcile(
         }
         const attributed = versions.filter(v => inChannel(v, ch.name));
         let floor: string | null = null;
-        if (unattributed.length > 0 && !movedForBump.has(pkg.name)) {
+        if (unattributed.length > 0) {
           // minVersion is a floor filter, so a value below the channel's
           // entries is fine — but one above the channel head would filter
           // out every version the channel has (numaresources 4.22.1 into

@@ -47,7 +47,6 @@ const kindLabel: Record<Suggestion['kind'], string> = {
   'add-operator': 'Add operator',
   'remove-channel': 'Remove channel',
   'reset-unused-operator': 'Reset unused operator',
-  'bump-catalog': 'Bump catalog',
 };
 
 const kindColor: Record<
@@ -61,12 +60,10 @@ const kindColor: Record<
   'add-operator': 'purple',
   'remove-channel': 'grey',
   'reset-unused-operator': 'grey',
-  'bump-catalog': 'purple',
 };
 
 function pathText(path: Suggestion['path']): string {
   if (path.type === 'platform-channel') return `platform / ${path.channel}`;
-  if (path.type === 'catalog') return path.catalog.split('/').pop() ?? path.catalog;
   if (path.type === 'operator') return path.package;
   return `${path.package} / ${path.channel}`;
 }
