@@ -28,6 +28,7 @@ export interface Suggestion {
   proposedChannels?: { name: string; minVersion: string }[];
   proposedCatalog?: string;
   movedPackages?: string[];
+  channelRewrites?: Record<string, { name: string; minVersion: string }[]>;
   evidence: string;
   notes?: string[];
   defaultChecked: boolean;

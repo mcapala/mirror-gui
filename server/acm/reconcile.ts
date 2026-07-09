@@ -30,6 +30,13 @@ export interface Suggestion {
   proposedCatalog?: string;
   /** bump-catalog: packages that move to the target entry; the rest stay. */
   movedPackages?: string[];
+  /**
+   * bump-catalog: replacement channel lists for moved packages whose ISC
+   * channels are absent from the target tag (dead + unused → dropped, and a
+   * target channel covering the deployed versions appended). Packages not
+   * listed move with their channels verbatim.
+   */
+  channelRewrites?: Record<string, { name: string; minVersion: string }[]>;
   evidence: string;
   /** Operator-scoped explanations shown in the row's expandable area. */
   notes?: string[];
@@ -189,8 +196,11 @@ function compareCatalogKeyTags(a: string, b: string): number {
  * One bump per ISC catalog entry: fires when a deployed version of one of the
  * entry's packages attributes to no channel of the selected tag but does
  * attribute in a newer synced tag of the same index. Packages are never
- * split across entries — a package moves only if the target tag has all of
- * its ISC channels.
+ * split across entries — a package moves if the target tag has all of its
+ * ISC channels, or (when the snapshot is trustworthy) if every missing
+ * channel is dead — no deployed version attributes to it on the old tag —
+ * and the deployed versions are covered by target channels; dead channels
+ * are then dropped and a covering target channel appended (channelRewrites).
  */
 function planCatalogBump(
   catEntry: IscOperatorCatalog,
@@ -199,6 +209,7 @@ function planCatalogBump(
   catalog: ReconcileCatalog,
   catalogUrls: Map<string, string>,
   snapshot: DeployedOperatorSnapshot,
+  trustworthy: boolean,
 ): Suggestion | null {
   const indexName = key.split(':')[0];
   const newerKeys = [...catalog.keys()]
@@ -265,24 +276,96 @@ function planCatalogBump(
   }
 
   const targetOps = catalog.get(targetKey)!;
+  const oldTag = key.split(':')[1];
+  const newTag = targetKey.split(':')[1];
   const moved: string[] = [];
   const kept: string[] = [];
+  const channelRewrites: Record<string, { name: string; minVersion: string }[]> = {};
+  const notes: string[] = [];
   for (const pkg of catEntry.packages ?? []) {
     const targetDetail = targetOps.get(pkg.name);
-    const movable =
-      !!targetDetail &&
-      (pkg.channels ?? []).every(
-        ch => targetDetail.channelVersions[ch.name] !== undefined,
+    if (!targetDetail) {
+      kept.push(pkg.name);
+      continue;
+    }
+    const oldDetail = catOps.get(pkg.name);
+    const versions =
+      snapshot.packages[pkg.name]?.deployments.map(d => d.version) ?? [];
+    const keptChannels: { name: string; minVersion: string }[] = [];
+    const dropped: string[] = [];
+    let straggler = false;
+    for (const ch of pkg.channels ?? []) {
+      if (targetDetail.channelVersions[ch.name] !== undefined) {
+        keptChannels.push({ name: ch.name, minVersion: ch.minVersion ?? '' });
+        continue;
+      }
+      // channel absent from the target tag: droppable only when no deployed
+      // version attributes to it (dead) and the snapshot can prove that
+      const usedOnOld = versions.some(v =>
+        (oldDetail?.channelVersions[ch.name] ?? []).includes(v),
       );
-    (movable ? moved : kept).push(pkg.name);
+      if (usedOnOld || !trustworthy) {
+        straggler = true;
+        break;
+      }
+      dropped.push(ch.name);
+    }
+    if (straggler) {
+      kept.push(pkg.name);
+      continue;
+    }
+    if (dropped.length === 0) {
+      moved.push(pkg.name);
+      continue;
+    }
+    // dropping channels loses coverage — every deployed version must
+    // attribute to a kept or newly added target channel, else straggler
+    const inTarget = (channelName: string, version: string): boolean =>
+      (targetDetail.channelVersions[channelName] ?? []).includes(version);
+    const added: { name: string; minVersion: string }[] = [];
+    let uncoverable = false;
+    for (const version of [...new Set(versions)]) {
+      if (
+        keptChannels.some(ch => inTarget(ch.name, version)) ||
+        added.some(ch => inTarget(ch.name, version))
+      ) {
+        continue;
+      }
+      const hosts = Object.keys(targetDetail.channelVersions)
+        .filter(channelName => inTarget(channelName, version))
+        .sort();
+      if (hosts.length === 0) {
+        uncoverable = true;
+        break;
+      }
+      const channelName =
+        targetDetail.defaultChannel && hosts.includes(targetDetail.defaultChannel)
+          ? targetDetail.defaultChannel
+          : hosts[0];
+      const attributedHere = versions.filter(v => inTarget(channelName, v));
+      added.push({ name: channelName, minVersion: minOf(attributedHere) });
+    }
+    const rewritten = [...keptChannels, ...added];
+    if (uncoverable || rewritten.length === 0) {
+      kept.push(pkg.name);
+      continue;
+    }
+    moved.push(pkg.name);
+    channelRewrites[pkg.name] = rewritten;
+    notes.push(
+      `${pkg.name}: channel(s) ${dropped.join(', ')} are not in ${newTag} and ` +
+        'no deployed version uses them — dropped' +
+        (added.length
+          ? `; added ${added
+              .map(ch => `${ch.name}@${ch.minVersion}`)
+              .join(', ')} covering the deployed version(s)`
+          : ''),
+    );
   }
   const triggering = bumpable.filter(t => moved.includes(t.pkg));
   if (triggering.length === 0) {
     return null;
   }
-
-  const oldTag = key.split(':')[1];
-  const newTag = targetKey.split(':')[1];
   const proposedCatalog =
     catalogUrls.get(targetKey) ??
     catEntry.catalog.replace(/:[^/:]+$/, `:${newTag}`);
@@ -300,11 +383,13 @@ function planCatalogBump(
     proposed: newTag,
     proposedCatalog,
     movedPackages: moved,
+    ...(Object.keys(channelRewrites).length ? { channelRewrites } : {}),
     evidence:
       `${example.pkg} runs ${example.version} (${pinText}) — in no channel ` +
       `of ${oldTag}, attributed in ${newTag}; moves ${moved.length} ` +
       `package(s)${kept.length ? `, keeps ${kept.length} on ${oldTag}` : ''}`,
     defaultChecked: false,
+    ...(notes.length ? { notes } : {}),
   };
 }
 
@@ -437,7 +522,9 @@ export function reconcile(
 
     const bump =
       catOps && key
-        ? planCatalogBump(catEntry, key, catOps, catalog, catalogUrls, snapshot)
+        ? planCatalogBump(
+            catEntry, key, catOps, catalog, catalogUrls, snapshot, trustworthy,
+          )
         : null;
     if (bump) {
       suggestions.push(bump);
@@ -550,7 +637,15 @@ export function reconcile(
         const attributed = versions.filter(v => inChannel(v, ch.name));
         let floor: string | null = null;
         if (unattributed.length > 0 && !movedForBump.has(pkg.name)) {
-          floor = pkgFloor;
+          // minVersion is a floor filter, so a value below the channel's
+          // entries is fine — but one above the channel head would filter
+          // out every version the channel has (numaresources 4.22.1 into
+          // channel "4.21"): propose nothing instead
+          if (compareVersionStrings(pkgFloor, maxOf(chVersions)) <= 0) {
+            floor = pkgFloor;
+          } else if (attributed.length > 0) {
+            floor = minOf(attributed);
+          }
         } else if (attributed.length > 0) {
           floor = minOf(attributed);
         }

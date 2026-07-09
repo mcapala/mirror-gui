@@ -104,7 +104,15 @@ export function applySuggestions(
           );
           continue;
         }
-        target.packages.push(oldEntry.packages.splice(index, 1)[0]);
+        const pkg = oldEntry.packages.splice(index, 1)[0];
+        const rewrite = suggestion.channelRewrites?.[name];
+        if (rewrite) {
+          pkg.channels = rewrite.map(ch => ({
+            name: ch.name,
+            minVersion: ch.minVersion,
+          }));
+        }
+        target.packages.push(pkg);
         moved++;
       }
       if (moved > 0) {

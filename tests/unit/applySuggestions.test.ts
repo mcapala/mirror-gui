@@ -277,6 +277,23 @@ describe('applySuggestions', () => {
     expect(result.skipped[0]).toContain('quay.io/other/index:v1');
   });
 
+  it('bump-catalog rewrites channels for packages listed in channelRewrites', () => {
+    const result = applySuggestions(baseConfig(), [{
+      ...bumpSuggestion(['odf-operator']),
+      channelRewrites: {
+        'odf-operator': [{ name: 'stable-4.22', minVersion: '4.22.0' }],
+      },
+    }]);
+    expect(result.applied).toBe(1);
+    const newEntry = result.config.mirror.operators.find(e => e.catalog === NEW_CATALOG_URL);
+    expect(newEntry!.packages).toEqual([
+      {
+        name: 'odf-operator',
+        channels: [{ name: 'stable-4.22', minVersion: '4.22.0' }],
+      },
+    ]);
+  });
+
   it('applies raises before the bump so moved packages carry the new minVersion', () => {
     // bump listed FIRST to prove reordering, raise second
     const result = applySuggestions(baseConfig(), [
