@@ -67,6 +67,12 @@ import { FieldBuilder } from '@patternfly/react-component-groups';
 import { TypeaheadSelect, TypeaheadSelectOption } from '@patternfly/react-templates';
 import FleetUpdates from './fleetUpdates/FleetUpdates';
 import RegistryCleanup from './registryCleanup/RegistryCleanup';
+import {
+  buildCleanConfig,
+  getArchiveSizeValidationMessage,
+  type CleanConfig,
+  type DetailedOperator,
+} from './cleanConfig';
 
 export interface PlatformChannel {
   name: string;
@@ -116,44 +122,6 @@ interface CatalogInfo {
   description: string;
   digest?: string | null;
   syncedAt?: string | null;
-}
-
-interface DetailedOperator {
-  name: string;
-  defaultChannel: string;
-  allChannels: string[];
-}
-
-interface CleanChannel {
-  name: string;
-  type?: string;
-  minVersion?: string;
-  maxVersion?: string;
-  shortestPath?: boolean;
-}
-
-interface CleanOperatorChannel {
-  name: string;
-  minVersion?: string;
-  maxVersion?: string;
-}
-
-interface CleanConfig {
-  kind: string;
-  apiVersion: string;
-  archiveSize?: number;
-  mirror: {
-    platform?: Record<string, unknown>;
-    operators?: {
-      catalog: string;
-      packages: {
-        name: string;
-        defaultChannel?: string;
-        channels: CleanOperatorChannel[];
-      }[];
-    }[];
-    additionalImages?: { name: string }[];
-  };
 }
 
 type VersionField = 'minVersion' | 'maxVersion';
@@ -304,24 +272,6 @@ const getImageNameWarning = (name: string): string => {
   if (name.includes(' ')) return 'Image name should not contain spaces';
   if (!name.includes('/')) return 'Image name should include a registry (e.g. registry.redhat.io/namespace/image)';
   if (!name.includes(':') && !name.includes('@')) return 'Consider adding a tag or digest (e.g. :latest or @sha256:...)';
-  return '';
-};
-
-const getArchiveSizeValidationMessage = (value: string): string => {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return '';
-  }
-
-  if (!/^\d+$/.test(trimmedValue)) {
-    return 'Archive size must contain digits only';
-  }
-
-  if (Number.parseInt(trimmedValue, 10) <= 0) {
-    return 'Archive size must be greater than 0';
-  }
-
   return '';
 };
 
@@ -1152,75 +1102,11 @@ const MirrorConfig: React.FC = () => {
     }));
   };
 
-  const generateCleanConfig = useCallback((): CleanConfig => {
-    const clean: CleanConfig = {
-      kind: 'ImageSetConfiguration',
-      apiVersion: 'mirror.openshift.io/v2alpha1',
-      mirror: {},
-    };
-
-    const archiveSizeValue = config.archiveSize.trim();
-    if (archiveSizeValue && !getArchiveSizeValidationMessage(archiveSizeValue)) {
-      clean.archiveSize = Number.parseInt(archiveSizeValue, 10);
-    }
-
-    if (config.mirror.platform.channels?.length > 0) {
-      const platformConfig: Record<string, unknown> = {
-        channels: config.mirror.platform.channels.map(ch => {
-          const c: CleanChannel = { name: ch.name, type: ch.type };
-          if (ch.minVersion?.trim()) c.minVersion = ch.minVersion;
-          if (ch.maxVersion?.trim()) c.maxVersion = ch.maxVersion;
-          if (ch.shortestPath === true) c.shortestPath = true;
-          return c;
-        }),
-      };
-      if (config.mirror.platform.graph === true) {
-        platformConfig.graph = true;
-      }
-      clean.mirror.platform = platformConfig;
-    }
-
-    if (config.mirror.operators?.length > 0) {
-      clean.mirror.operators = config.mirror.operators.map(operator => {
-        const catalogRef = operator.catalog;
-        const resolvedCatalog = useDigestRef && catalogDigestMap[catalogRef]
-          ? catalogRef.replace(/:v[\d.]+$/, `@${catalogDigestMap[catalogRef]}`)
-          : catalogRef;
-        return {
-        catalog: resolvedCatalog,
-        packages: operator.packages.map(pkg => {
-          const operatorInfo = detailedOperators[operator.catalog]
-            ?.find(op => op.name === pkg.name);
-          const selectedChannelNames = pkg.channels.map(ch => ch.name);
-          const originalDefault = operatorInfo?.defaultChannel;
-          const needsDefaultOverride = originalDefault
-            && !selectedChannelNames.includes(originalDefault);
-
-          const cleanPkg: { name: string; defaultChannel?: string; channels: CleanOperatorChannel[] } = {
-            name: pkg.name,
-            channels: pkg.channels.map(ch => {
-              const c: CleanOperatorChannel = { name: ch.name };
-              if (ch.minVersion?.trim()) c.minVersion = ch.minVersion;
-              return c;
-            }),
-          };
-
-          if (needsDefaultOverride && selectedChannelNames.length > 0) {
-            cleanPkg.defaultChannel = selectedChannelNames[0];
-          }
-
-          return cleanPkg;
-        }),
-      };
-      });
-    }
-
-    if (config.mirror.additionalImages?.length > 0) {
-      clean.mirror.additionalImages = config.mirror.additionalImages;
-    }
-
-    return clean;
-  }, [config, useDigestRef, catalogDigestMap, detailedOperators]);
+  const generateCleanConfig = useCallback(
+    (): CleanConfig =>
+      buildCleanConfig(config, { useDigestRef, catalogDigestMap, detailedOperators }),
+    [config, useDigestRef, catalogDigestMap, detailedOperators],
+  );
 
   const validateConfiguration = (currentConfig: ImageSetConfig = config): string[] => {
     const errors: string[] = [];
