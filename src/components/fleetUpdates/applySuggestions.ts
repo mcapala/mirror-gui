@@ -25,7 +25,15 @@ export function applySuggestions(
   let applied = 0;
   const skipped: string[] = [];
 
-  for (const suggestion of suggestions) {
+  // Removals go last so a batched channel swap (add stable-4.22 +
+  // remove stable-4.21) never trips the "would leave the package without
+  // channels" guard on the pre-add state.
+  const ordered = [
+    ...suggestions.filter(s => s.kind !== 'remove-channel'),
+    ...suggestions.filter(s => s.kind === 'remove-channel'),
+  ];
+
+  for (const suggestion of ordered) {
     const { kind, path } = suggestion;
 
     if (path.type === 'platform-channel') {

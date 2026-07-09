@@ -93,6 +93,29 @@ describe('applySuggestions', () => {
     expect(result.config.mirror.operators[0].packages[0].channels).toHaveLength(1);
   });
 
+  it('applies a channel swap (remove + add in one batch) regardless of order', () => {
+    const config = baseConfig();
+    config.mirror.operators[0].packages[0].channels = [
+      { name: 'stable-4.21', minVersion: '' },
+    ];
+    const remove: Suggestion = {
+      id: 'sw1', kind: 'remove-channel',
+      path: { type: 'operator-channel', catalog: CATALOG_URL, package: 'odf-operator', channel: 'stable-4.21' },
+      current: null, proposed: null, evidence: '', defaultChecked: false,
+    };
+    const add: Suggestion = {
+      id: 'sw2', kind: 'add-channel',
+      path: { type: 'operator-channel', catalog: CATALOG_URL, package: 'odf-operator', channel: 'stable-4.22' },
+      current: null, proposed: '4.22.0', evidence: '', defaultChecked: false,
+    };
+    const result = applySuggestions(config, [remove, add]);
+    expect(result.applied).toBe(2);
+    expect(result.skipped).toHaveLength(0);
+    expect(result.config.mirror.operators[0].packages[0].channels).toEqual([
+      { name: 'stable-4.22', minVersion: '4.22.0' },
+    ]);
+  });
+
   it('removes a platform channel', () => {
     const result = applySuggestions(baseConfig(), [{
       id: 'dp', kind: 'remove-channel',
