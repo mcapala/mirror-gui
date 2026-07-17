@@ -4,7 +4,6 @@ import {
   queryHubClusters,
   classifyHubError,
   buildSearchRequestBody,
-  buildClusterCompleteBody,
   extractClusterVersion,
   searchApiUrl,
   SEARCH_RESULT_LIMIT,
@@ -231,31 +230,39 @@ describe('queryHub', () => {
   });
 });
 
-describe('buildClusterCompleteBody', () => {
-  it('asks searchComplete for cluster names of ClusterServiceVersions', () => {
-    const body = buildClusterCompleteBody(5000);
-    expect(body.query).toContain('searchComplete');
-    expect(body.variables.property).toBe('cluster');
-    expect(body.variables.query.filters).toEqual([
-      { property: 'kind', values: ['ClusterServiceVersion'] },
-    ]);
-    expect(body.variables.query.limit).toBe(5000);
-    expect(body.variables.limit).toBe(5000);
-  });
-});
-
 describe('queryHubClusters', () => {
-  const completeResponse = (values: unknown[]) => ({
-    data: { data: { searchComplete: values } },
-  });
-
-  it('returns sorted unique cluster names, dropping nulls and empties', async () => {
+  it('unions Cluster resource names with CSV cluster values, sorted unique', async () => {
     const transport = {
-      post: async () => completeResponse(['zeta', 'alpha', null, '', 'alpha']),
+      post: async () =>
+        okResponse(
+          [
+            { name: 'gitops.v1.21.1', cluster: 'local-cluster', phase: 'Succeeded' },
+            { name: 'odf.v4.18.0', cluster: 'spoke-1', phase: 'Succeeded' },
+            { name: 'odf.v4.18.0', cluster: 'spoke-1', phase: 'Succeeded' },
+          ],
+          [{ name: 'local-cluster' }, { name: 'spoke-2' }, {}],
+        ),
     };
     const result = await queryHubClusters(HUB, { transport });
-    expect(result.clusters).toEqual(['alpha', 'zeta']);
+    expect(result.clusters).toEqual(['local-cluster', 'spoke-1', 'spoke-2']);
     expect(result.truncated).toBe(false);
+  });
+
+  it('queries all clusters even when the hub has a saved selection', async () => {
+    let seenBody: ReturnType<typeof buildSearchRequestBody> | undefined;
+    const transport = {
+      post: async (_url: string, body: unknown) => {
+        seenBody = body as ReturnType<typeof buildSearchRequestBody>;
+        return okResponse([], []);
+      },
+    };
+    await queryHubClusters({ ...HUB, clusters: ['spoke-1'] }, { transport });
+    expect(seenBody!.variables.input[0].filters).toEqual([
+      { property: 'kind', values: ['ClusterServiceVersion'] },
+    ]);
+    expect(seenBody!.variables.input[1].filters).toEqual([
+      { property: 'kind', values: ['Cluster'] },
+    ]);
   });
 
   it('sends the Bearer token and a TLS agent honoring the hub CA', async () => {
@@ -263,7 +270,7 @@ describe('queryHubClusters', () => {
     const transport = {
       post: async (_url: string, _body: unknown, config: Record<string, unknown>) => {
         seenConfig = config;
-        return completeResponse([]);
+        return okResponse([], []);
       },
     };
     await queryHubClusters({ ...HUB, caBundle: 'PEMDATA' }, { transport });
@@ -277,13 +284,22 @@ describe('queryHubClusters', () => {
     expect(agent.options.rejectUnauthorized).toBe(true);
   });
 
-  it('flags truncation when the list hits the limit', async () => {
-    const transport = { post: async () => completeResponse(['a', 'b']) };
+  it('flags truncation when either items list hits the limit', async () => {
+    const transport = {
+      post: async () =>
+        okResponse(
+          [
+            { name: 'a.v1', cluster: 'c1', phase: 'Succeeded' },
+            { name: 'b.v1', cluster: 'c2', phase: 'Succeeded' },
+          ],
+          [],
+        ),
+    };
     const result = await queryHubClusters(HUB, { transport, limit: 2 });
     expect(result.truncated).toBe(true);
   });
 
-  it('throws bad-response on GraphQL errors and on a missing array', async () => {
+  it('throws bad-response on GraphQL errors and on missing items arrays', async () => {
     const errTransport = {
       post: async () => ({ data: { errors: [{ message: 'denied' }] } }),
     };

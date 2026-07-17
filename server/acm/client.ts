@@ -171,76 +171,25 @@ export async function queryHub(
   };
 }
 
-const CLUSTER_COMPLETE_QUERY = `query q($property: String!, $query: SearchInput, $limit: Int) {
-  searchComplete(property: $property, query: $query, limit: $limit)
-}`;
-
-export function buildClusterCompleteBody(limit: number = SEARCH_RESULT_LIMIT) {
-  return {
-    query: CLUSTER_COMPLETE_QUERY,
-    variables: {
-      property: 'cluster',
-      query: {
-        filters: [{ property: 'kind', values: ['ClusterServiceVersion'] }],
-        limit,
-      },
-      limit,
-    },
-  };
-}
-
+// Discover via the same search query the fleet snapshot uses. searchComplete
+// on the `cluster` property omits local-cluster on some ACM releases, so the
+// picker unions Cluster resource names with the clusters seen on CSVs.
 export async function queryHubClusters(
   hub: AcmHub,
   opts: { limit?: number; transport?: Transport } = {},
 ): Promise<{ clusters: string[]; truncated: boolean }> {
-  const limit = opts.limit ?? SEARCH_RESULT_LIMIT;
-  const transport = opts.transport ?? axios;
-  const httpsAgent = new https.Agent({
-    ca: hub.caBundle || undefined,
-    rejectUnauthorized: !hub.insecureSkipVerify,
-  });
-
-  let response: { data: unknown };
-  try {
-    response = await transport.post(
-      searchApiUrl(hub.url),
-      buildClusterCompleteBody(limit),
-      {
-        headers: {
-          Authorization: `Bearer ${hub.token}`,
-          'Content-Type': 'application/json',
-        },
-        httpsAgent,
-        timeout: HUB_TIMEOUT_MS,
-      },
-    );
-  } catch (error) {
-    throw classifyHubError(error);
-  }
-
-  const data = response.data as {
-    data?: { searchComplete?: unknown };
-    errors?: Array<{ message?: string }>;
-  };
-  if (data?.errors?.length) {
-    throw new HubQueryError(
-      'bad-response',
-      `Search API returned an error: ${data.errors[0]?.message ?? 'unknown'}`,
-    );
-  }
-  const raw = data?.data?.searchComplete;
-  if (!Array.isArray(raw)) {
-    throw new HubQueryError(
-      'bad-response',
-      'Search API response did not contain a searchComplete array',
-    );
-  }
+  const result = await queryHub({ ...hub, clusters: undefined }, opts);
+  const names = [
+    ...result.clusterItems.map(item => item.name),
+    ...result.csvItems.map(item => item.cluster),
+  ];
   const clusters = [
     ...new Set(
-      raw.filter(
-        (value): value is string => typeof value === 'string' && value.length > 0,
+      names.filter(
+        (value): value is string =>
+          typeof value === 'string' && value.length > 0,
       ),
     ),
   ].sort();
-  return { clusters, truncated: raw.length >= limit };
+  return { clusters, truncated: result.truncated };
 }
